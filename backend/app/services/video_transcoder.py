@@ -116,3 +116,57 @@ class VideoTranscodeService:
             "video_kiosk": f"/static/videos/{kiosk_filename}",
             "file_size_bytes": total_size
         }
+
+    @classmethod
+    async def process_image(cls, input_path: str, output_dir: Path, asset_id: int) -> dict:
+        """
+        Processes uploaded high-resolution photo:
+        1. poster_lqip.webp (320x568 blur LQIP ~8-12KB)
+        2. poster_hd.webp (1080x1920 HD WebP ~60-120KB)
+        """
+        output_dir.mkdir(parents=True, exist_ok=True)
+        ffmpeg_bin = get_ffmpeg_path()
+
+        base_name = f"asset_{asset_id}"
+        lqip_filename = f"{base_name}_lqip.webp"
+        hd_filename = f"{base_name}_hd.webp"
+
+        lqip_path = output_dir / lqip_filename
+        hd_path = output_dir / hd_filename
+
+        # Command 1: Micro-blurred LQIP poster (320x568)
+        cmd_lqip = [
+            ffmpeg_bin, "-y", "-i", input_path,
+            "-vf", "scale=320:568:force_original_aspect_ratio=increase,crop=320:568",
+            "-q:v", "20",
+            str(lqip_path)
+        ]
+
+        # Command 2: Crisp HD WebP poster (1080x1920)
+        cmd_hd = [
+            ffmpeg_bin, "-y", "-i", input_path,
+            "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920",
+            "-q:v", "88",
+            str(hd_path)
+        ]
+
+        def run_proc(cmd):
+            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if res.returncode != 0:
+                logger.error(f"FFmpeg error: {res.stderr.decode('utf-8', errors='ignore')}")
+                raise RuntimeError(f"FFmpeg command failed: {' '.join(cmd)}")
+
+        await asyncio.gather(
+            asyncio.to_thread(run_proc, cmd_lqip),
+            asyncio.to_thread(run_proc, cmd_hd),
+        )
+
+        total_size = hd_path.stat().st_size if hd_path.exists() else 0
+
+        return {
+            "poster_lqip": f"/static/videos/{lqip_filename}",
+            "poster_hd": f"/static/videos/{hd_filename}",
+            "video_mobile": None,
+            "video_kiosk": None,
+            "file_size_bytes": total_size
+        }

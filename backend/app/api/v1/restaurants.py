@@ -39,6 +39,31 @@ async def get_restaurant(slug: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Ресторан не найден")
     return restaurant
 
+@router.put("/{slug}", response_model=RestaurantResponse)
+async def update_restaurant(
+    slug: str,
+    data: RestaurantUpdate,
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(Restaurant).where(Restaurant.slug == slug))
+    restaurant = result.scalar_one_or_none()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Ресторан не найден")
+
+    # If updating slug, check uniqueness
+    if data.slug and data.slug != slug:
+        existing = await db.execute(select(Restaurant).where(Restaurant.slug == data.slug))
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Ресторан с таким URL-slug уже существует")
+
+    update_dict = data.model_dump(exclude_unset=True)
+    for key, value in update_dict.items():
+        setattr(restaurant, key, value)
+
+    await db.commit()
+    await db.refresh(restaurant)
+    return restaurant
+
 @router.put("/{slug}/theme")
 async def update_restaurant_theme(
     slug: str,
@@ -79,7 +104,7 @@ async def get_restaurant_full_menu(
     
     categories_data = []
     for cat in sorted(restaurant.categories, key=lambda c: c.display_order):
-        if not cat.is_active:
+        if not include_unavailable and not cat.is_active:
             continue
         
         dishes_list = []
@@ -120,6 +145,7 @@ async def get_restaurant_full_menu(
             "name": cat.name_translations,
             "icon": cat.icon,
             "display_order": cat.display_order,
+            "is_active": cat.is_active,
             "dishes": dishes_list
         })
 

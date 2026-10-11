@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { CategoryTabs } from './CategoryTabs';
+import { MobileHeader } from './MobileHeader';
 import { DishSlide } from './DishSlide';
-import { LanguagePicker } from '../../components/ui/LanguagePicker';
 import { useLanguage } from '../../context/LanguageContext';
 import { useVideoPreload } from '../../hooks/useVideoPreload';
 
@@ -12,7 +11,7 @@ export const MobileFeed = ({ restaurantData }) => {
   const containerRef = useRef(null);
   const { t } = useLanguage();
 
-  // Flatten or filter dishes based on selected category or all
+  // Active category & dishes
   const activeCategory = categories.find((c) => c.id === activeCategoryId) || categories[0];
   const dishes = activeCategory ? activeCategory.dishes : [];
 
@@ -45,14 +44,12 @@ export const MobileFeed = ({ restaurantData }) => {
         width: '100vw',
         height: '100dvh',
         overflow: 'hidden',
-        backgroundColor: '#000'
+        backgroundColor: '#09090b'
       }}
     >
-      {/* Top Floating Language Switcher */}
-      <LanguagePicker variant="floating" />
-
-      {/* Top Category Tabs */}
-      <CategoryTabs
+      {/* Unified Luxury Mobile Header (Brand + Menu Drawer + Language Drawer + Category Carousel) */}
+      <MobileHeader
+        restaurantName={restaurantData.restaurant?.name || 'ASR Maison Royale'}
         categories={categories}
         activeCategoryId={activeCategoryId}
         onSelectCategory={handleSelectCategory}
@@ -97,7 +94,7 @@ export const MobileFeed = ({ restaurantData }) => {
         </div>
       )}
 
-      {/* Slide dots indicator on the right */}
+      {/* Slide counter pill & dots indicator on the right */}
       {dishes.length > 1 && (
         <div
           style={{
@@ -108,9 +105,30 @@ export const MobileFeed = ({ restaurantData }) => {
             zIndex: 35,
             display: 'flex',
             flexDirection: 'column',
-            gap: '6px'
+            alignItems: 'center',
+            gap: '6px',
+            pointerEvents: 'none'
           }}
         >
+          {/* Subtle numeric badge */}
+          <div
+            style={{
+              fontSize: '10px',
+              fontWeight: '700',
+              color: 'var(--accent-gold)',
+              backgroundColor: 'rgba(9, 9, 11, 0.75)',
+              border: '1px solid rgba(212, 175, 55, 0.3)',
+              borderRadius: '8px',
+              padding: '2px 5px',
+              marginBottom: '4px',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)'
+            }}
+          >
+            {currentSlideIndex + 1}/{dishes.length}
+          </div>
+
+          {/* Dots */}
           {dishes.map((_, idx) => (
             <div
               key={idx}
@@ -118,7 +136,14 @@ export const MobileFeed = ({ restaurantData }) => {
                 width: '4px',
                 height: idx === currentSlideIndex ? '20px' : '4px',
                 borderRadius: '4px',
-                backgroundColor: idx === currentSlideIndex ? 'var(--accent-gold)' : 'rgba(255, 255, 255, 0.25)',
+                backgroundColor:
+                  idx === currentSlideIndex
+                    ? 'var(--accent-gold)'
+                    : 'rgba(255, 255, 255, 0.3)',
+                boxShadow:
+                  idx === currentSlideIndex
+                    ? '0 0 8px rgba(212, 175, 55, 0.6)'
+                    : 'none',
                 transition: 'all 0.3s ease'
               }}
             />

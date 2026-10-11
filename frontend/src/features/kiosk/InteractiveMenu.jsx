@@ -397,16 +397,49 @@ export const InteractiveMenu = ({
                   {selectedDish.price} {selectedDish.currency}
                 </div>
 
-                <p
-                  style={{
-                    fontSize: '16px',
-                    color: 'var(--text-muted)',
-                    lineHeight: '1.7',
-                    marginBottom: '32px'
-                  }}
-                >
-                  {t(selectedDish.description)}
-                </p>
+                {(() => {
+                  const rawDesc = t(selectedDish.description);
+                  let shortDesc = '';
+                  let ingredients = '';
+                  let serving = '';
+                  if (typeof rawDesc === 'string') {
+                    shortDesc = rawDesc;
+                  } else if (rawDesc && typeof rawDesc === 'object') {
+                    shortDesc = rawDesc.description || rawDesc.text || '';
+                    ingredients = rawDesc.ingredients || '';
+                    serving = rawDesc.serving || '';
+                  }
+
+                  return (
+                    <div style={{ marginBottom: '28px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      {shortDesc && (
+                        <p style={{ fontSize: '16px', color: 'rgba(255, 255, 255, 0.85)', lineHeight: '1.6', margin: 0 }}>
+                          {shortDesc}
+                        </p>
+                      )}
+                      {ingredients && (
+                        <div style={{ padding: '12px 16px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                          <span style={{ color: 'var(--accent-gold)', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '4px' }}>
+                            🌿 Состав и ингредиенты:
+                          </span>
+                          <span style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', lineHeight: '1.5' }}>
+                            {ingredients}
+                          </span>
+                        </div>
+                      )}
+                      {serving && (
+                        <div style={{ padding: '12px 16px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                          <span style={{ color: 'var(--accent-gold)', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '4px' }}>
+                            🍽️ Особенности подачи:
+                          </span>
+                          <span style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', lineHeight: '1.5' }}>
+                            {serving}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Specs */}
                 <div

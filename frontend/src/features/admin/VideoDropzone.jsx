@@ -15,28 +15,31 @@ export const VideoDropzone = ({ onMediaReady, currentMediaId }) => {
   const handleFiles = async (file) => {
     if (!file) return;
 
-    // Check video type
-    const validExtensions = ['mp4', 'mov', 'webm', 'mkv', 'avi'];
+    // Check media type (videos and photos)
+    const validVideoExts = ['mp4', 'mov', 'webm', 'mkv', 'avi'];
+    const validImageExts = ['jpg', 'jpeg', 'png', 'webp', 'heic'];
+    const validExtensions = [...validVideoExts, ...validImageExts];
     const ext = file.name.split('.').pop().toLowerCase();
     if (!validExtensions.includes(ext)) {
-      alert(`Формат .${ext} не поддерживается. Допустимы: ${validExtensions.join(', ')}`);
+      alert(`Формат .${ext} не поддерживается. Допустимы видео (${validVideoExts.join(', ')}) и фото (${validImageExts.join(', ')})`);
       return;
     }
 
+    const isImage = file.type.startsWith('image/') || validImageExts.includes(ext);
     setSelectedFile(file);
     const localUrl = URL.createObjectURL(file);
-    setPreviewUrl(localUrl);
+    setPreviewUrl({ url: localUrl, isImage });
 
     // Auto upload to backend
     setIsUploading(true);
-    setStatusMessage('Загрузка видео на сервер...');
+    setStatusMessage(isImage ? 'Загрузка фото на сервер...' : 'Загрузка видео на сервер...');
 
     try {
       const res = await menuService.uploadVideo(file);
       setMediaId(res.media_id);
       setIsUploading(false);
       setIsProcessing(true);
-      setStatusMessage('FFmpeg обрабатывает видео (генерация LQIP и 720p H.264)...');
+      setStatusMessage(isImage ? 'FFmpeg оптимизирует фото (LQIP + HD WebP)...' : 'FFmpeg обрабатывает видео (генерация LQIP и 720p H.264)...');
 
       if (onMediaReady) onMediaReady(res.media_id);
 
@@ -48,11 +51,11 @@ export const VideoDropzone = ({ onMediaReady, currentMediaId }) => {
           const statusRes = await menuService.getMediaStatus(res.media_id);
           if (statusRes.status === 'READY') {
             setIsProcessing(false);
-            setStatusMessage('Видео успешно оптимизировано и готово!');
+            setStatusMessage(isImage ? 'Фото успешно оптимизировано и готово!' : 'Видео успешно оптимизировано и готово!');
             clearInterval(pollInterval);
           } else if (statusRes.status === 'FAILED') {
             setIsProcessing(false);
-            setStatusMessage('Ошибка сжатия видео: ' + (statusRes.error_message || 'Неизвестно'));
+            setStatusMessage('Ошибка обработки: ' + (statusRes.error_message || 'Неизвестно'));
             clearInterval(pollInterval);
           }
         } catch (_) {}
@@ -93,7 +96,7 @@ export const VideoDropzone = ({ onMediaReady, currentMediaId }) => {
       <input
         ref={fileInputRef}
         type="file"
-        accept="video/mp4,video/quicktime,video/webm,video/x-matroska,video/avi"
+        accept="video/mp4,video/quicktime,video/webm,video/x-matroska,video/avi,image/jpeg,image/png,image/webp,image/heic"
         style={{ display: 'none' }}
         onChange={(e) => {
           if (e.target.files && e.target.files[0]) {
@@ -128,15 +131,23 @@ export const VideoDropzone = ({ onMediaReady, currentMediaId }) => {
         }}
       >
         {previewUrl ? (
-          <div style={{ position: 'relative', width: '120px', height: '160px', borderRadius: '12px', overflow: 'hidden' }}>
-            <video
-              src={previewUrl}
-              autoPlay
-              loop
-              muted
-              playsInline
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
+          <div style={{ position: 'relative', width: '120px', height: '160px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--glass-border-subtle)' }}>
+            {previewUrl.isImage ? (
+              <img
+                src={previewUrl.url}
+                alt="Preview"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <video
+                src={previewUrl.url}
+                autoPlay
+                loop
+                muted
+                playsInline
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            )}
           </div>
         ) : (
           <div
@@ -157,10 +168,10 @@ export const VideoDropzone = ({ onMediaReady, currentMediaId }) => {
 
         <div>
           <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-main)', marginBottom: '4px' }}>
-            {selectedFile ? selectedFile.name : 'Нажмите или перетащите видео блюда'}
+            {selectedFile ? selectedFile.name : 'Нажмите или перетащите видео или фото блюда'}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            MP4, MOV (iPhone ProRes/HEVC), WebM, MKV • Вертикальный формат (9:16)
+            Видео (MP4, MOV, WebM) или Фото (JPG, PNG, WebP) • Рекомендуется 9:16
           </div>
         </div>
 

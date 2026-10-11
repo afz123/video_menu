@@ -70,7 +70,7 @@ export const VideoPlayer = ({
         />
       )}
 
-      {/* 2. HD Poster */}
+      {/* 2. HD Poster (with subtle cinematic slow-zoom if static photo) */}
       {!isVideoLoaded && poster && (
         <img
           src={poster}
@@ -81,7 +81,8 @@ export const VideoPlayer = ({
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            transition: 'opacity 0.5s ease'
+            transform: !videoSrc && isCurrent ? 'scale(1.04)' : 'scale(1)',
+            transition: 'transform 7s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.5s ease'
           }}
         />
       )}

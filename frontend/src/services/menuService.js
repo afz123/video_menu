@@ -4,6 +4,7 @@ export const menuService = {
   // Restaurants
   getRestaurants: () => api.get('/restaurants'),
   getRestaurant: (slug) => api.get(`/restaurants/${slug}`),
+  updateRestaurant: (slug, data) => api.put(`/restaurants/${slug}`, data),
   getFullMenu: (slug, includeUnavailable = false) => 
     api.get(`/restaurants/${slug}/full-menu?include_unavailable=${includeUnavailable}`),
   updateTheme: (slug, themeConfig) => 
@@ -42,5 +43,14 @@ export const menuService = {
   getMediaStatus: (mediaId) => api.get(`/media/${mediaId}`),
 
   // Kiosk
-  getKioskConfig: (slug) => api.get(`/kiosk/${slug}/config`)
+  getKioskConfig: (slug) => api.get(`/kiosk/${slug}/config`),
+
+  // Translation Service
+  translateTexts: (data) => api.post('/translate', data),
+
+  // Admin Auth
+  loginAdmin: (password, slug = 'asr-royale') => api.post('/auth/login', { password, slug }),
+  verifyAdminToken: (token) => api.post('/auth/verify', { token }),
+  changeAdminPassword: (data) => api.post('/auth/change-password', data),
+  logoutAdmin: (token) => api.post('/auth/logout', { token })
 };

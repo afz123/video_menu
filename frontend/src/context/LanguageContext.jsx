@@ -2,11 +2,24 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const LanguageContext = createContext(null);
 
-export const SUPPORTED_LANGUAGES = [
+export const AVAILABLE_LANGUAGES = [
   { code: 'ru', label: 'Русский', short: 'RU', flag: '🇷🇺' },
+  { code: 'tj', label: 'Тоҷикӣ', short: 'TJ', flag: '🇹🇯' },
   { code: 'en', label: 'English', short: 'EN', flag: '🇬🇧' },
-  { code: 'tj', label: 'Тоҷикӣ', short: 'TJ', flag: '🇹🇯' }
+  { code: 'uz', label: "O'zbekcha", short: 'UZ', flag: '🇺🇿' },
+  { code: 'tr', label: 'Türkçe', short: 'TR', flag: '🇹🇷' },
+  { code: 'ar', label: 'العربية', short: 'AR', flag: '🇦🇪' },
+  { code: 'zh', label: '中文', short: 'ZH', flag: '🇨🇳' },
+  { code: 'fr', label: 'Français', short: 'FR', flag: '🇫🇷' },
+  { code: 'de', label: 'Deutsch', short: 'DE', flag: '🇩🇪' },
+  { code: 'es', label: 'Español', short: 'ES', flag: '🇪🇸' },
+  { code: 'it', label: 'Italiano', short: 'IT', flag: '🇮🇹' },
+  { code: 'fa', label: 'فارسی', short: 'FA', flag: '🇮🇷' },
+  { code: 'kk', label: 'Қазақша', short: 'KK', flag: '🇰🇿' },
+  { code: 'ky', label: 'Кыргызча', short: 'KY', flag: '🇰🇬' }
 ];
+
+export const SUPPORTED_LANGUAGES = AVAILABLE_LANGUAGES;
 
 export const LanguageProvider = ({ supportedLocales = ['ru', 'en', 'tj'], defaultLocale = 'ru', children }) => {
   const [currentLang, setCurrentLang] = useState(() => {

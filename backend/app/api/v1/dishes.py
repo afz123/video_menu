@@ -18,7 +18,9 @@ from app.workers.video_tasks import transcode_video_task
 
 router = APIRouter(prefix="/dishes", tags=["Dishes"])
 
-ALLOWED_EXTENSIONS = {".mp4", ".mov", ".webm", ".mkv", ".avi"}
+VIDEO_EXTENSIONS = {".mp4", ".mov", ".webm", ".mkv", ".avi"}
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic"}
+ALLOWED_EXTENSIONS = VIDEO_EXTENSIONS | IMAGE_EXTENSIONS
 
 @router.get("", response_model=List[DishResponse])
 async def list_dishes(
@@ -228,8 +230,10 @@ async def upload_dish_video(
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400, 
-            detail=f"Неподдерживаемый формат: {ext}. Разрешены: {', '.join(ALLOWED_EXTENSIONS)}"
+            detail=f"Неподдерживаемый формат: {ext}. Разрешены: видео ({', '.join(VIDEO_EXTENSIONS)}) и фото ({', '.join(IMAGE_EXTENSIONS)})"
         )
+
+    is_image = ext in IMAGE_EXTENSIONS
 
     # Save to temp
     unique_name = f"{uuid.uuid4().hex}_{file.filename}"
@@ -247,11 +251,12 @@ async def upload_dish_video(
     await db.refresh(media)
 
     # Launch background transcoder
-    background_tasks.add_task(transcode_video_task, media.id, str(temp_path))
+    background_tasks.add_task(transcode_video_task, media.id, str(temp_path), is_image)
 
     return {
         "media_id": media.id,
         "status": "PROCESSING",
         "filename": file.filename,
-        "message": "Видео принято на обработку. Генерация WebP LQIP и H.264/WebM выполняется в фоне."
+        "is_image": is_image,
+        "message": "Файл принят на обработку. Генерация HD и LQIP выполняется в фоне."
     }

@@ -12,8 +12,8 @@ class DishMediaResponse(BaseModel):
     duration_seconds: Optional[int] = 0
 
 class DishBase(BaseModel):
-    name_translations: Dict[str, str]
-    description_translations: Optional[Dict[str, str]] = None
+    name_translations: Dict[str, Any]
+    description_translations: Optional[Dict[str, Any]] = None
     weight_info: Optional[str] = None
     calories_info: Optional[str] = None
     allergens: Optional[List[str]] = []
@@ -29,8 +29,8 @@ class DishCreate(DishBase):
     media_id: Optional[int] = None
 
 class DishUpdate(BaseModel):
-    name_translations: Optional[Dict[str, str]] = None
-    description_translations: Optional[Dict[str, str]] = None
+    name_translations: Optional[Dict[str, Any]] = None
+    description_translations: Optional[Dict[str, Any]] = None
     weight_info: Optional[str] = None
     calories_info: Optional[str] = None
     allergens: Optional[List[str]] = None

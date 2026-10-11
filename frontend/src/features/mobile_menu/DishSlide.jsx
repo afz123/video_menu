@@ -9,7 +9,19 @@ export const DishSlide = ({ dish, isCurrent, categoryName }) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   const name = t(dish.name);
-  const description = t(dish.description);
+  const rawDesc = t(dish.description);
+
+  let shortDesc = '';
+  let ingredients = '';
+  let serving = '';
+
+  if (typeof rawDesc === 'string') {
+    shortDesc = rawDesc;
+  } else if (rawDesc && typeof rawDesc === 'object') {
+    shortDesc = rawDesc.description || rawDesc.text || '';
+    ingredients = rawDesc.ingredients || '';
+    serving = rawDesc.serving || '';
+  }
 
   return (
     <div
@@ -29,13 +41,27 @@ export const DishSlide = ({ dish, isCurrent, categoryName }) => {
         enableSoundToggle={true}
       />
 
-      {/* 2. Floating Bottom Luxury Card */}
+      {/* 2. Cinematic Bottom Vignette Gradient */}
       <div
         style={{
           position: 'absolute',
-          bottom: '24px',
-          left: '16px',
-          right: '16px',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: '50%',
+          background: 'linear-gradient(to top, rgba(9, 9, 11, 0.95) 0%, rgba(9, 9, 11, 0.6) 50%, transparent 100%)',
+          pointerEvents: 'none',
+          zIndex: 15
+        }}
+      />
+
+      {/* 3. Floating Bottom Luxury Card */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 'calc(18px + env(safe-area-inset-bottom))',
+          left: '14px',
+          right: '14px',
           zIndex: 20
         }}
       >
@@ -43,8 +69,11 @@ export const DishSlide = ({ dish, isCurrent, categoryName }) => {
           onClick={() => setIsDetailsOpen(!isDetailsOpen)}
           style={{
             cursor: 'pointer',
-            padding: '20px',
-            transform: isDetailsOpen ? 'translateY(0)' : undefined
+            padding: '18px 20px',
+            transform: isDetailsOpen ? 'translateY(0)' : undefined,
+            backgroundColor: 'rgba(15, 15, 20, 0.78)',
+            border: '1px solid rgba(212, 175, 55, 0.28)',
+            boxShadow: '0 12px 36px rgba(0, 0, 0, 0.7)'
           }}
         >
           {/* Header row: Dish name & Price */}
@@ -111,18 +140,18 @@ export const DishSlide = ({ dish, isCurrent, categoryName }) => {
           </div>
 
           {/* Short description preview */}
-          {description && (
+          {shortDesc && (
             <p
               className={isDetailsOpen ? '' : 'line-clamp-2'}
               style={{
                 fontSize: '14px',
                 lineHeight: '1.5',
-                color: 'rgba(244, 244, 246, 0.85)',
-                marginBottom: '12px',
+                color: 'rgba(244, 244, 246, 0.88)',
+                marginBottom: '10px',
                 fontWeight: '400'
               }}
             >
-              {description}
+              {shortDesc}
             </p>
           )}
 
@@ -133,13 +162,38 @@ export const DishSlide = ({ dish, isCurrent, categoryName }) => {
               style={{
                 borderTop: '1px solid rgba(255, 255, 255, 0.1)',
                 paddingTop: '12px',
-                marginTop: '8px',
+                marginTop: '6px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '8px',
+                gap: '10px',
                 fontSize: '13px'
               }}
             >
+              {/* Ingredients */}
+              {ingredients && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <span style={{ color: 'var(--accent-gold)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    🌿 Состав и ингредиенты:
+                  </span>
+                  <span style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: '1.45' }}>
+                    {ingredients}
+                  </span>
+                </div>
+              )}
+
+              {/* Serving details */}
+              {serving && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <span style={{ color: 'var(--accent-gold)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    🍽️ Особенности подачи:
+                  </span>
+                  <span style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: '1.45' }}>
+                    {serving}
+                  </span>
+                </div>
+              )}
+
+              {/* Calories (ONLY IF PRESENT!) */}
               {dish.calories && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
                   <span>Энергетическая ценность:</span>
@@ -147,6 +201,7 @@ export const DishSlide = ({ dish, isCurrent, categoryName }) => {
                 </div>
               )}
 
+              {/* Allergens (ONLY IF PRESENT!) */}
               {dish.allergens && dish.allergens.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b' }}>
                   <AlertCircle size={14} />

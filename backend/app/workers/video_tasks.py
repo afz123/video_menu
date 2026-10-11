@@ -8,18 +8,30 @@ from app.services.storage_service import StorageService
 
 logger = logging.getLogger("video_menu.worker")
 
-async def transcode_video_task(asset_id: int, temp_file_path_str: str):
+async def transcode_video_task(asset_id: int, temp_file_path_str: str, is_image: bool = False):
     temp_path = Path(temp_file_path_str)
     
+    # Auto-detect if image based on suffix
+    image_exts = {".jpg", ".jpeg", ".png", ".webp", ".heic"}
+    if temp_path.suffix.lower() in image_exts:
+        is_image = True
+
     session = await get_session()
     async with session as db:
         try:
-            logger.info(f"Worker started processing asset {asset_id}...")
-            urls = await VideoTranscodeService.process_video(
-                input_path=str(temp_path),
-                output_dir=settings.VIDEOS_DIR,
-                asset_id=asset_id
-            )
+            logger.info(f"Worker started processing asset {asset_id} (is_image={is_image})...")
+            if is_image:
+                urls = await VideoTranscodeService.process_image(
+                    input_path=str(temp_path),
+                    output_dir=settings.VIDEOS_DIR,
+                    asset_id=asset_id
+                )
+            else:
+                urls = await VideoTranscodeService.process_video(
+                    input_path=str(temp_path),
+                    output_dir=settings.VIDEOS_DIR,
+                    asset_id=asset_id
+                )
             
             asset = await db.get(MediaAsset, asset_id)
             if asset:

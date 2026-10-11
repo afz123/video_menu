@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { GoldButton } from '../../components/ui/GoldButton';
 import { DishFormModal } from './DishFormModal';
+import { CategoryManager } from './CategoryManager';
 import { ThemeCustomizer } from './ThemeCustomizer';
+import { RestaurantSettings } from './RestaurantSettings';
+import { AdminLogin } from './AdminLogin';
 import { menuService } from '../../services/menuService';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -19,16 +22,23 @@ import {
   Smartphone,
   Tv,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  FolderPlus,
+  LogOut,
+  Building2
 } from 'lucide-react';
 
 export const DashboardLayout = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(() =>
+    Boolean(sessionStorage.getItem('admin_session_token'))
+  );
   const [restaurants, setRestaurants] = useState([]);
   const [selectedSlug, setSelectedSlug] = useState('asr-royale');
   const [menuData, setMenuData] = useState(null);
   const [activeTab, setActiveTab] = useState('dishes'); // 'dishes' | 'categories' | 'theme' | 'preview'
   const [isDishModalOpen, setIsDishModalOpen] = useState(false);
   const [editingDish, setEditingDish] = useState(null);
+  const [initialCategoryId, setInitialCategoryId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
 
@@ -82,6 +92,23 @@ export const DashboardLayout = () => {
   const mobileUrl = `${window.location.origin}/menu/${selectedSlug}`;
   const kioskUrl = `${window.location.origin}/kiosk/${selectedSlug}`;
 
+  const handleLogout = async () => {
+    await menuService.logoutAdmin();
+    setIsAuthenticated(false);
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <AdminLogin
+        restaurantSlug={selectedSlug}
+        onAuthenticated={() => {
+          setIsAuthenticated(true);
+          loadMenu();
+        }}
+      />
+    );
+  }
+
   return (
     <div
       style={{
@@ -107,13 +134,29 @@ export const DashboardLayout = () => {
             <Utensils size={16} />
             <span>Панель Управления Рестораном</span>
           </div>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '38px', fontWeight: '600', color: '#fff' }}>
-            {restaurant?.name || 'ASR Maison Royale'}
+          <h1
+            onClick={() => setActiveTab('settings')}
+            style={{
+              fontFamily: 'var(--font-serif)',
+              fontSize: '38px',
+              fontWeight: '600',
+              color: '#fff',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}
+            title="Нажмите, чтобы изменить название и настройки заведения"
+          >
+            <span>{restaurant?.name || 'ASR Maison Royale'}</span>
+            <span style={{ fontSize: '13px', color: 'var(--accent-gold)', opacity: 0.8, backgroundColor: 'rgba(212, 175, 55, 0.12)', border: '1px solid rgba(212, 175, 55, 0.3)', borderRadius: '20px', padding: '2px 8px' }}>
+              изменить
+            </span>
           </h1>
         </div>
 
         {/* Action Buttons: Open Mobile & Open Kiosk */}
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
           <a
             href={mobileUrl}
             target="_blank"
@@ -137,16 +180,57 @@ export const DashboardLayout = () => {
           </a>
 
           <GoldButton
+            variant="outline"
+            size="sm"
+            icon={Building2}
+            onClick={() => setActiveTab('settings')}
+          >
+            Настройки заведения
+          </GoldButton>
+
+          <GoldButton
+            variant="outline"
+            size="sm"
+            icon={Layers}
+            onClick={() => setActiveTab('categories')}
+          >
+            Разделы ({categories.length})
+          </GoldButton>
+
+          <GoldButton
             variant="primary"
             size="sm"
             icon={Plus}
             onClick={() => {
               setEditingDish(null);
+              setInitialCategoryId(null);
               setIsDishModalOpen(true);
             }}
           >
             Добавить блюдо
           </GoldButton>
+
+          <button
+            onClick={handleLogout}
+            style={{
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              color: '#ef4444',
+              borderRadius: '12px',
+              padding: '8px 16px',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.2s ease'
+            }}
+            title="Выйти из админ-панели"
+          >
+            <LogOut size={16} />
+            <span>Выйти</span>
+          </button>
         </div>
       </header>
 
@@ -157,11 +241,14 @@ export const DashboardLayout = () => {
           gap: '8px',
           marginBottom: '28px',
           borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-          paddingBottom: '12px'
+          paddingBottom: '12px',
+          overflowX: 'auto'
         }}
       >
         {[
-          { id: 'dishes', label: 'Позиции меню & Стоп-лист', icon: Utensils },
+          { id: 'dishes', label: 'Позиции меню & Стоп-лист', icon: Utensils, count: allDishes.length },
+          { id: 'categories', label: 'Управление разделами', icon: Layers, count: categories.length },
+          { id: 'settings', label: 'Настройки заведения', icon: Building2 },
           { id: 'theme', label: 'Стиль & Kiosk Display', icon: Palette },
           { id: 'preview', label: 'QR-коды & Ссылки', icon: QrCode }
         ].map((tab) => {
@@ -183,11 +270,26 @@ export const DashboardLayout = () => {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
+                whiteSpace: 'nowrap'
               }}
             >
               <Icon size={16} />
               <span>{tab.label}</span>
+              {tab.count !== undefined && (
+                <span
+                  style={{
+                    backgroundColor: isActive ? 'var(--accent-gold)' : 'rgba(255, 255, 255, 0.08)',
+                    color: isActive ? '#09090b' : 'var(--text-muted)',
+                    borderRadius: '10px',
+                    padding: '2px 8px',
+                    fontSize: '11px',
+                    fontWeight: '700'
+                  }}
+                >
+                  {tab.count}
+                </span>
+              )}
             </button>
           );
         })}
@@ -196,8 +298,8 @@ export const DashboardLayout = () => {
       {/* TAB 1: DISHES & STOP-LIST */}
       {activeTab === 'dishes' && (
         <div>
-          {/* Category Filter Pills */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', overflowX: 'auto', paddingBottom: '4px' }}>
+          {/* Category Filter Pills & Add Section Button */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', overflowX: 'auto', paddingBottom: '4px', alignItems: 'center' }}>
             <button
               onClick={() => setSelectedCategoryFilter('all')}
               style={{
@@ -208,7 +310,8 @@ export const DashboardLayout = () => {
                 padding: '6px 16px',
                 fontSize: '13px',
                 fontWeight: '600',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
               }}
             >
               Все разделы ({allDishes.length})
@@ -225,13 +328,61 @@ export const DashboardLayout = () => {
                   padding: '6px 16px',
                   fontSize: '13px',
                   fontWeight: '600',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
                 }}
               >
                 {c.name?.ru || c.name?.en} ({c.dishes?.length || 0})
               </button>
             ))}
+
+            {/* Quick button to manage categories */}
+            <button
+              onClick={() => setActiveTab('categories')}
+              title="Перейти к управлению разделами"
+              style={{
+                background: 'rgba(212, 175, 55, 0.08)',
+                color: 'var(--accent-gold)',
+                border: '1px dashed rgba(212, 175, 55, 0.4)',
+                borderRadius: '20px',
+                padding: '6px 14px',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                whiteSpace: 'nowrap',
+                marginLeft: '4px'
+              }}
+            >
+              <FolderPlus size={14} />
+              <span>+ Настроить разделы ({categories.length})</span>
+            </button>
           </div>
+
+          {/* Empty categories warning in dishes tab */}
+          {categories.length === 0 && (
+            <GlassCard style={{ padding: '36px', textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{ color: 'var(--accent-gold)', marginBottom: '12px' }}>
+                <Layers size={36} style={{ margin: '0 auto' }} />
+              </div>
+              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', marginBottom: '8px' }}>
+                Сначала создайте разделы меню
+              </h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '14px', maxWidth: '420px', margin: '0 auto 20px' }}>
+                Перед добавлением позиций необходимо создать структуру разделов кухни или бара.
+              </p>
+              <GoldButton
+                variant="primary"
+                size="sm"
+                icon={Plus}
+                onClick={() => setActiveTab('categories')}
+              >
+                Создать раздел
+              </GoldButton>
+            </GlassCard>
+          )}
 
           {/* Dishes Table */}
           <GlassCard style={{ padding: 0, overflow: 'hidden' }}>
@@ -381,7 +532,38 @@ export const DashboardLayout = () => {
         </div>
       )}
 
-      {/* TAB 2: THEME & KIOSK */}
+      {/* TAB 2: CATEGORIES MANAGEMENT */}
+      {activeTab === 'categories' && (
+        <CategoryManager
+          restaurantId={restaurant?.id || 1}
+          categories={categories}
+          onCategoriesChanged={loadMenu}
+          onAddDishToCategory={(catId) => {
+            setInitialCategoryId(catId);
+            setEditingDish(null);
+            setIsDishModalOpen(true);
+          }}
+          onViewDishesOfCategory={(catId) => {
+            setSelectedCategoryFilter(String(catId));
+            setActiveTab('dishes');
+          }}
+        />
+      )}
+
+      {/* TAB 3: RESTAURANT PROFILE & BRANDING SETTINGS */}
+      {activeTab === 'settings' && (
+        <RestaurantSettings
+          restaurant={restaurant}
+          onRestaurantUpdated={(updated) => {
+            if (updated?.slug && updated.slug !== selectedSlug) {
+              setSelectedSlug(updated.slug);
+            }
+            loadMenu();
+          }}
+        />
+      )}
+
+      {/* TAB 4: THEME & KIOSK */}
       {activeTab === 'theme' && (
         <ThemeCustomizer
           restaurantSlug={selectedSlug}
@@ -451,13 +633,17 @@ export const DashboardLayout = () => {
           restaurantId={restaurant?.id || 1}
           categories={categories}
           dishToEdit={editingDish}
+          initialCategoryId={initialCategoryId}
+          supportedLocales={restaurant?.supported_locales || ['ru', 'tj', 'en']}
           onClose={() => {
             setIsDishModalOpen(false);
             setEditingDish(null);
+            setInitialCategoryId(null);
           }}
           onSaved={() => {
             setIsDishModalOpen(false);
             setEditingDish(null);
+            setInitialCategoryId(null);
             loadMenu();
           }}
         />
