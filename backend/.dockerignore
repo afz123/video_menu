@@ -1,0 +1,13 @@
+venv
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+storage/videos/*
+!storage/videos/.gitkeep
+storage/tmp/*
+!storage/tmp/.gitkeep
+*.log
+.env

@@ -1,0 +1,152 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { Volume2, VolumeX } from 'lucide-react';
+
+export const VideoPlayer = ({
+  lqip,
+  poster,
+  videoSrc,
+  isCurrent = true,
+  enableSoundToggle = true,
+  onDoubleTap
+}) => {
+  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    if (!videoRef.current) return;
+    if (isCurrent) {
+      videoRef.current.currentTime = 0;
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          // Auto-play was prevented (often happens with unmuted video)
+          if (videoRef.current) {
+            videoRef.current.muted = true;
+            setIsMuted(true);
+            videoRef.current.play().catch(() => {});
+          }
+        });
+      }
+    } else {
+      videoRef.current.pause();
+    }
+  }, [isCurrent]);
+
+  const toggleSound = (e) => {
+    e.stopPropagation();
+    if (!videoRef.current) return;
+    const nextMuted = !isMuted;
+    videoRef.current.muted = nextMuted;
+    setIsMuted(nextMuted);
+  };
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        backgroundColor: '#000',
+        userSelect: 'none'
+      }}
+    >
+      {/* 1. Fast LQIP layer (micro WebP blur) */}
+      {!isVideoLoaded && lqip && (
+        <img
+          src={lqip}
+          alt=""
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            filter: 'blur(20px)',
+            transform: 'scale(1.1)',
+            transition: 'opacity 0.4s ease'
+          }}
+        />
+      )}
+
+      {/* 2. HD Poster */}
+      {!isVideoLoaded && poster && (
+        <img
+          src={poster}
+          alt=""
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            transition: 'opacity 0.5s ease'
+          }}
+        />
+      )}
+
+      {/* 3. Ultra Fast-Start Video Loop */}
+      {videoSrc && (
+        <video
+          ref={videoRef}
+          src={videoSrc}
+          loop
+          muted={isMuted}
+          playsInline
+          webkit-playsinline="true"
+          preload="auto"
+          onPlaying={() => setIsVideoLoaded(true)}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            opacity: isVideoLoaded ? 1 : 0,
+            transition: 'opacity 0.6s ease'
+          }}
+        />
+      )}
+
+      {/* Cinematic dark gradients for legibility */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.1) 70%, rgba(0,0,0,0.6) 100%)',
+          pointerEvents: 'none'
+        }}
+      />
+
+      {/* Sound toggle button (ASMR Audio) */}
+      {enableSoundToggle && videoSrc && (
+        <button
+          onClick={toggleSound}
+          style={{
+            position: 'absolute',
+            top: '20px',
+            left: '20px',
+            zIndex: 30,
+            background: 'rgba(10, 10, 12, 0.65)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border: '1px solid var(--glass-border-subtle)',
+            borderRadius: '50%',
+            width: '42px',
+            height: '42px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: isMuted ? 'var(--text-muted)' : 'var(--accent-gold)',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          title={isMuted ? 'Включить ASMR звук' : 'Выключить звук'}
+        >
+          {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+        </button>
+      )}
+    </div>
+  );
+};
