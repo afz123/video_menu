@@ -107,6 +107,10 @@ async def seed_database():
                 "ALTER TABLE dishes ADD COLUMN IF NOT EXISTS modifiers JSON DEFAULT '[]'::json;",
                 "ALTER TABLE dishes ADD COLUMN IF NOT EXISTS pairings JSON DEFAULT '[]'::json;",
                 "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS old_slugs JSON DEFAULT '[]'::json;",
+                "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS service_charge_percent FLOAT DEFAULT 10.0;",
+                "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS telegram_bot_token VARCHAR(128);",
+                "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS telegram_chat_id VARCHAR(64);",
+                "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS telegram_enabled BOOLEAN DEFAULT FALSE;",
                 "ALTER TABLE categories ADD COLUMN IF NOT EXISTS schedule_start VARCHAR(8);",
                 "ALTER TABLE categories ADD COLUMN IF NOT EXISTS schedule_end VARCHAR(8);",
                 "ALTER TABLE categories ADD COLUMN IF NOT EXISTS daypart VARCHAR(32) DEFAULT 'all';"
@@ -129,6 +133,18 @@ async def seed_database():
             except Exception: pass
             try:
                 await conn.execute(text("ALTER TABLE restaurants ADD COLUMN old_slugs JSON DEFAULT '[]';"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE restaurants ADD COLUMN service_charge_percent FLOAT DEFAULT 10.0;"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE restaurants ADD COLUMN telegram_bot_token VARCHAR(128);"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE restaurants ADD COLUMN telegram_chat_id VARCHAR(64);"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE restaurants ADD COLUMN telegram_enabled BOOLEAN DEFAULT 0;"))
             except Exception: pass
             try:
                 await conn.execute(text("ALTER TABLE categories ADD COLUMN schedule_start VARCHAR(8);"))

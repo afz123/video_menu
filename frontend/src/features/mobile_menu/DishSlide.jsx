@@ -4,9 +4,15 @@ import { GlassCard } from '../../components/ui/GlassCard';
 import { useLanguage } from '../../context/LanguageContext';
 import { Info, Sparkles, AlertCircle, ChevronUp, ChevronDown, Plus, Wine } from 'lucide-react';
 
-export const DishSlide = ({ dish, isCurrent, categoryName, onAddToCart }) => {
+export const DishSlide = ({ dish, isCurrent, categoryName, onAddToCart, onDetailsToggle }) => {
   const { t } = useLanguage();
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+
+  const toggleDetails = () => {
+    const next = !isDetailsOpen;
+    setIsDetailsOpen(next);
+    if (onDetailsToggle) onDetailsToggle(next);
+  };
 
   const name = t(dish.name);
   const rawDesc = t(dish.description);
@@ -111,7 +117,7 @@ export const DishSlide = ({ dish, isCurrent, categoryName, onAddToCart }) => {
         }}
       >
         <GlassCard
-          onClick={() => setIsDetailsOpen(!isDetailsOpen)}
+          onClick={toggleDetails}
           style={{
             cursor: 'pointer',
             padding: '16px 18px',

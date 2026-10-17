@@ -42,6 +42,7 @@ export const MobileFeed = ({ restaurantData }) => {
 
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [modifierDish, setModifierDish] = useState(null);
+  const [isDetailExpanded, setIsDetailExpanded] = useState(false);
 
   // Sync cart to localStorage
   useEffect(() => {
@@ -76,6 +77,7 @@ export const MobileFeed = ({ restaurantData }) => {
   const handleSelectCategory = (catId) => {
     setActiveCategoryId(catId);
     setCurrentSlideIndex(0);
+    setIsDetailExpanded(false);
     if (containerRef.current) {
       containerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -108,13 +110,24 @@ export const MobileFeed = ({ restaurantData }) => {
   };
 
   const handleAddConfiguredItem = (configuredItem) => {
-    setCartItems((prev) => [
-      ...prev,
-      {
-        ...configuredItem,
-        quantity: 1
+    const getSig = (item) => {
+      const opts = (item.chosenOptions || [])
+        .map((o) => `${o.modifierId || o.modifierName}:${o.optionName}`)
+        .sort()
+        .join('|');
+      return `${item.dish?.id}_${opts}_${item.comment || ''}`;
+    };
+
+    const targetSig = getSig(configuredItem);
+    setCartItems((prev) => {
+      const matchIdx = prev.findIndex((item) => getSig(item) === targetSig);
+      if (matchIdx >= 0) {
+        const updated = [...prev];
+        updated[matchIdx].quantity = (updated[matchIdx].quantity || 1) + 1;
+        return updated;
       }
-    ]);
+      return [...prev, { ...configuredItem, quantity: 1 }];
+    });
   };
 
   const handleUpdateQty = (idx, delta) => {
@@ -193,6 +206,7 @@ export const MobileFeed = ({ restaurantData }) => {
                 isCurrent={idx === currentSlideIndex}
                 categoryName={t(activeCategory.name)}
                 onAddToCart={handleInitiateAddToCart}
+                onDetailsToggle={setIsDetailExpanded}
               />
             </section>
           ))}
@@ -279,6 +293,7 @@ export const MobileFeed = ({ restaurantData }) => {
         restaurantSlug={restaurantSlug}
         tableNumber={tableNumber}
         cartCount={cartItems.reduce((acc, i) => acc + (i.quantity || 1), 0)}
+        hidden={isDetailExpanded}
         onOpenCart={() => setIsCartOpen(true)}
         onSetTableNumber={(tbl) => {
           setTableNumber(tbl);
@@ -301,6 +316,7 @@ export const MobileFeed = ({ restaurantData }) => {
           cartItems={cartItems}
           tableNumber={tableNumber}
           restaurantSlug={restaurantSlug}
+          serviceChargePercent={restaurantData.restaurant?.service_charge_percent ?? 10}
           onClose={() => setIsCartOpen(false)}
           onUpdateQty={handleUpdateQty}
           onClearCart={handleClearCart}

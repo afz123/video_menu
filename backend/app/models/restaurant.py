@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, Boolean, JSON, DateTime, Text
+from sqlalchemy import Column, Integer, String, Boolean, JSON, DateTime, Text, Float, desc
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.models.base import Base
+from app.models.service_request import ServiceRequest
 
 class Restaurant(Base):
     __tablename__ = "restaurants"
@@ -16,6 +17,14 @@ class Restaurant(Base):
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Restaurant Economics & Hospitality settings
+    service_charge_percent = Column(Float, default=10.0) # Standard 10-15% in Central Asia / Luxury Dining
+    
+    # Staff Telegram Bot integration for live waiter calls and bills
+    telegram_bot_token = Column(String(128), nullable=True)
+    telegram_chat_id = Column(String(64), nullable=True)
+    telegram_enabled = Column(Boolean, default=False)
 
     # Dynamic styling per restaurant
     theme_config = Column(JSON, default=lambda: {
@@ -61,5 +70,5 @@ class Restaurant(Base):
         "ServiceRequest",
         back_populates="restaurant",
         cascade="all, delete-orphan",
-        order_by="desc(ServiceRequest.created_at)"
+        order_by=lambda: desc(ServiceRequest.created_at)
     )

@@ -1,7 +1,10 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
-export const useInactivityTimer = (timeoutSeconds, onInactive, enabled = true) => {
-  const timerRef = useRef(null);
+export const useInactivityTimer = (timeoutSeconds, onInactive, enabled = true, warningSeconds = 10) => {
+  const [secondsRemaining, setSecondsRemaining] = useState(timeoutSeconds);
+  const [isWarning, setIsWarning] = useState(false);
+
+  const lastActivityRef = useRef(Date.now());
   const onInactiveRef = useRef(onInactive);
 
   useEffect(() => {
@@ -9,33 +12,46 @@ export const useInactivityTimer = (timeoutSeconds, onInactive, enabled = true) =
   }, [onInactive]);
 
   const resetTimer = useCallback(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    if (!enabled) return;
-
-    timerRef.current = setTimeout(() => {
-      if (onInactiveRef.current) {
-        onInactiveRef.current();
-      }
-    }, timeoutSeconds * 1000);
-  }, [timeoutSeconds, enabled]);
+    lastActivityRef.current = Date.now();
+    setSecondsRemaining(timeoutSeconds);
+    setIsWarning(false);
+  }, [timeoutSeconds]);
 
   useEffect(() => {
     if (!enabled) {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      setIsWarning(false);
       return;
     }
+
+    lastActivityRef.current = Date.now();
+    setSecondsRemaining(timeoutSeconds);
+    setIsWarning(false);
+
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - lastActivityRef.current) / 1000);
+      const remaining = Math.max(0, timeoutSeconds - elapsed);
+      setSecondsRemaining(remaining);
+
+      if (remaining <= warningSeconds && remaining > 0) {
+        setIsWarning(true);
+      } else if (remaining === 0) {
+        setIsWarning(false);
+        if (onInactiveRef.current) {
+          onInactiveRef.current();
+        }
+      }
+    }, 1000);
 
     const events = ['touchstart', 'touchmove', 'click', 'mousemove', 'keydown', 'scroll'];
     const handleActivity = () => resetTimer();
 
     events.forEach((evt) => window.addEventListener(evt, handleActivity, { passive: true }));
-    resetTimer();
 
     return () => {
+      clearInterval(interval);
       events.forEach((evt) => window.removeEventListener(evt, handleActivity));
-      if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [enabled, resetTimer]);
+  }, [enabled, timeoutSeconds, warningSeconds, resetTimer]);
 
-  return { resetTimer };
+  return { resetTimer, secondsRemaining, isWarning };
 };

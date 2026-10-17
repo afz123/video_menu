@@ -6,6 +6,7 @@ export const SmartServiceBar = ({
   restaurantSlug,
   tableNumber,
   cartCount = 0,
+  hidden = false,
   onOpenCart,
   onSetTableNumber
 }) => {
@@ -101,7 +102,10 @@ export const SmartServiceBar = ({
           zIndex: 40,
           display: 'flex',
           gap: '8px',
-          pointerEvents: 'auto'
+          pointerEvents: hidden ? 'none' : 'auto',
+          transform: hidden ? 'translateY(160%)' : 'translateY(0)',
+          opacity: hidden ? 0 : 1,
+          transition: 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)'
         }}
       >
         {/* Call Waiter button */}

@@ -90,10 +90,14 @@ class VideoTranscodeService:
         
         # Execute tasks
         def run_proc(cmd):
-            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            if res.returncode != 0:
-                logger.error(f"FFmpeg error: {res.stderr.decode('utf-8', errors='ignore')}")
-                raise RuntimeError(f"FFmpeg command failed: {' '.join(cmd)}")
+            try:
+                res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120)
+                if res.returncode != 0:
+                    logger.error(f"FFmpeg error: {res.stderr.decode('utf-8', errors='ignore')}")
+                    raise RuntimeError(f"FFmpeg command failed: {' '.join(cmd)}")
+            except subprocess.TimeoutExpired:
+                logger.error(f"FFmpeg command timed out after 120s: {' '.join(cmd)}")
+                raise TimeoutError(f"FFmpeg transcoding timed out: {' '.join(cmd)}")
 
         await asyncio.gather(
             asyncio.to_thread(run_proc, cmd_lqip),
@@ -151,10 +155,14 @@ class VideoTranscodeService:
         ]
 
         def run_proc(cmd):
-            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            if res.returncode != 0:
-                logger.error(f"FFmpeg error: {res.stderr.decode('utf-8', errors='ignore')}")
-                raise RuntimeError(f"FFmpeg command failed: {' '.join(cmd)}")
+            try:
+                res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
+                if res.returncode != 0:
+                    logger.error(f"FFmpeg error: {res.stderr.decode('utf-8', errors='ignore')}")
+                    raise RuntimeError(f"FFmpeg command failed: {' '.join(cmd)}")
+            except subprocess.TimeoutExpired:
+                logger.error(f"FFmpeg command timed out after 60s: {' '.join(cmd)}")
+                raise TimeoutError(f"FFmpeg image processing timed out: {' '.join(cmd)}")
 
         await asyncio.gather(
             asyncio.to_thread(run_proc, cmd_lqip),

@@ -19,7 +19,10 @@ import {
   KeyRound,
   Eye,
   EyeOff,
-  ShieldCheck
+  ShieldCheck,
+  Bell,
+  Percent,
+  Send
 } from 'lucide-react';
 
 export const RestaurantSettings = ({
@@ -35,11 +38,19 @@ export const RestaurantSettings = ({
     supported_locales: restaurant?.supported_locales || ['ru', 'tj', 'en'],
     phone: restaurant?.theme?.contact_info?.phone || '+992 900 00 00 00',
     address: restaurant?.theme?.contact_info?.address || 'ул. Рудаки, 12',
-    hours: restaurant?.theme?.contact_info?.hours || '11:00 — 23:00'
+    hours: restaurant?.theme?.contact_info?.hours || '11:00 — 23:00',
+    service_charge_percent: restaurant?.service_charge_percent ?? 10.0,
+    telegram_enabled: Boolean(restaurant?.telegram_enabled),
+    telegram_bot_token: restaurant?.telegram_bot_token || '',
+    telegram_chat_id: restaurant?.telegram_chat_id || ''
   });
 
   const [isSaving, setIsSaving] = useState(false);
   const [notification, setNotification] = useState(null);
+
+  // Telegram test status
+  const [isTestingTelegram, setIsTestingTelegram] = useState(false);
+  const [telegramTestFeedback, setTelegramTestFeedback] = useState(null);
 
   // Admin password change state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -94,7 +105,11 @@ export const RestaurantSettings = ({
         supported_locales: restaurant.supported_locales || ['ru', 'tj', 'en'],
         phone: restaurant.theme?.contact_info?.phone || '+992 900 00 00 00',
         address: restaurant.theme?.contact_info?.address || 'ул. Рудаки, 12',
-        hours: restaurant.theme?.contact_info?.hours || '11:00 — 23:00'
+        hours: restaurant.theme?.contact_info?.hours || '11:00 — 23:00',
+        service_charge_percent: restaurant.service_charge_percent ?? 10.0,
+        telegram_enabled: Boolean(restaurant.telegram_enabled),
+        telegram_bot_token: restaurant.telegram_bot_token || '',
+        telegram_chat_id: restaurant.telegram_chat_id || ''
       });
     }
   }, [restaurant]);
@@ -118,6 +133,42 @@ export const RestaurantSettings = ({
     });
   };
 
+  const handleTestTelegram = async () => {
+    if (!formData.telegram_bot_token.trim() || !formData.telegram_chat_id.trim()) {
+      setTelegramTestFeedback({
+        type: 'error',
+        text: 'Пожалуйста, заполните Telegram Bot Token и Chat ID перед отправкой теста'
+      });
+      return;
+    }
+
+    setIsTestingTelegram(true);
+    setTelegramTestFeedback(null);
+
+    try {
+      // First persist settings so the test endpoint uses latest credentials
+      const currentSlug = restaurant?.slug || formData.slug;
+      await menuService.updateRestaurant(currentSlug, {
+        telegram_enabled: formData.telegram_enabled,
+        telegram_bot_token: formData.telegram_bot_token.trim(),
+        telegram_chat_id: formData.telegram_chat_id.trim()
+      });
+
+      const res = await menuService.testTelegram(currentSlug);
+      setTelegramTestFeedback({
+        type: 'success',
+        text: res.message || 'Тестовое уведомление успешно доставлено в Telegram!'
+      });
+    } catch (err) {
+      setTelegramTestFeedback({
+        type: 'error',
+        text: err.message || 'Не удалось отправить сообщение в Telegram. Проверьте правильность токена и ID группы.'
+      });
+    } finally {
+      setIsTestingTelegram(false);
+    }
+  };
+
   const handleSave = async (e) => {
     if (e) e.preventDefault();
     if (!formData.name.trim()) {
@@ -136,6 +187,10 @@ export const RestaurantSettings = ({
         slug: formData.slug.trim(),
         default_locale: formData.default_locale,
         supported_locales: formData.supported_locales,
+        service_charge_percent: Number(formData.service_charge_percent) || 0,
+        telegram_enabled: formData.telegram_enabled,
+        telegram_bot_token: formData.telegram_bot_token.trim(),
+        telegram_chat_id: formData.telegram_chat_id.trim(),
         theme_config: {
           ...(restaurant?.theme || {}),
           contact_info: {
@@ -565,7 +620,221 @@ export const RestaurantSettings = ({
         </div>
       </GlassCard>
 
-      {/* SECTION 4: Admin Security & Password Change */}
+      {/* SECTION 4: Restaurant Economics & Service Charge */}
+      <GlassCard style={{ padding: '28px 32px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '14px' }}>
+          <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: 'rgba(212, 175, 55, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-gold)' }}>
+            <Percent size={18} />
+          </div>
+          <div>
+            <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', margin: 0 }}>
+              Процент за обслуживание (Service Charge)
+            </h3>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '2px 0 0' }}>
+              Автоматически рассчитывается в корзине гостя и на экране официанта (обычно 10–15%)
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <div style={{ width: '160px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '600' }}>
+                Процент в чеке (%):
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="number"
+                  min="0"
+                  max="30"
+                  step="0.5"
+                  value={formData.service_charge_percent}
+                  onChange={(e) => setFormData({ ...formData, service_charge_percent: e.target.value })}
+                  style={{
+                    width: '100%',
+                    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(212, 175, 55, 0.4)',
+                    borderRadius: '12px',
+                    padding: '12px 36px 12px 16px',
+                    color: 'var(--accent-gold)',
+                    fontSize: '18px',
+                    fontWeight: '700',
+                    outline: 'none'
+                  }}
+                />
+                <span style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--accent-gold)', fontWeight: '700' }}>
+                  %
+                </span>
+              </div>
+            </div>
+
+            {/* Quick Presets */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '600' }}>
+                Быстрый выбор стандарта заведения:
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {[0, 10, 12, 15, 20].map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, service_charge_percent: pct })}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: '10px',
+                      border: Number(formData.service_charge_percent) === pct ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
+                      backgroundColor: Number(formData.service_charge_percent) === pct ? 'rgba(212, 175, 55, 0.18)' : 'rgba(255, 255, 255, 0.03)',
+                      color: Number(formData.service_charge_percent) === pct ? 'var(--accent-gold-light)' : 'var(--text-main)',
+                      fontWeight: Number(formData.service_charge_percent) === pct ? '700' : '500',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {pct === 0 ? 'Без наценки (0%)' : `${pct}%`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: 0 }}>
+            💡 Пример: при заказе стейка за 300 TJS с обслуживанием {formData.service_charge_percent}% гость увидит: блюда 300 TJS + обслуживание {(300 * (Number(formData.service_charge_percent) / 100)).toFixed(1)} TJS = Итого к оплате {(300 * (1 + Number(formData.service_charge_percent) / 100)).toFixed(1)} TJS.
+          </p>
+        </div>
+      </GlassCard>
+
+      {/* SECTION 5: Telegram Bot Live Dispatch Notifications */}
+      <GlassCard style={{ padding: '28px 32px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: 'rgba(56, 189, 248, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
+              <Send size={18} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', margin: 0 }}>
+                Telegram-оповещения персонала (Смена официантов)
+              </h3>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '2px 0 0' }}>
+                Мгновенная доставка вызовов официанта, запросов счёта и заказов прямо в Telegram-чат смены
+              </p>
+            </div>
+          </div>
+
+          {/* Toggle Switch */}
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: formData.telegram_enabled ? '#38bdf8' : 'var(--text-muted)' }}>
+              {formData.telegram_enabled ? 'Включено' : 'Выключено'}
+            </span>
+            <input
+              type="checkbox"
+              checked={formData.telegram_enabled}
+              onChange={(e) => setFormData({ ...formData, telegram_enabled: e.target.checked })}
+              style={{ width: '18px', height: '18px', accentColor: '#38bdf8', cursor: 'pointer' }}
+            />
+          </label>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px' }}>
+            {/* Bot Token */}
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '600' }}>
+                Telegram Bot Token:
+              </label>
+              <input
+                type="text"
+                value={formData.telegram_bot_token}
+                onChange={(e) => setFormData({ ...formData, telegram_bot_token: e.target.value })}
+                placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
+                style={{
+                  width: '100%',
+                  backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  color: '#fff',
+                  fontSize: '13px',
+                  fontFamily: 'monospace',
+                  outline: 'none'
+                }}
+              />
+              <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px' }}>
+                Создайте бота через @BotFather в Telegram и скопируйте API токен
+              </span>
+            </div>
+
+            {/* Chat ID */}
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '600' }}>
+                Telegram Chat ID (Группа или Канал смены):
+              </label>
+              <input
+                type="text"
+                value={formData.telegram_chat_id}
+                onChange={(e) => setFormData({ ...formData, telegram_chat_id: e.target.value })}
+                placeholder="-1001234567890 или @restaurant_staff_chat"
+                style={{
+                  width: '100%',
+                  backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  color: '#fff',
+                  fontSize: '13px',
+                  fontFamily: 'monospace',
+                  outline: 'none'
+                }}
+              />
+              <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px' }}>
+                Добавьте созданного бота в группу смены администратором и укажите Chat ID
+              </span>
+            </div>
+          </div>
+
+          {/* Test Telegram Dispatch Button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', paddingTop: '6px' }}>
+            <button
+              type="button"
+              disabled={isTestingTelegram || !formData.telegram_bot_token || !formData.telegram_chat_id}
+              onClick={handleTestTelegram}
+              style={{
+                backgroundColor: 'rgba(56, 189, 248, 0.14)',
+                border: '1px solid rgba(56, 189, 248, 0.4)',
+                borderRadius: '12px',
+                padding: '10px 18px',
+                color: '#38bdf8',
+                fontWeight: '600',
+                fontSize: '13px',
+                cursor: isTestingTelegram ? 'not-allowed' : 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <Send size={15} />
+              <span>{isTestingTelegram ? 'Отправка тестового пуша...' : '⚡ Проверить доставку в Telegram'}</span>
+            </button>
+
+            {telegramTestFeedback && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '13px',
+                  color: telegramTestFeedback.type === 'success' ? '#10b981' : '#ef4444'
+                }}
+              >
+                {telegramTestFeedback.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+                <span>{telegramTestFeedback.text}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </GlassCard>
+
+      {/* SECTION 6: Admin Security & Password Change */}
       <GlassCard style={{ padding: '28px 32px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

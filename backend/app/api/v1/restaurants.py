@@ -1,8 +1,12 @@
+import asyncio
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from typing import List, Dict, Any, Optional
+
+logger = logging.getLogger("video_menu.restaurants")
 
 from app.core.database import get_db
 from app.core.security import get_current_admin
@@ -12,6 +16,8 @@ from app.models.dish import Dish
 from app.models.media import MediaAsset
 from app.models.service_request import ServiceRequest
 from app.schemas.restaurant import RestaurantCreate, RestaurantUpdate, RestaurantResponse
+from sqlalchemy import text
+from app.services.telegram_service import TelegramService
 from app.schemas.service_request import (
     ServiceRequestCreate,
     ServiceRequestResponse,
@@ -30,12 +36,12 @@ async def find_restaurant_by_slug(slug: str, db: AsyncSession, options=None) -> 
     if rest:
         return rest
     
-    # Check old slugs aliases
-    all_query = select(Restaurant)
+    # Check old slugs aliases efficiently via targeted query without full table scan
+    alias_query = select(Restaurant).where(text("CAST(old_slugs AS TEXT) LIKE :pattern")).params(pattern=f'%"{slug}"%')
     if options:
-        all_query = all_query.options(*options)
-    all_res = await db.execute(all_query)
-    for r in all_res.scalars().all():
+        alias_query = alias_query.options(*options)
+    alias_res = await db.execute(alias_query)
+    for r in alias_res.scalars().all():
         if r.old_slugs and slug in r.old_slugs:
             return r
     return None
@@ -195,6 +201,8 @@ async def get_restaurant_full_menu(
             "old_slugs": restaurant.old_slugs or [],
             "tagline": restaurant.tagline,
             "description": restaurant.description,
+            "service_charge_percent": restaurant.service_charge_percent if restaurant.service_charge_percent is not None else 10.0,
+            "telegram_enabled": bool(restaurant.telegram_enabled),
             "theme": restaurant.theme_config or {},
             "supported_locales": restaurant.supported_locales or ["ru", "en", "tj"],
             "default_locale": restaurant.default_locale or "ru"
@@ -227,6 +235,25 @@ async def create_service_request(
     db.add(req)
     await db.commit()
     await db.refresh(req)
+
+    # Deliver instant alert to staff Telegram group if enabled
+    if restaurant.telegram_enabled and restaurant.telegram_bot_token and restaurant.telegram_chat_id:
+        try:
+            asyncio.create_task(
+                TelegramService.notify_service_request(
+                    bot_token=restaurant.telegram_bot_token,
+                    chat_id=restaurant.telegram_chat_id,
+                    restaurant_name=restaurant.name,
+                    table_number=req.table_number,
+                    request_type=req.request_type,
+                    guest_comment=req.guest_comment,
+                    cart_items=req.cart_items,
+                    service_charge_percent=restaurant.service_charge_percent if restaurant.service_charge_percent is not None else 10.0
+                )
+            )
+        except Exception as e:
+            logger.error(f"Failed to trigger telegram notification task: {e}")
+
     return req
 
 @router.get("/{slug}/service-requests", response_model=List[ServiceRequestResponse])
@@ -262,3 +289,33 @@ async def update_service_request_status(
     await db.commit()
     await db.refresh(req)
     return req
+
+@router.post("/{slug}/test-telegram")
+async def test_telegram_connection(
+    slug: str,
+    current_admin: str = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Admin endpoint to verify Telegram bot token and chat connection."""
+    restaurant = await find_restaurant_by_slug(slug, db)
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Ресторан не найден")
+
+    if not restaurant.telegram_bot_token or not restaurant.telegram_chat_id:
+        raise HTTPException(status_code=400, detail="Telegram Bot Token или Chat ID не заполнены в настройках ресторана")
+
+    test_msg = (
+        f"🔔 <b>ТЕСТ СВЯЗИ С РЕСТОРАНОМ</b>\n"
+        f"🏛️ <b>Заведение:</b> {restaurant.name}\n"
+        f"✅ Telegram-бот успешно подключен к платформе Video Menu!\n"
+        f"Сюда будут мгновенно приходить вызовы официанта, запросы счёта и заказы гостей с номерами столов."
+    )
+    ok = await TelegramService.send_message(
+        bot_token=restaurant.telegram_bot_token,
+        chat_id=restaurant.telegram_chat_id,
+        text=test_msg
+    )
+    if not ok:
+        raise HTTPException(status_code=502, detail="Не удалось доставить сообщение в Telegram. Проверьте правильность Bot Token и Chat ID (убедитесь, что бот добавлен в чат/группу).")
+
+    return {"status": "ok", "message": "Тестовое уведомление успешно отправлено в Telegram"}

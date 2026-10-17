@@ -118,3 +118,35 @@ async def test_smart_table_service_requests(client, admin_headers):
     )
     assert update_res.status_code == 200
     assert update_res.json()["status"] == "COMPLETED"
+
+
+@pytest.mark.asyncio
+async def test_service_charge_and_telegram_settings(client, admin_headers):
+    """Test updating service charge percent and telegram credentials."""
+    # 1. Update restaurant with 12% service charge and telegram settings
+    update_res = await client.put(
+        "/api/v1/restaurants/asr-royale",
+        json={
+            "service_charge_percent": 12.0,
+            "telegram_enabled": True,
+            "telegram_bot_token": "fake_test_token_123",
+            "telegram_chat_id": "-100987654321"
+        },
+        headers=admin_headers
+    )
+    assert update_res.status_code == 200
+    data = update_res.json()
+    assert data["service_charge_percent"] == 12.0
+    assert data["telegram_enabled"] is True
+
+    # 2. Check full menu includes service_charge_percent
+    menu_res = await client.get("/api/v1/restaurants/asr-royale/full-menu")
+    assert menu_res.status_code == 200
+    menu_data = menu_res.json()
+    assert menu_data["restaurant"]["service_charge_percent"] == 12.0
+    assert menu_data["restaurant"]["telegram_enabled"] is True
+
+    # 3. Test telegram test endpoint requires admin auth
+    unauth_test = await client.post("/api/v1/restaurants/asr-royale/test-telegram")
+    assert unauth_test.status_code == 401
+

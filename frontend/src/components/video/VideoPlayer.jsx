@@ -14,23 +14,39 @@ export const VideoPlayer = ({
   const videoRef = useRef(null);
 
   useEffect(() => {
-    if (!videoRef.current) return;
+    let isCancelled = false;
+    const video = videoRef.current;
+    if (!video) return;
+
     if (isCurrent) {
-      videoRef.current.currentTime = 0;
-      const playPromise = videoRef.current.play();
+      try {
+        video.currentTime = 0;
+      } catch (_) {}
+
+      const playPromise = video.play();
       if (playPromise !== undefined) {
-        playPromise.catch(() => {
-          // Auto-play was prevented (often happens with unmuted video)
-          if (videoRef.current) {
-            videoRef.current.muted = true;
-            setIsMuted(true);
-            videoRef.current.play().catch(() => {});
-          }
-        });
+        playPromise
+          .then(() => {
+            if (isCancelled && video) {
+              video.pause();
+            }
+          })
+          .catch(() => {
+            if (isCancelled) return;
+            if (video) {
+              video.muted = true;
+              setIsMuted(true);
+              video.play().catch(() => {});
+            }
+          });
       }
     } else {
-      videoRef.current.pause();
+      video.pause();
     }
+
+    return () => {
+      isCancelled = true;
+    };
   }, [isCurrent]);
 
   const toggleSound = (e) => {

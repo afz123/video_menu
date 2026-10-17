@@ -79,6 +79,7 @@ export const menuService = {
     api.get(`/restaurants/${slug}/service-requests${status ? `?status=${status}` : ''}`),
   updateServiceRequestStatus: (slug, reqId, status) => 
     api.patch(`/restaurants/${slug}/service-requests/${reqId}/status`, { status }),
+  testTelegram: (slug) => api.post(`/restaurants/${slug}/test-telegram`),
 
   // Translation Service
   translateTexts: (data) => api.post('/translate', data),
