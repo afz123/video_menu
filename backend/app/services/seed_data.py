@@ -113,6 +113,7 @@ async def seed_database():
                 "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS telegram_bot_token VARCHAR(128);",
                 "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS telegram_chat_id VARCHAR(64);",
                 "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS telegram_enabled BOOLEAN DEFAULT FALSE;",
+                "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS admin_password_hash VARCHAR(256);",
                 "ALTER TABLE categories ADD COLUMN IF NOT EXISTS schedule_start VARCHAR(8);",
                 "ALTER TABLE categories ADD COLUMN IF NOT EXISTS schedule_end VARCHAR(8);",
                 "ALTER TABLE categories ADD COLUMN IF NOT EXISTS daypart VARCHAR(32) DEFAULT 'all';"
@@ -126,6 +127,9 @@ async def seed_database():
             # SQLite fallback migrations
             try:
                 await conn.execute(text("ALTER TABLE restaurants ADD COLUMN currency VARCHAR(8) DEFAULT 'TJS';"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE restaurants ADD COLUMN admin_password_hash VARCHAR(256);"))
             except Exception: pass
             try:
                 await conn.execute(text("ALTER TABLE restaurants ADD COLUMN call_types_enabled JSON DEFAULT '[\"waiter\", \"bill\", \"sommelier\", \"hookah\", \"admin\"]';"))

@@ -372,3 +372,171 @@ async def test_telegram_test_endpoint_bad_gateway(client, admin_headers):
         assert "Не удалось доставить сообщение в Telegram" in res.json()["detail"]
 
 
+@pytest.mark.asyncio
+async def test_cross_tenant_idor_protection(client, admin_headers):
+    """Test that a branch manager cannot update or delete dishes belonging to another restaurant (403 Forbidden)."""
+    import uuid
+    uid = uuid.uuid4().hex[:6]
+    slug_steak = f"steak-{uid}"
+    slug_sushi = f"sushi-{uid}"
+
+    # 1. Create Steakhouse with manager password
+    res_steak = await client.post(
+        "/api/v1/restaurants",
+        json={
+            "name": f"Steakhouse {uid}",
+            "slug": slug_steak,
+            "currency": "USD",
+            "admin_password": "steak_manager_pass"
+        },
+        headers=admin_headers
+    )
+    assert res_steak.status_code == 200
+    steak_id = res_steak.json()["id"]
+
+    # 2. Create Sushi Bar with manager password
+    res_sushi = await client.post(
+        "/api/v1/restaurants",
+        json={
+            "name": f"Sushi Bar {uid}",
+            "slug": slug_sushi,
+            "currency": "EUR",
+            "admin_password": "sushi_manager_pass"
+        },
+        headers=admin_headers
+    )
+    assert res_sushi.status_code == 200
+    sushi_id = res_sushi.json()["id"]
+
+    # 3. Add Category and Dish to Sushi Bar
+    cat_sushi = await client.post(
+        "/api/v1/categories",
+        json={
+            "restaurant_id": sushi_id,
+            "name_translations": {"ru": "Роллы", "en": "Rolls"},
+            "icon": "fish",
+            "display_order": 1
+        },
+        headers=admin_headers
+    )
+    assert cat_sushi.status_code == 200
+    sushi_cat_id = cat_sushi.json()["id"]
+
+    dish_sushi = await client.post(
+        "/api/v1/dishes",
+        json={
+            "restaurant_id": sushi_id,
+            "category_id": sushi_cat_id,
+            "name_translations": {"ru": "Филадельфия", "en": "Philadelphia"},
+            "price": 85.0
+        },
+        headers=admin_headers
+    )
+    assert dish_sushi.status_code == 200
+    sushi_dish_id = dish_sushi.json()["id"]
+
+    # 4. Manager of Steakhouse logs in
+    login_res = await client.post(
+        "/api/v1/auth/login",
+        json={"slug": slug_steak, "password": "steak_manager_pass"}
+    )
+    assert login_res.status_code == 200
+    steak_token = login_res.json()["token"]
+    assert login_res.json()["role"] == "manager"
+    steak_headers = {"Authorization": f"Bearer {steak_token}"}
+
+    # 5. Steakhouse manager attempts IDOR attack on Sushi Bar dish -> Expect 403 Forbidden
+    idor_put = await client.put(
+        f"/api/v1/dishes/{sushi_dish_id}",
+        json={"price": 1.0},
+        headers=steak_headers
+    )
+    assert idor_put.status_code == 403
+    assert "Доступ запрещён" in idor_put.json()["detail"]
+
+    idor_del = await client.delete(
+        f"/api/v1/dishes/{sushi_dish_id}",
+        headers=steak_headers
+    )
+    assert idor_del.status_code == 403
+
+    idor_cat_del = await client.delete(
+        f"/api/v1/categories/{sushi_cat_id}",
+        headers=steak_headers
+    )
+    assert idor_cat_del.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_clone_menu_from_donor(client, admin_headers):
+    """Test cloning menu from a donor restaurant into a newly opened branch."""
+    import uuid
+    uid = uuid.uuid4().hex[:6]
+    donor_slug = f"donor-{uid}"
+    target_slug = f"branch-{uid}"
+
+    # 1. Create donor restaurant with category and dish
+    res_donor = await client.post(
+        "/api/v1/restaurants",
+        json={"name": f"Donor Hub {uid}", "slug": donor_slug, "currency": "TJS"},
+        headers=admin_headers
+    )
+    assert res_donor.status_code == 200
+    donor_id = res_donor.json()["id"]
+
+    donor_cat = await client.post(
+        "/api/v1/categories",
+        json={
+            "restaurant_id": donor_id,
+            "name_translations": {"ru": "Гриль меню", "en": "Grill Menu"},
+            "icon": "flame"
+        },
+        headers=admin_headers
+    )
+    assert donor_cat.status_code == 200
+
+    donor_dish = await client.post(
+        "/api/v1/dishes",
+        json={
+            "restaurant_id": donor_id,
+            "category_id": donor_cat.json()["id"],
+            "name_translations": {"ru": "Фирменный Шашлык", "en": "Signature Kebab"},
+            "price": 120.0,
+            "currency": "TJS"
+        },
+        headers=admin_headers
+    )
+    assert donor_dish.status_code == 200
+
+    # 2. Create new branch with currency USD
+    res_target = await client.post(
+        "/api/v1/restaurants",
+        json={"name": f"Branch Dubai {uid}", "slug": target_slug, "currency": "USD"},
+        headers=admin_headers
+    )
+    assert res_target.status_code == 200
+
+    # 3. Clone menu from donor to target
+    clone_res = await client.post(
+        f"/api/v1/restaurants/{target_slug}/clone-menu-from/{donor_slug}",
+        headers=admin_headers
+    )
+    assert clone_res.status_code == 200
+    clone_data = clone_res.json()
+    assert clone_data["status"] == "success"
+    assert clone_data["categories_cloned"] == 1
+    assert clone_data["dishes_cloned"] == 1
+
+    # 4. Verify target restaurant menu has the cloned dish with target currency USD
+    target_menu = await client.get(f"/api/v1/restaurants/{target_slug}/full-menu")
+    assert target_menu.status_code == 200
+    cats = target_menu.json()["categories"]
+    assert len(cats) == 1
+    assert cats[0]["name"]["ru"] == "Гриль меню"
+    assert len(cats[0]["dishes"]) == 1
+    dish = cats[0]["dishes"][0]
+    assert dish["name"]["ru"] == "Фирменный Шашлык"
+    assert dish["currency"] == "USD"
+
+
+

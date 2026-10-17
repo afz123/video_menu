@@ -15,16 +15,18 @@ export const MobileFeed = ({ restaurantData }) => {
   const containerRef = useRef(null);
   const { t } = useLanguage();
 
-  // Parse table parameter from URL (?table=12) with persistence in sessionStorage
+  const tableStorageKey = `guest_table_${restaurantData.restaurant?.slug || restaurantSlug || 'menu'}`;
+
+  // Parse table parameter from URL (?table=12) with persistence in sessionStorage per tenant
   const [tableNumber, setTableNumber] = useState(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const urlTable = params.get('table');
       if (urlTable) {
-        sessionStorage.setItem('guest_table_number', urlTable);
+        sessionStorage.setItem(tableStorageKey, urlTable);
         return urlTable;
       }
-      return sessionStorage.getItem('guest_table_number') || '';
+      return sessionStorage.getItem(tableStorageKey) || '';
     }
     return '';
   });
@@ -340,7 +342,7 @@ export const MobileFeed = ({ restaurantData }) => {
         onOpenCart={() => setIsCartOpen(true)}
         onSetTableNumber={(tbl) => {
           setTableNumber(tbl);
-          sessionStorage.setItem('guest_table_number', tbl);
+          sessionStorage.setItem(tableStorageKey, tbl);
         }}
       />
 
@@ -366,7 +368,7 @@ export const MobileFeed = ({ restaurantData }) => {
           onClearCart={handleClearCart}
           onSetTableNumber={(tbl) => {
             setTableNumber(tbl);
-            sessionStorage.setItem('guest_table_number', tbl);
+            sessionStorage.setItem(tableStorageKey, tbl);
           }}
         />
       )}

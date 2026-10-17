@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { GoldButton } from '../../components/ui/GoldButton';
 import { DishFormModal } from './DishFormModal';
+import { CreateRestaurantModal } from './CreateRestaurantModal';
 import { CategoryManager } from './CategoryManager';
 import { ThemeCustomizer } from './ThemeCustomizer';
 import { RestaurantSettings } from './RestaurantSettings';
@@ -42,6 +43,7 @@ export const DashboardLayout = () => {
   const [menuData, setMenuData] = useState(null);
   const [activeTab, setActiveTab] = useState('dishes'); // 'dishes' | 'categories' | 'theme' | 'preview'
   const [isDishModalOpen, setIsDishModalOpen] = useState(false);
+  const [isCreateRestaurantOpen, setIsCreateRestaurantOpen] = useState(false);
   const [editingDish, setEditingDish] = useState(null);
   const [initialCategoryId, setInitialCategoryId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -92,6 +94,17 @@ export const DashboardLayout = () => {
     const interval = setInterval(loadServiceRequests, 6000);
     return () => clearInterval(interval);
   }, [selectedSlug]);
+
+  // Synchronize CSS variables when switching restaurant theme
+  useEffect(() => {
+    if (restaurant?.theme_config?.colors) {
+      const colors = restaurant.theme_config.colors;
+      const root = document.documentElement;
+      if (colors.background) root.style.setProperty('--bg-core', colors.background);
+      if (colors.primary_accent) root.style.setProperty('--accent-gold', colors.primary_accent);
+      if (colors.text_primary) root.style.setProperty('--text-main', colors.text_primary);
+    }
+  }, [restaurant]);
 
   const handleToggleStopList = async (dishId) => {
     try {
@@ -202,31 +215,55 @@ export const DashboardLayout = () => {
               </span>
             </h1>
 
-            {restaurants.length > 1 && (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.04)', padding: '4px 10px', borderRadius: '12px', border: '1px solid rgba(212,175,55,0.2)' }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Заведение:</span>
-                <select
-                  value={selectedSlug}
-                  onChange={(e) => setSelectedSlug(e.target.value)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--accent-gold)',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    outline: 'none'
-                  }}
-                  title="Быстрое переключение между заведениями сети"
-                >
-                  {restaurants.map((r) => (
-                    <option key={r.slug} value={r.slug} style={{ background: '#121216', color: '#fff' }}>
-                      🏛️ {r.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              {restaurants.length > 0 && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.04)', padding: '4px 10px', borderRadius: '12px', border: '1px solid rgba(212,175,55,0.2)' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Заведение:</span>
+                  <select
+                    value={selectedSlug}
+                    onChange={(e) => setSelectedSlug(e.target.value)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--accent-gold)',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      outline: 'none'
+                    }}
+                    title="Быстрое переключение между заведениями сети"
+                  >
+                    {restaurants.map((r) => (
+                      <option key={r.slug} value={r.slug} style={{ background: '#121216', color: '#fff' }}>
+                        🏛️ {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <button
+                onClick={() => setIsCreateRestaurantOpen(true)}
+                style={{
+                  background: 'rgba(212, 175, 55, 0.12)',
+                  border: '1px solid rgba(212, 175, 55, 0.4)',
+                  color: 'var(--accent-gold)',
+                  borderRadius: '10px',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease'
+                }}
+                title="Создать новый ресторан или филиал сети (Франшиза)"
+              >
+                <Building2 size={13} />
+                <span>+ Филиал</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -883,6 +920,21 @@ export const DashboardLayout = () => {
             setEditingDish(null);
             setInitialCategoryId(null);
             loadMenu();
+          }}
+        />
+      )}
+
+      {/* Create Restaurant Modal */}
+      {isCreateRestaurantOpen && (
+        <CreateRestaurantModal
+          existingRestaurants={restaurants}
+          onClose={() => setIsCreateRestaurantOpen(false)}
+          onCreated={(newRest) => {
+            setIsCreateRestaurantOpen(false);
+            loadRestaurants();
+            if (newRest?.slug) {
+              setSelectedSlug(newRest.slug);
+            }
           }}
         />
       )}

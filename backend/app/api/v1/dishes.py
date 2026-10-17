@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.security import get_current_admin
+from app.core.security import get_current_admin, check_restaurant_access
 from app.models.dish import Dish
 from app.models.media import MediaAsset
 from app.models.category import Category
@@ -80,6 +80,8 @@ async def create_dish(
     current_admin: str = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
+    check_restaurant_access(current_admin, data.restaurant_id)
+
     # Verify category
     cat = await db.get(Category, data.category_id)
     if not cat:
@@ -109,6 +111,8 @@ async def update_dish(
     if not dish:
         raise HTTPException(status_code=404, detail="Блюдо не найдено")
 
+    check_restaurant_access(current_admin, dish.restaurant_id)
+
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(dish, key, value)
@@ -132,6 +136,8 @@ async def delete_dish(
     if not dish:
         raise HTTPException(status_code=404, detail="Блюдо не найдено")
 
+    check_restaurant_access(current_admin, dish.restaurant_id)
+
     await db.delete(dish)
     await db.commit()
     return {"status": "deleted", "id": dish_id}
@@ -152,6 +158,8 @@ async def toggle_stop_list(
     if not dish:
         raise HTTPException(status_code=404, detail="Блюдо не найдено")
 
+    check_restaurant_access(current_admin, dish.restaurant_id)
+
     dish.is_available = not dish.is_available
     await db.commit()
     return {
@@ -169,6 +177,7 @@ async def reorder_dishes(
     for item in items:
         dish = await db.get(Dish, item.id)
         if dish:
+            check_restaurant_access(current_admin, dish.restaurant_id)
             dish.display_order = item.display_order
     await db.commit()
     return {"status": "reordered"}

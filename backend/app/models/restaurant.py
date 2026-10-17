@@ -21,6 +21,7 @@ class Restaurant(Base):
     # Restaurant Economics & Hospitality settings
     currency = Column(String(8), default="TJS")
     service_charge_percent = Column(Float, default=10.0) # Standard 10-15% in Central Asia / Luxury Dining
+    admin_password_hash = Column(String(256), nullable=True) # Per-tenant hashed manager credentials
     
     # Enabled Staff Call types: ["waiter", "bill", "sommelier", "hookah", "admin"]
     call_types_enabled = Column(JSON, default=lambda: ["waiter", "bill", "sommelier", "hookah", "admin"])

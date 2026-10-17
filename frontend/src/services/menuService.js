@@ -6,7 +6,9 @@ export const menuService = {
   // Restaurants
   getRestaurants: () => api.get('/restaurants'),
   getRestaurant: (slug) => api.get(`/restaurants/${slug}`),
+  createRestaurant: (data) => api.post('/restaurants', data),
   updateRestaurant: (slug, data) => api.put(`/restaurants/${slug}`, data),
+  cloneMenu: (targetSlug, sourceSlug) => api.post(`/restaurants/${targetSlug}/clone-menu-from/${sourceSlug}`),
   
   getCachedMenu: (slug, includeUnavailable = false) => {
     if (typeof window === 'undefined') return null;

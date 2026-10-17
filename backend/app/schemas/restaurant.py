@@ -19,7 +19,7 @@ class RestaurantBase(BaseModel):
     telegram_enabled: Optional[bool] = False
 
 class RestaurantCreate(RestaurantBase):
-    pass
+    admin_password: Optional[str] = None
 
 class RestaurantUpdate(BaseModel):
     name: Optional[str] = None
@@ -36,6 +36,7 @@ class RestaurantUpdate(BaseModel):
     telegram_bot_token: Optional[str] = None
     telegram_chat_id: Optional[str] = None
     telegram_enabled: Optional[bool] = None
+    admin_password: Optional[str] = None
 
 class RestaurantResponse(RestaurantBase):
     id: int

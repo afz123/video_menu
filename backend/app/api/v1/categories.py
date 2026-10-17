@@ -4,7 +4,7 @@ from sqlalchemy import select
 from typing import List, Optional
 
 from app.core.database import get_db
-from app.core.security import get_current_admin
+from app.core.security import get_current_admin, check_restaurant_access
 from app.models.category import Category
 from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse, CategoryReorderItem
 
@@ -27,6 +27,8 @@ async def create_category(
     current_admin: str = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
+    check_restaurant_access(current_admin, data.restaurant_id)
+
     category = Category(**data.model_dump())
     db.add(category)
     await db.commit()
@@ -43,6 +45,8 @@ async def update_category(
     category = await db.get(Category, category_id)
     if not category:
         raise HTTPException(status_code=404, detail="Категория не найдена")
+
+    check_restaurant_access(current_admin, category.restaurant_id)
 
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
@@ -62,6 +66,8 @@ async def delete_category(
     if not category:
         raise HTTPException(status_code=404, detail="Категория не найдена")
 
+    check_restaurant_access(current_admin, category.restaurant_id)
+
     await db.delete(category)
     await db.commit()
     return {"status": "deleted", "id": category_id}
@@ -75,6 +81,7 @@ async def reorder_categories(
     for item in items:
         cat = await db.get(Category, item.id)
         if cat:
+            check_restaurant_access(current_admin, cat.restaurant_id)
             cat.display_order = item.display_order
     await db.commit()
     return {"status": "reordered"}
