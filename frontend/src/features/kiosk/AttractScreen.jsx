@@ -2,7 +2,7 @@ import React from 'react';
 import { Sparkles, QrCode } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
-export const AttractScreen = ({ restaurant, onExplore, qrUrl }) => {
+export const AttractScreen = ({ restaurant, onExplore, onOpenBooking, qrUrl }) => {
   const theme = restaurant.theme || {};
   const kiosk = theme.kiosk_settings || {};
   const attractVideo = kiosk.attract_video_url || '/static/videos/attract_royale_kiosk.mp4';
@@ -154,23 +154,51 @@ export const AttractScreen = ({ restaurant, onExplore, qrUrl }) => {
           {headline}
         </h1>
 
-        <div
-          className="animate-pulse-glow"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '14px',
-            background: 'var(--accent-gold-gradient)',
-            color: '#09090b',
-            padding: '20px 48px',
-            borderRadius: '40px',
-            fontSize: '22px',
-            fontWeight: '700',
-            boxShadow: '0 12px 40px rgba(212, 175, 55, 0.45)',
-            letterSpacing: '0.02em'
-          }}
-        >
-          <span>{subheadline}</span>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div
+            className="animate-pulse-glow"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '14px',
+              background: 'var(--accent-gold-gradient)',
+              color: '#09090b',
+              padding: '20px 48px',
+              borderRadius: '40px',
+              fontSize: '22px',
+              fontWeight: '700',
+              boxShadow: '0 12px 40px rgba(212, 175, 55, 0.45)',
+              letterSpacing: '0.02em'
+            }}
+          >
+            <span>{subheadline}</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onOpenBooking) onOpenBooking();
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '10px',
+              backgroundColor: 'rgba(18, 18, 24, 0.88)',
+              border: '2px solid var(--accent-gold)',
+              color: 'var(--accent-gold)',
+              padding: '18px 36px',
+              borderRadius: '40px',
+              fontSize: '20px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <span>📅 Забронировать стол</span>
+          </button>
         </div>
       </div>
     </div>

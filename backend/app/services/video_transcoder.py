@@ -99,12 +99,20 @@ class VideoTranscodeService:
                 logger.error(f"FFmpeg command timed out after 120s: {' '.join(cmd)}")
                 raise TimeoutError(f"FFmpeg transcoding timed out: {' '.join(cmd)}")
 
+        # Stage 1: Fast poster generation (LQIP + HD WebP frames in < 1s)
+        logger.info(f"Asset {asset_id}: Stage 1 - generating WebP posters...")
         await asyncio.gather(
             asyncio.to_thread(run_proc, cmd_lqip),
             asyncio.to_thread(run_proc, cmd_hd),
-            asyncio.to_thread(run_proc, cmd_mobile),
-            asyncio.to_thread(run_proc, cmd_kiosk),
         )
+
+        # Stage 2: Mobile video encoding (FastStart H.264 720p)
+        logger.info(f"Asset {asset_id}: Stage 2 - encoding mobile H.264 stream...")
+        await asyncio.to_thread(run_proc, cmd_mobile)
+
+        # Stage 3: Kiosk video encoding (High profile 1080p)
+        logger.info(f"Asset {asset_id}: Stage 3 - encoding kiosk 1080p stream...")
+        await asyncio.to_thread(run_proc, cmd_kiosk)
 
         # Get file size
         total_size = 0

@@ -86,19 +86,24 @@ class TelegramService:
                 subtotal += item_price * qty
                 currency = item.get("currency", currency)
 
-                # Format modifiers
-                mods = item.get("selected_modifiers") or []
+                # Format modifiers (e.g. Steak Doneness, Sauces, Additions)
+                mods = item.get("chosen_options") or item.get("selected_modifiers") or item.get("modifiers") or []
                 mod_texts = []
                 for m in mods:
-                    opt = m.get("option_name")
-                    extra = m.get("extra_price", 0)
-                    if extra > 0:
-                        mod_texts.append(f"{opt} (+{extra})")
-                    else:
-                        mod_texts.append(str(opt))
+                    if isinstance(m, dict):
+                        grp = m.get("group") or m.get("modifier_name") or ""
+                        opt = m.get("name") or m.get("option_name") or ""
+                        extra = m.get("price") or m.get("extra_price") or 0
+                        extra_str = f" (+{extra})" if extra and float(extra) > 0 else ""
+                        if grp:
+                            mod_texts.append(f"<b>{grp}:</b> {opt}{extra_str}")
+                        elif opt:
+                            mod_texts.append(f"{opt}{extra_str}")
+                    elif isinstance(m, str):
+                        mod_texts.append(m)
 
-                mod_str = f" <i>({', '.join(mod_texts)})</i>" if mod_texts else ""
-                lines.append(f"  {idx}. {name} x{qty} — {item_price * qty:.1f} {currency}{mod_str}")
+                mod_str = f"\n     └ <i>{', '.join(mod_texts)}</i>" if mod_texts else ""
+                lines.append(f"  {idx}. <b>{name}</b> x{qty} — {item_price * qty:.1f} {currency}{mod_str}")
 
             service_charge = subtotal * (service_charge_percent / 100.0)
             total = subtotal + service_charge

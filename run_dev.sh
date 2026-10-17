@@ -155,7 +155,7 @@ echo "📱 На смартфонах по Wi-Fi:      http://$SHOW_IP:3033/menu/
 echo "🖥️ Уличный Kiosk-дисплей:       http://$SHOW_IP:3033/kiosk/asr-royale"
 echo "⚙️ Панель управления (CMS):     http://$SHOW_IP:3033/admin"
 echo "📚 Swagger API (Бэкенд):        http://$SHOW_IP:8088/docs"
-echo "🗄️ База данных PostgreSQL:      localhost:5431 (user/pass: videomenu)"
+echo "🗄️ База данных PostgreSQL:      localhost:${DB_PORT} (user/pass: videomenu)"
 echo ""
 echo "📷 QR-код для мгновенного открытия меню на телефоне:"
 "$DIR/backend/venv/bin/python3" -c "import qrcode; qr = qrcode.QRCode(border=1); qr.add_data('http://$SHOW_IP:3033/menu/asr-royale'); qr.print_ascii(invert=True)" 2>/dev/null || true

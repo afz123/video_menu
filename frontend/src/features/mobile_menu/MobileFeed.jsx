@@ -43,6 +43,8 @@ export const MobileFeed = ({ restaurantData }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [modifierDish, setModifierDish] = useState(null);
   const [isDetailExpanded, setIsDetailExpanded] = useState(false);
+  const [badgeFilter, setBadgeFilter] = useState('ALL'); // 'ALL' | 'Хит' | 'Шеф' | 'Острое'
+  const isProgrammaticScrollRef = useRef(false);
 
   // Sync cart to localStorage
   useEffect(() => {
@@ -56,16 +58,19 @@ export const MobileFeed = ({ restaurantData }) => {
     }
   }, [cartItems, restaurantData.restaurant?.slug]);
 
-  // Active category & dishes
+  // Active category & dishes (filtered by preference if selected)
   const activeCategory = categories.find((c) => c.id === activeCategoryId) || categories[0];
-  const dishes = activeCategory ? activeCategory.dishes : [];
+  const allDishes = activeCategory ? activeCategory.dishes : [];
+  const dishes = badgeFilter === 'ALL'
+    ? allDishes
+    : allDishes.filter((d) => (d.badges || []).some((b) => b.toLowerCase().includes(badgeFilter.toLowerCase())));
 
   // Preload next video in feed
   const nextVideo = dishes[currentSlideIndex + 1]?.media?.video_mobile;
   useVideoPreload([nextVideo]);
 
   const handleScroll = () => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || isProgrammaticScrollRef.current) return;
     const scrollTop = containerRef.current.scrollTop;
     const height = window.innerHeight;
     const index = Math.round(scrollTop / height);
@@ -75,16 +80,43 @@ export const MobileFeed = ({ restaurantData }) => {
   };
 
   const handleSelectCategory = (catId) => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate(12); } catch (_) {}
+    }
+    isProgrammaticScrollRef.current = true;
     setActiveCategoryId(catId);
+    setCurrentSlideIndex(0);
+    setBadgeFilter('ALL');
+    setIsDetailExpanded(false);
+    if (containerRef.current) {
+      containerRef.current.scrollTo({ top: 0, behavior: 'auto' });
+    }
+    setTimeout(() => {
+      isProgrammaticScrollRef.current = false;
+    }, 150);
+  };
+
+  const handleSelectBadgeFilter = (badgeId) => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate(10); } catch (_) {}
+    }
+    isProgrammaticScrollRef.current = true;
+    setBadgeFilter(badgeId);
     setCurrentSlideIndex(0);
     setIsDetailExpanded(false);
     if (containerRef.current) {
-      containerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      containerRef.current.scrollTo({ top: 0, behavior: 'auto' });
     }
+    setTimeout(() => {
+      isProgrammaticScrollRef.current = false;
+    }, 150);
   };
 
   // Add to cart handler: if dish has modifiers, open modal; otherwise add directly
   const handleInitiateAddToCart = (dish) => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate(16); } catch (_) {}
+    }
     if (dish.modifiers && dish.modifiers.length > 0) {
       setModifierDish(dish);
     } else {
@@ -110,9 +142,12 @@ export const MobileFeed = ({ restaurantData }) => {
   };
 
   const handleAddConfiguredItem = (configuredItem) => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate(20); } catch (_) {}
+    }
     const getSig = (item) => {
       const opts = (item.chosenOptions || [])
-        .map((o) => `${o.modifierId || o.modifierName}:${o.optionName}`)
+        .map((o) => `${o.modifierId || o.modifierName || o.group}:${o.optionName || o.name}`)
         .sort()
         .join('|');
       return `${item.dish?.id}_${opts}_${item.comment || ''}`;
@@ -190,6 +225,8 @@ export const MobileFeed = ({ restaurantData }) => {
         categories={categories}
         activeCategoryId={activeCategoryId}
         onSelectCategory={handleSelectCategory}
+        badgeFilter={badgeFilter}
+        onSelectBadgeFilter={handleSelectBadgeFilter}
       />
 
       {/* Vertical Reels Container */}

@@ -16,6 +16,8 @@ export const CartDrawer = ({
 }) => {
   const { t } = useLanguage();
   const [table, setTable] = useState(tableNumber || '');
+  const [isEditingTable, setIsEditingTable] = useState(false);
+  const isTableFromQr = Boolean(tableNumber);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSentSuccess, setOrderSentSuccess] = useState(false);
   const [showWaiterScreen, setShowWaiterScreen] = useState(false);
@@ -234,16 +236,50 @@ export const CartDrawer = ({
         </div>
 
         {orderSentSuccess ? (
-          <div style={{ textAlign: 'center', padding: '36px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
-            <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
-              <CheckCircle2 size={36} />
+          <div style={{ textAlign: 'center', padding: '28px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
+              <CheckCircle2 size={32} />
             </div>
-            <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: '24px', color: '#fff', margin: 0 }}>
+            <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', color: '#fff', margin: 0 }}>
               Заказ отправлен!
             </h4>
-            <p style={{ color: 'var(--text-muted)', fontSize: '14px', maxWidth: '320px', lineHeight: '1.5' }}>
-              Официант уже спешит к столу <b>№{table}</b> для подтверждения и передачи на кухню.
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '320px', lineHeight: '1.4', margin: 0 }}>
+              Официант уже спешит к столу <strong style={{ color: 'var(--accent-gold)' }}>№{table}</strong> для подтверждения и передачи на кухню.
             </p>
+
+            {/* Live Status Tracker for Guest Peace of Mind */}
+            <div style={{
+              width: '100%',
+              maxWidth: '340px',
+              backgroundColor: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid rgba(212, 175, 55, 0.2)',
+              borderRadius: '14px',
+              padding: '14px 16px',
+              textAlign: 'left',
+              marginTop: '4px'
+            }}>
+              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--accent-gold)', fontWeight: '700', marginBottom: '10px' }}>
+                Статус обслуживания
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: '#fff' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981' }} />
+                  <span>Заказ принят системой</span>
+                  <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#10b981', fontWeight: '700' }}>✓</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: 'var(--accent-gold)' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-gold)', animation: 'pulseGlow 1.5s infinite' }} />
+                  <span>Уведомление в Telegram смене</span>
+                  <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--accent-gold)' }}>Сейчас</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: 'rgba(255, 255, 255, 0.4)' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)' }} />
+                  <span>Приготовление блюд</span>
+                  <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'rgba(255, 255, 255, 0.4)' }}>Ожидает</span>
+                </div>
+              </div>
+            </div>
+
             <button
               onClick={onClose}
               style={{
@@ -258,7 +294,7 @@ export const CartDrawer = ({
                 cursor: 'pointer'
               }}
             >
-              Отлично
+              Вернуться в меню
             </button>
           </div>
         ) : cartItems.length === 0 ? (
@@ -268,27 +304,100 @@ export const CartDrawer = ({
           </div>
         ) : (
           <>
-            {/* Table Number Bar */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: 'rgba(255, 255, 255, 0.04)', borderRadius: '12px', padding: '10px 14px', marginBottom: '14px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-              <span style={{ fontSize: '13px', color: 'var(--accent-gold)', fontWeight: '600', whiteSpace: 'nowrap' }}>
-                Номер стола:
-              </span>
-              <input
-                type="text"
-                placeholder="напр. 12 или VIP-1"
-                value={table}
-                onChange={(e) => setTable(e.target.value)}
+            {/* Table Number Bar with QR Lock Protection */}
+            {isTableFromQr && !isEditingTable ? (
+              <div
                 style={{
-                  flex: 1,
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#fff',
-                  fontSize: '14px',
-                  fontWeight: '700',
-                  outline: 'none'
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  backgroundColor: 'rgba(212, 175, 55, 0.08)',
+                  borderRadius: '12px',
+                  padding: '10px 14px',
+                  marginBottom: '14px',
+                  border: '1px solid rgba(212, 175, 55, 0.25)'
                 }}
-              />
-            </div>
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <QrCode size={16} color="var(--accent-gold)" />
+                  <span style={{ fontSize: '13px', color: '#fff' }}>
+                    Стол: <strong style={{ color: 'var(--accent-gold)', fontSize: '15px' }}>№{table}</strong>
+                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginLeft: '6px' }}>
+                      (зафиксирован по QR)
+                    </span>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Вы действительно пересели за другой стол? Пожалуйста, меняйте номер только если сменили место.')) {
+                      setIsEditingTable(true);
+                    }
+                  }}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '8px',
+                    padding: '4px 10px',
+                    color: 'var(--text-muted)',
+                    fontSize: '11px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Изменить
+                </button>
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                  borderRadius: '12px',
+                  padding: '10px 14px',
+                  marginBottom: '14px',
+                  border: '1px solid rgba(255, 255, 255, 0.08)'
+                }}
+              >
+                <span style={{ fontSize: '13px', color: 'var(--accent-gold)', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                  Номер стола:
+                </span>
+                <input
+                  type="text"
+                  placeholder="напр. 12 или VIP-1"
+                  value={table}
+                  onChange={(e) => setTable(e.target.value)}
+                  style={{
+                    flex: 1,
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#fff',
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    outline: 'none'
+                  }}
+                />
+                {isEditingTable && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingTable(false)}
+                    style={{
+                      background: 'rgba(212, 175, 55, 0.15)',
+                      border: '1px solid var(--accent-gold)',
+                      borderRadius: '6px',
+                      padding: '3px 8px',
+                      color: 'var(--accent-gold)',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Готово
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Cart Items List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '45vh', overflowY: 'auto', marginBottom: '16px' }}>

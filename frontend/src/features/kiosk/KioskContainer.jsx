@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { AttractScreen } from './AttractScreen';
 import { InteractiveMenu } from './InteractiveMenu';
 import { QrBridgeModal } from './QrBridgeModal';
+import { BookingModal } from './BookingModal';
 import { useInactivityTimer } from '../../hooks/useInactivityTimer';
 
 export const KioskContainer = ({ restaurantData }) => {
   const [mode, setMode] = useState('ATTRACT'); // 'ATTRACT' | 'INTERACTIVE'
   const [isQrBridgeOpen, setIsQrBridgeOpen] = useState(false);
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
 
   const theme = restaurantData.theme || {};
   const kioskSettings = theme.kiosk_settings || {};
@@ -52,6 +54,7 @@ export const KioskContainer = ({ restaurantData }) => {
         <AttractScreen
           restaurant={restaurantData}
           onExplore={handleFirstTouch}
+          onOpenBooking={() => setIsBookingOpen(true)}
           qrUrl={mobileUrl}
         />
       ) : (
@@ -146,6 +149,18 @@ export const KioskContainer = ({ restaurantData }) => {
           restaurantName={restaurantData.name}
           onClose={() => {
             setIsQrBridgeOpen(false);
+            resetTimer();
+          }}
+        />
+      )}
+
+      {/* Street Kiosk Table Reservation Modal */}
+      {isBookingOpen && (
+        <BookingModal
+          restaurantSlug={restaurantData.slug}
+          restaurantName={restaurantData.name}
+          onClose={() => {
+            setIsBookingOpen(false);
             resetTimer();
           }}
         />

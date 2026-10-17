@@ -8,7 +8,9 @@ export const MobileHeader = ({
   restaurantName = 'ASR Maison Royale',
   categories = [],
   activeCategoryId,
-  onSelectCategory
+  onSelectCategory,
+  badgeFilter = 'ALL',
+  onSelectBadgeFilter
 }) => {
   const { currentLang, t } = useLanguage();
   const [isCategoryDrawerOpen, setIsCategoryDrawerOpen] = useState(false);
@@ -209,6 +211,59 @@ export const MobileHeader = ({
             );
           })}
         </div>
+
+        {/* ROW 3: Quick Dietary & Taste Filter Chips */}
+        {onSelectBadgeFilter && (
+          <div
+            style={{
+              display: 'flex',
+              gap: '6px',
+              padding: '0 16px',
+              overflowX: 'auto',
+              scrollbarWidth: 'none',
+              WebkitOverflowScrolling: 'touch'
+            }}
+          >
+            {[
+              { id: 'ALL', label: 'Все блюда', icon: '✨' },
+              { id: 'Хит', label: 'Хиты', icon: '🔥' },
+              { id: 'Шеф', label: 'Выбор Шефа', icon: '⭐' },
+              { id: 'Острое', label: 'Острое', icon: '🌶️' },
+              { id: 'Премиум', label: 'Премиум', icon: '👑' }
+            ].map((chip) => {
+              const isSelected = badgeFilter === chip.id;
+              return (
+                <button
+                  key={chip.id}
+                  onClick={() => onSelectBadgeFilter(chip.id)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 10px',
+                    borderRadius: '12px',
+                    fontSize: '11px',
+                    fontWeight: isSelected ? '700' : '500',
+                    border: isSelected
+                      ? '1px solid var(--accent-gold)'
+                      : '1px solid rgba(255, 255, 255, 0.08)',
+                    background: isSelected
+                      ? 'rgba(212, 175, 55, 0.18)'
+                      : 'rgba(255, 255, 255, 0.04)',
+                    color: isSelected ? 'var(--accent-gold)' : 'rgba(255, 255, 255, 0.7)',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    backdropFilter: 'blur(8px)',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <span>{chip.icon}</span>
+                  <span>{chip.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </header>
 
       {/* Category Bottom Sheet */}
