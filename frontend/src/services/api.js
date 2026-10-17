@@ -1,4 +1,4 @@
-// Lightweight native fetch client with error handling
+// Lightweight native fetch client with error handling & auth token injection
 const BASE_URL = '/api/v1';
 
 async function request(endpoint, options = {}) {
@@ -7,6 +7,15 @@ async function request(endpoint, options = {}) {
 
   if (!(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
+  }
+
+  // Automatically attach Admin Bearer Token if logged in
+  const token = typeof window !== 'undefined'
+    ? (sessionStorage.getItem('admin_session_token') || localStorage.getItem('admin_session_token'))
+    : null;
+
+  if (token && !headers['Authorization']) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
   const response = await fetch(url, {
@@ -18,7 +27,11 @@ async function request(endpoint, options = {}) {
     let errorDetail = `Request failed: ${response.status} ${response.statusText}`;
     try {
       const errorJson = await response.json();
-      if (errorJson.detail) errorDetail = errorJson.detail;
+      if (errorJson.detail) {
+        errorDetail = typeof errorJson.detail === 'string'
+          ? errorJson.detail
+          : JSON.stringify(errorJson.detail);
+      }
     } catch (_) {}
     throw new Error(errorDetail);
   }

@@ -7,6 +7,8 @@ logger = logging.getLogger("video_menu.database")
 
 Base = declarative_base()
 
+from sqlalchemy.pool import NullPool
+
 # Initialize engine with graceful fallback to sqlite if postgres is unavailable
 _engine = None
 AsyncSessionLocal = None
@@ -17,24 +19,38 @@ async def init_engine():
         return _engine
     
     # Try PostgreSQL first (user asked for Docker DB)
-    try:
-        from sqlalchemy import text
-        engine = create_async_engine(
-            settings.DATABASE_URL,
-            echo=False,
-            future=True,
-            pool_pre_ping=True
-        )
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-        _engine = engine
-        logger.info(f"Connected successfully to PostgreSQL at {settings.DATABASE_URL}")
-    except Exception as e:
-        logger.warning(f"PostgreSQL connection failed ({e}). Falling back to SQLite: {settings.SQLITE_FALLBACK_URL}")
+    urls_to_try = [settings.DATABASE_URL]
+    if "5431" in settings.DATABASE_URL:
+        urls_to_try.append(settings.DATABASE_URL.replace("5431", "5435"))
+    elif "5435" in settings.DATABASE_URL:
+        urls_to_try.append(settings.DATABASE_URL.replace("5435", "5431"))
+    
+    from sqlalchemy import text
+    connected = False
+    for db_url in urls_to_try:
+        try:
+            engine = create_async_engine(
+                db_url,
+                echo=False,
+                future=True,
+                poolclass=NullPool
+            )
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+            _engine = engine
+            logger.info(f"Connected successfully to PostgreSQL at {db_url}")
+            connected = True
+            break
+        except Exception as e:
+            logger.debug(f"Attempt failed for {db_url}: {e}")
+
+    if not connected:
+        logger.warning(f"All PostgreSQL attempts failed. Falling back to SQLite: {settings.SQLITE_FALLBACK_URL}")
         _engine = create_async_engine(
             settings.SQLITE_FALLBACK_URL,
             echo=False,
-            future=True
+            future=True,
+            poolclass=NullPool
         )
 
     AsyncSessionLocal = async_sessionmaker(

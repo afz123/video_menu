@@ -4,6 +4,7 @@ from sqlalchemy import select
 from typing import List, Optional
 
 from app.core.database import get_db
+from app.core.security import get_current_admin
 from app.models.category import Category
 from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse, CategoryReorderItem
 
@@ -21,7 +22,11 @@ async def list_categories(
     return result.scalars().all()
 
 @router.post("", response_model=CategoryResponse)
-async def create_category(data: CategoryCreate, db: AsyncSession = Depends(get_db)):
+async def create_category(
+    data: CategoryCreate,
+    current_admin: str = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
     category = Category(**data.model_dump())
     db.add(category)
     await db.commit()
@@ -32,6 +37,7 @@ async def create_category(data: CategoryCreate, db: AsyncSession = Depends(get_d
 async def update_category(
     category_id: int, 
     data: CategoryUpdate, 
+    current_admin: str = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     category = await db.get(Category, category_id)
@@ -47,7 +53,11 @@ async def update_category(
     return category
 
 @router.delete("/{category_id}")
-async def delete_category(category_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_category(
+    category_id: int,
+    current_admin: str = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
     category = await db.get(Category, category_id)
     if not category:
         raise HTTPException(status_code=404, detail="Категория не найдена")
@@ -59,6 +69,7 @@ async def delete_category(category_id: int, db: AsyncSession = Depends(get_db)):
 @router.post("/reorder")
 async def reorder_categories(
     items: List[CategoryReorderItem] = Body(...),
+    current_admin: str = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     for item in items:

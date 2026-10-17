@@ -1,15 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from app.core.database import get_db
-from app.models.restaurant import Restaurant
+from app.api.v1.restaurants import find_restaurant_by_slug
 
 router = APIRouter(prefix="/kiosk", tags=["Kiosk"])
 
 @router.get("/{slug}/config")
 async def get_kiosk_config(slug: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Restaurant).where(Restaurant.slug == slug))
-    restaurant = result.scalar_one_or_none()
+    restaurant = await find_restaurant_by_slug(slug, db)
     if not restaurant:
         raise HTTPException(status_code=404, detail="Ресторан не найден")
 

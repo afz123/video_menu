@@ -1,8 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MobileHeader } from './MobileHeader';
 import { DishSlide } from './DishSlide';
+import { SmartServiceBar } from './SmartServiceBar';
+import { ModifierModal } from './ModifierModal';
+import { CartDrawer } from './CartDrawer';
 import { useLanguage } from '../../context/LanguageContext';
 import { useVideoPreload } from '../../hooks/useVideoPreload';
+import { WifiOff } from 'lucide-react';
 
 export const MobileFeed = ({ restaurantData }) => {
   const categories = restaurantData.categories || [];
@@ -10,6 +14,46 @@ export const MobileFeed = ({ restaurantData }) => {
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const containerRef = useRef(null);
   const { t } = useLanguage();
+
+  // Parse table parameter from URL (?table=12) with persistence in sessionStorage
+  const [tableNumber, setTableNumber] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlTable = params.get('table');
+      if (urlTable) {
+        sessionStorage.setItem('guest_table_number', urlTable);
+        return urlTable;
+      }
+      return sessionStorage.getItem('guest_table_number') || '';
+    }
+    return '';
+  });
+
+  // Guest Cart State with persistence in localStorage
+  const [cartItems, setCartItems] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('guest_cart_' + (restaurantData.restaurant?.slug || 'menu'));
+        return saved ? JSON.parse(saved) : [];
+      } catch (_) {}
+    }
+    return [];
+  });
+
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [modifierDish, setModifierDish] = useState(null);
+
+  // Sync cart to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(
+          'guest_cart_' + (restaurantData.restaurant?.slug || 'menu'),
+          JSON.stringify(cartItems)
+        );
+      } catch (_) {}
+    }
+  }, [cartItems, restaurantData.restaurant?.slug]);
 
   // Active category & dishes
   const activeCategory = categories.find((c) => c.id === activeCategoryId) || categories[0];
@@ -37,6 +81,60 @@ export const MobileFeed = ({ restaurantData }) => {
     }
   };
 
+  // Add to cart handler: if dish has modifiers, open modal; otherwise add directly
+  const handleInitiateAddToCart = (dish) => {
+    if (dish.modifiers && dish.modifiers.length > 0) {
+      setModifierDish(dish);
+    } else {
+      setCartItems((prev) => {
+        const existingIdx = prev.findIndex((item) => item.dish.id === dish.id && (!item.chosenOptions || item.chosenOptions.length === 0));
+        if (existingIdx >= 0) {
+          const updated = [...prev];
+          updated[existingIdx].quantity = (updated[existingIdx].quantity || 1) + 1;
+          return updated;
+        }
+        return [
+          ...prev,
+          {
+            dish,
+            totalPrice: Number(dish.price),
+            quantity: 1,
+            chosenOptions: [],
+            comment: ''
+          }
+        ];
+      });
+    }
+  };
+
+  const handleAddConfiguredItem = (configuredItem) => {
+    setCartItems((prev) => [
+      ...prev,
+      {
+        ...configuredItem,
+        quantity: 1
+      }
+    ]);
+  };
+
+  const handleUpdateQty = (idx, delta) => {
+    setCartItems((prev) => {
+      const updated = [...prev];
+      const newQty = (updated[idx].quantity || 1) + delta;
+      if (newQty <= 0) {
+        return updated.filter((_, i) => i !== idx);
+      }
+      updated[idx].quantity = newQty;
+      return updated;
+    });
+  };
+
+  const handleClearCart = () => {
+    setCartItems([]);
+  };
+
+  const restaurantSlug = restaurantData.restaurant?.slug || 'asr-royale';
+
   return (
     <div
       style={{
@@ -47,7 +145,33 @@ export const MobileFeed = ({ restaurantData }) => {
         backgroundColor: '#09090b'
       }}
     >
-      {/* Unified Luxury Mobile Header (Brand + Menu Drawer + Language Drawer + Category Carousel) */}
+      {/* Offline Banner if served from cache */}
+      {restaurantData._isOffline && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 60,
+            backgroundColor: '#ef4444',
+            color: '#fff',
+            fontSize: '11px',
+            fontWeight: '700',
+            textAlign: 'center',
+            padding: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px'
+          }}
+        >
+          <WifiOff size={13} />
+          <span>Офлайн-режим: отображается сохранённая версия меню</span>
+        </div>
+      )}
+
+      {/* Unified Luxury Mobile Header */}
       <MobileHeader
         restaurantName={restaurantData.restaurant?.name || 'ASR Maison Royale'}
         categories={categories}
@@ -68,6 +192,7 @@ export const MobileFeed = ({ restaurantData }) => {
                 dish={dish}
                 isCurrent={idx === currentSlideIndex}
                 categoryName={t(activeCategory.name)}
+                onAddToCart={handleInitiateAddToCart}
               />
             </section>
           ))}
@@ -110,7 +235,6 @@ export const MobileFeed = ({ restaurantData }) => {
             pointerEvents: 'none'
           }}
         >
-          {/* Subtle numeric badge */}
           <div
             style={{
               fontSize: '10px',
@@ -128,7 +252,6 @@ export const MobileFeed = ({ restaurantData }) => {
             {currentSlideIndex + 1}/{dishes.length}
           </div>
 
-          {/* Dots */}
           {dishes.map((_, idx) => (
             <div
               key={idx}
@@ -149,6 +272,43 @@ export const MobileFeed = ({ restaurantData }) => {
             />
           ))}
         </div>
+      )}
+
+      {/* Smart Table Service Bar (Waiter, Bill, Cart) */}
+      <SmartServiceBar
+        restaurantSlug={restaurantSlug}
+        tableNumber={tableNumber}
+        cartCount={cartItems.reduce((acc, i) => acc + (i.quantity || 1), 0)}
+        onOpenCart={() => setIsCartOpen(true)}
+        onSetTableNumber={(tbl) => {
+          setTableNumber(tbl);
+          sessionStorage.setItem('guest_table_number', tbl);
+        }}
+      />
+
+      {/* Modifiers Selection Modal */}
+      {modifierDish && (
+        <ModifierModal
+          dish={modifierDish}
+          onClose={() => setModifierDish(null)}
+          onAddToCart={handleAddConfiguredItem}
+        />
+      )}
+
+      {/* Cart Drawer */}
+      {isCartOpen && (
+        <CartDrawer
+          cartItems={cartItems}
+          tableNumber={tableNumber}
+          restaurantSlug={restaurantSlug}
+          onClose={() => setIsCartOpen(false)}
+          onUpdateQty={handleUpdateQty}
+          onClearCart={handleClearCart}
+          onSetTableNumber={(tbl) => {
+            setTableNumber(tbl);
+            sessionStorage.setItem('guest_table_number', tbl);
+          }}
+        />
       )}
     </div>
   );

@@ -6,6 +6,12 @@ from pydantic import BaseModel
 from typing import Optional
 
 from app.core.config import settings
+from app.core.security import (
+    create_admin_token,
+    revoke_admin_token,
+    is_valid_token,
+    get_current_admin
+)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -17,6 +23,9 @@ class LoginResponse(BaseModel):
     status: str
     token: str
     message: str
+
+class VerifyTokenRequest(BaseModel):
+    token: Optional[str] = None
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
@@ -42,16 +51,12 @@ def save_admin_password(new_password: str):
     with open(PASSWORD_FILE, "w", encoding="utf-8") as f:
         json.dump({"password": new_password}, f, ensure_ascii=False, indent=2)
 
-# In-memory valid tokens
-VALID_TOKENS = set()
-
 @router.post("/login", response_model=LoginResponse)
 async def admin_login(data: LoginRequest):
     pwd = data.password.strip()
     current_pwd = get_current_admin_password()
     if pwd == current_pwd:
-        token = secrets.token_hex(24)
-        VALID_TOKENS.add(token)
+        token = create_admin_token()
         return LoginResponse(
             status="success",
             token=token,
@@ -61,13 +66,17 @@ async def admin_login(data: LoginRequest):
     raise HTTPException(status_code=401, detail="Неверный пароль администратора")
 
 @router.post("/verify")
-async def verify_token(token: str):
-    if token in VALID_TOKENS or token == "demo_master_token":
+async def verify_token(req: Optional[VerifyTokenRequest] = None):
+    token = req.token if req else None
+    if token and is_valid_token(token):
         return {"valid": True}
     return {"valid": False}
 
 @router.post("/change-password")
-async def change_admin_password(data: ChangePasswordRequest):
+async def change_admin_password(
+    data: ChangePasswordRequest,
+    current_admin: str = Depends(get_current_admin)
+):
     curr = data.current_password.strip()
     new_p = data.new_password.strip()
 
@@ -85,6 +94,8 @@ async def change_admin_password(data: ChangePasswordRequest):
     }
 
 @router.post("/logout")
-async def admin_logout(token: str):
-    VALID_TOKENS.discard(token)
+async def admin_logout(req: Optional[VerifyTokenRequest] = None):
+    if req and req.token:
+        revoke_admin_token(req.token)
     return {"status": "logged_out"}
+

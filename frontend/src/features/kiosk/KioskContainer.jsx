@@ -40,7 +40,11 @@ export const KioskContainer = ({ restaurantData }) => {
         height: '100vh',
         backgroundColor: '#000',
         overflow: 'hidden',
-        position: 'relative'
+        position: 'relative',
+        overscrollBehavior: 'none',
+        touchAction: 'pan-y',
+        userSelect: 'none',
+        WebkitUserSelect: 'none'
       }}
     >
       {mode === 'ATTRACT' ? (

@@ -172,31 +172,59 @@ export const InteractiveMenu = ({
                   enableSoundToggle={false}
                 />
 
-                {dish.is_featured && (
                   <div
                     style={{
                       position: 'absolute',
                       top: '16px',
                       left: '16px',
-                      background: 'rgba(10, 10, 12, 0.75)',
-                      backdropFilter: 'blur(12px)',
-                      color: 'var(--accent-gold)',
-                      padding: '6px 14px',
-                      borderRadius: '20px',
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      letterSpacing: '0.08em',
-                      textTransform: 'uppercase',
                       display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      border: '1px solid var(--glass-border)'
+                      flexWrap: 'wrap',
+                      gap: '6px'
                     }}
                   >
-                    <Sparkles size={14} />
-                    <span>Special</span>
+                    {dish.badges && dish.badges.length > 0 ? (
+                      dish.badges.map((b, bIdx) => (
+                        <div
+                          key={bIdx}
+                          style={{
+                            background: b.includes('Шеф') || b.includes('Хит') ? 'var(--accent-gold-gradient)' : 'rgba(9, 9, 11, 0.8)',
+                            color: b.includes('Шеф') || b.includes('Хит') ? '#09090b' : '#fff',
+                            padding: '5px 10px',
+                            borderRadius: '16px',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            letterSpacing: '0.04em',
+                            textTransform: 'uppercase',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+                            border: '1px solid rgba(255,255,255,0.2)'
+                          }}
+                        >
+                          {b}
+                        </div>
+                      ))
+                    ) : dish.is_featured ? (
+                      <div
+                        style={{
+                          background: 'rgba(10, 10, 12, 0.75)',
+                          backdropFilter: 'blur(12px)',
+                          color: 'var(--accent-gold)',
+                          padding: '6px 14px',
+                          borderRadius: '20px',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          letterSpacing: '0.08em',
+                          textTransform: 'uppercase',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          border: '1px solid var(--glass-border)'
+                        }}
+                      >
+                        <Sparkles size={14} />
+                        <span>Special</span>
+                      </div>
+                    ) : null}
                   </div>
-                )}
               </div>
 
               {/* Bottom text info */}
@@ -372,6 +400,30 @@ export const InteractiveMenu = ({
                 >
                   {t(activeCategory.name)}
                 </span>
+
+                {/* Badges in modal */}
+                {selectedDish.badges && selectedDish.badges.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+                    {selectedDish.badges.map((b, idx) => (
+                      <span
+                        key={idx}
+                        style={{
+                          background: 'rgba(212, 175, 55, 0.2)',
+                          border: '1px solid rgba(212, 175, 55, 0.4)',
+                          color: 'var(--accent-gold)',
+                          padding: '3px 10px',
+                          borderRadius: '16px',
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          textTransform: 'uppercase'
+                        }}
+                      >
+                        {b}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
                 <h2
                   style={{
                     fontFamily: 'var(--font-serif)',
@@ -467,6 +519,19 @@ export const InteractiveMenu = ({
                     <div style={{ display: 'flex', justifyContent: 'space-between', color: '#f59e0b' }}>
                       <span>Аллергены:</span>
                       <span style={{ fontWeight: '600' }}>{selectedDish.allergens.join(', ')}</span>
+                    </div>
+                  )}
+                  {selectedDish.modifiers && selectedDish.modifiers.length > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#38bdf8' }}>
+                      <span>Выбор гостя:</span>
+                      <span style={{ fontWeight: '600' }}>
+                        {selectedDish.modifiers.map((m) => m.name).join(', ')}
+                      </span>
+                    </div>
+                  )}
+                  {selectedDish.pairings && selectedDish.pairings.length > 0 && selectedDish.pairings[0]?.text && (
+                    <div style={{ padding: '8px 12px', background: 'rgba(212,175,55,0.08)', borderRadius: '10px', border: '1px solid rgba(212,175,55,0.2)', color: 'var(--accent-gold)', fontSize: '13px' }}>
+                      🍷 {selectedDish.pairings[0].text}
                     </div>
                   )}
                 </div>

@@ -8,6 +8,9 @@ class Restaurant(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     slug = Column(String(64), unique=True, index=True, nullable=False)
+    # Historic slugs for preserving QR code redirections
+    old_slugs = Column(JSON, default=list)
+    
     name = Column(String(128), nullable=False)
     tagline = Column(String(256), nullable=True)
     description = Column(Text, nullable=True)
@@ -53,4 +56,10 @@ class Restaurant(Base):
         "Dish", 
         back_populates="restaurant", 
         cascade="all, delete-orphan"
+    )
+    service_requests = relationship(
+        "ServiceRequest",
+        back_populates="restaurant",
+        cascade="all, delete-orphan",
+        order_by="desc(ServiceRequest.created_at)"
     )

@@ -14,6 +14,12 @@ class Category(Base):
     icon = Column(String(64), nullable=True, default="utensils")
     display_order = Column(Integer, default=0, index=True)
     is_active = Column(Boolean, default=True)
+    
+    # Dayparting & Active Hours (e.g. Breakfasts 08:00-12:00, Main Menu, Bar)
+    schedule_start = Column(String(8), nullable=True) # "08:00"
+    schedule_end = Column(String(8), nullable=True)   # "12:00"
+    daypart = Column(String(32), default="all")       # "all", "breakfast", "main", "bar"
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
     restaurant = relationship("Restaurant", back_populates="categories")

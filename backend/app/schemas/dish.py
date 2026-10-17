@@ -17,6 +17,9 @@ class DishBase(BaseModel):
     weight_info: Optional[str] = None
     calories_info: Optional[str] = None
     allergens: Optional[List[str]] = []
+    badges: Optional[List[str]] = []
+    modifiers: Optional[List[Dict[str, Any]]] = []
+    pairings: Optional[List[Any]] = []
     price: float
     currency: str = "TJS"
     is_available: bool = True
@@ -34,6 +37,9 @@ class DishUpdate(BaseModel):
     weight_info: Optional[str] = None
     calories_info: Optional[str] = None
     allergens: Optional[List[str]] = None
+    badges: Optional[List[str]] = None
+    modifiers: Optional[List[Dict[str, Any]]] = None
+    pairings: Optional[List[Any]] = None
     price: Optional[float] = None
     currency: Optional[str] = None
     is_available: Optional[bool] = None

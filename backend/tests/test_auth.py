@@ -16,8 +16,8 @@ async def test_admin_login_success_and_verify(client):
     assert "token" in data
     token = data["token"]
 
-    # Verify token
-    verify_res = await client.post(f"/api/v1/auth/verify?token={token}")
+    # Verify token via JSON body
+    verify_res = await client.post("/api/v1/auth/verify", json={"token": token})
     assert verify_res.status_code == 200
     assert verify_res.json()["valid"] is True
 
@@ -34,15 +34,29 @@ async def test_admin_login_invalid_password(client):
 
 
 @pytest.mark.asyncio
-async def test_change_password_validation(client):
-    """Test change password validates current password and minimum length."""
+async def test_change_password_requires_auth(client):
+    """Test change password without admin auth returns 401."""
+    res = await client.post(
+        "/api/v1/auth/change-password",
+        json={
+            "current_password": "wrong_password",
+            "new_password": "new_secret_pwd_99"
+        }
+    )
+    assert res.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_change_password_validation(client, admin_headers):
+    """Test change password validates current password and minimum length with auth."""
     # 1. Wrong current password
     fail_res = await client.post(
         "/api/v1/auth/change-password",
         json={
             "current_password": "wrong_password",
             "new_password": "new_secret_pwd_99"
-        }
+        },
+        headers=admin_headers
     )
     assert fail_res.status_code == 400
     assert "Текущий пароль указан неверно" in fail_res.json()["detail"]
@@ -54,7 +68,8 @@ async def test_change_password_validation(client):
         json={
             "current_password": curr_pwd,
             "new_password": "ab"
-        }
+        },
+        headers=admin_headers
     )
     assert short_res.status_code == 400
     assert "минимум 4 символа" in short_res.json()["detail"]

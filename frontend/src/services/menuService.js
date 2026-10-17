@@ -1,12 +1,39 @@
 import { api } from './api';
 
+const CACHE_PREFIX = 'luxury_menu_cache_';
+
 export const menuService = {
   // Restaurants
   getRestaurants: () => api.get('/restaurants'),
   getRestaurant: (slug) => api.get(`/restaurants/${slug}`),
   updateRestaurant: (slug, data) => api.put(`/restaurants/${slug}`, data),
-  getFullMenu: (slug, includeUnavailable = false) => 
-    api.get(`/restaurants/${slug}/full-menu?include_unavailable=${includeUnavailable}`),
+  
+  // Resilient Full Menu with Offline Storage fallback
+  getFullMenu: async (slug, includeUnavailable = false) => {
+    const cacheKey = `${CACHE_PREFIX}${slug}_${includeUnavailable}`;
+    try {
+      const data = await api.get(`/restaurants/${slug}/full-menu?include_unavailable=${includeUnavailable}`);
+      if (typeof window !== 'undefined' && data) {
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(data));
+        } catch (_) {}
+      }
+      return data;
+    } catch (err) {
+      if (typeof window !== 'undefined') {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            parsed._isOffline = true;
+            return parsed;
+          } catch (_) {}
+        }
+      }
+      throw err;
+    }
+  },
+
   updateTheme: (slug, themeConfig) => 
     api.put(`/restaurants/${slug}/theme`, themeConfig),
 
@@ -44,6 +71,14 @@ export const menuService = {
 
   // Kiosk
   getKioskConfig: (slug) => api.get(`/kiosk/${slug}/config`),
+
+  // Smart Table Service (Waiters, Bills, Guest Orders)
+  createServiceRequest: (slug, data) => 
+    api.post(`/restaurants/${slug}/service-requests`, data),
+  getServiceRequests: (slug, status) => 
+    api.get(`/restaurants/${slug}/service-requests${status ? `?status=${status}` : ''}`),
+  updateServiceRequestStatus: (slug, reqId, status) => 
+    api.patch(`/restaurants/${slug}/service-requests/${reqId}/status`, { status }),
 
   // Translation Service
   translateTexts: (data) => api.post('/translate', data),

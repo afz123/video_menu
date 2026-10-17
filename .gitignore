@@ -24,7 +24,7 @@ MANIFEST
 .pytest_cache/
 .coverage
 htmlcov/
-
+bundle/
 # Virtual Environments
 venv/
 .venv/

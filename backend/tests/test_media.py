@@ -3,7 +3,7 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_upload_dish_image_hybrid(client):
+async def test_upload_dish_image_hybrid(client, admin_headers):
     """
     Test uploading a static food photo (JPG) instead of video.
     Verifies that the backend accepts images, generates WebP LQIP and HD poster,
@@ -26,7 +26,7 @@ async def test_upload_dish_image_hybrid(client):
         "file": ("delicious_cake.jpg", image_bytes, "image/jpeg")
     }
 
-    response = await client.post("/api/v1/dishes/upload-video", files=files)
+    response = await client.post("/api/v1/dishes/upload-video", files=files, headers=admin_headers)
     assert response.status_code == 200, f"Upload image failed: {response.text}"
     data = response.json()
     assert "media_id" in data
@@ -35,11 +35,19 @@ async def test_upload_dish_image_hybrid(client):
 
 
 @pytest.mark.asyncio
-async def test_upload_unsupported_file_extension(client):
+async def test_upload_dish_unauthorized(client):
+    """Uploading without auth header should fail with 401."""
+    files = {"file": ("test.jpg", b"123", "image/jpeg")}
+    response = await client.post("/api/v1/dishes/upload-video", files=files)
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_upload_unsupported_file_extension(client, admin_headers):
     """Test uploading an unsupported format returns 400 Bad Request."""
     files = {
         "file": ("script.sh", b"echo hello", "text/plain")
     }
-    response = await client.post("/api/v1/dishes/upload-video", files=files)
+    response = await client.post("/api/v1/dishes/upload-video", files=files, headers=admin_headers)
     assert response.status_code == 400
     assert "Неподдерживаемый формат" in response.json()["detail"]

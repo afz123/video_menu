@@ -1,19 +1,29 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 
 export const useInactivityTimer = (timeoutSeconds, onInactive, enabled = true) => {
   const timerRef = useRef(null);
+  const onInactiveRef = useRef(onInactive);
 
-  const resetTimer = () => {
+  useEffect(() => {
+    onInactiveRef.current = onInactive;
+  }, [onInactive]);
+
+  const resetTimer = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (!enabled) return;
 
     timerRef.current = setTimeout(() => {
-      if (onInactive) onInactive();
+      if (onInactiveRef.current) {
+        onInactiveRef.current();
+      }
     }, timeoutSeconds * 1000);
-  };
+  }, [timeoutSeconds, enabled]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      return;
+    }
 
     const events = ['touchstart', 'touchmove', 'click', 'mousemove', 'keydown', 'scroll'];
     const handleActivity = () => resetTimer();
@@ -25,7 +35,7 @@ export const useInactivityTimer = (timeoutSeconds, onInactive, enabled = true) =
       events.forEach((evt) => window.removeEventListener(evt, handleActivity));
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [timeoutSeconds, enabled, onInactive]);
+  }, [enabled, resetTimer]);
 
   return { resetTimer };
 };

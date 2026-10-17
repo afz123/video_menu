@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.security import get_current_admin
 from app.models.dish import Dish
 from app.models.media import MediaAsset
 from app.models.category import Category
@@ -21,6 +22,41 @@ router = APIRouter(prefix="/dishes", tags=["Dishes"])
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".webm", ".mkv", ".avi"}
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic"}
 ALLOWED_EXTENSIONS = VIDEO_EXTENSIONS | IMAGE_EXTENSIONS
+
+def format_dish_response(d: Dish) -> DishResponse:
+    media_info = None
+    if d.media:
+        media_info = {
+            "id": d.media.id,
+            "status": d.media.status,
+            "lqip": d.media.poster_lqip_url,
+            "poster": d.media.poster_hd_url,
+            "video_mobile": d.media.video_mobile_url,
+            "video_kiosk": d.media.video_kiosk_url,
+            "duration_seconds": d.media.duration_seconds
+        }
+    
+    return DishResponse(
+        id=d.id,
+        restaurant_id=d.restaurant_id,
+        category_id=d.category_id,
+        name_translations=d.name_translations,
+        description_translations=d.description_translations,
+        weight_info=d.weight_info,
+        calories_info=d.calories_info,
+        allergens=d.allergens or [],
+        badges=d.badges or [],
+        modifiers=d.modifiers or [],
+        pairings=d.pairings or [],
+        price=float(d.price),
+        currency=d.currency,
+        is_available=d.is_available,
+        is_featured=d.is_featured,
+        display_order=d.display_order,
+        media_id=d.media_id,
+        media=media_info,
+        created_at=d.created_at
+    )
 
 @router.get("", response_model=List[DishResponse])
 async def list_dishes(
@@ -36,44 +72,14 @@ async def list_dishes(
     
     result = await db.execute(query)
     dishes = result.scalars().all()
-    
-    # Format response with media
-    response = []
-    for d in dishes:
-        media_info = None
-        if d.media:
-            media_info = {
-                "id": d.media.id,
-                "status": d.media.status,
-                "lqip": d.media.poster_lqip_url,
-                "poster": d.media.poster_hd_url,
-                "video_mobile": d.media.video_mobile_url,
-                "video_kiosk": d.media.video_kiosk_url,
-                "duration_seconds": d.media.duration_seconds
-            }
-        
-        response.append(DishResponse(
-            id=d.id,
-            restaurant_id=d.restaurant_id,
-            category_id=d.category_id,
-            name_translations=d.name_translations,
-            description_translations=d.description_translations,
-            weight_info=d.weight_info,
-            calories_info=d.calories_info,
-            allergens=d.allergens,
-            price=float(d.price),
-            currency=d.currency,
-            is_available=d.is_available,
-            is_featured=d.is_featured,
-            display_order=d.display_order,
-            media_id=d.media_id,
-            media=media_info,
-            created_at=d.created_at
-        ))
-    return response
+    return [format_dish_response(d) for d in dishes]
 
 @router.post("", response_model=DishResponse)
-async def create_dish(data: DishCreate, db: AsyncSession = Depends(get_db)):
+async def create_dish(
+    data: DishCreate,
+    current_admin: str = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
     # Verify category
     cat = await db.get(Category, data.category_id)
     if not cat:
@@ -90,42 +96,13 @@ async def create_dish(data: DishCreate, db: AsyncSession = Depends(get_db)):
         select(Dish).where(Dish.id == dish.id).options(selectinload(Dish.media))
     )
     d = result.scalar_one()
-
-    media_info = None
-    if d.media:
-        media_info = {
-            "id": d.media.id,
-            "status": d.media.status,
-            "lqip": d.media.poster_lqip_url,
-            "poster": d.media.poster_hd_url,
-            "video_mobile": d.media.video_mobile_url,
-            "video_kiosk": d.media.video_kiosk_url,
-            "duration_seconds": d.media.duration_seconds
-        }
-
-    return DishResponse(
-        id=d.id,
-        restaurant_id=d.restaurant_id,
-        category_id=d.category_id,
-        name_translations=d.name_translations,
-        description_translations=d.description_translations,
-        weight_info=d.weight_info,
-        calories_info=d.calories_info,
-        allergens=d.allergens,
-        price=float(d.price),
-        currency=d.currency,
-        is_available=d.is_available,
-        is_featured=d.is_featured,
-        display_order=d.display_order,
-        media_id=d.media_id,
-        media=media_info,
-        created_at=d.created_at
-    )
+    return format_dish_response(d)
 
 @router.put("/{dish_id}", response_model=DishResponse)
 async def update_dish(
     dish_id: int, 
-    data: DishUpdate, 
+    data: DishUpdate,
+    current_admin: str = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     dish = await db.get(Dish, dish_id)
@@ -143,40 +120,14 @@ async def update_dish(
         select(Dish).where(Dish.id == dish.id).options(selectinload(Dish.media))
     )
     d = result.scalar_one()
-
-    media_info = None
-    if d.media:
-        media_info = {
-            "id": d.media.id,
-            "status": d.media.status,
-            "lqip": d.media.poster_lqip_url,
-            "poster": d.media.poster_hd_url,
-            "video_mobile": d.media.video_mobile_url,
-            "video_kiosk": d.media.video_kiosk_url,
-            "duration_seconds": d.media.duration_seconds
-        }
-
-    return DishResponse(
-        id=d.id,
-        restaurant_id=d.restaurant_id,
-        category_id=d.category_id,
-        name_translations=d.name_translations,
-        description_translations=d.description_translations,
-        weight_info=d.weight_info,
-        calories_info=d.calories_info,
-        allergens=d.allergens,
-        price=float(d.price),
-        currency=d.currency,
-        is_available=d.is_available,
-        is_featured=d.is_featured,
-        display_order=d.display_order,
-        media_id=d.media_id,
-        media=media_info,
-        created_at=d.created_at
-    )
+    return format_dish_response(d)
 
 @router.delete("/{dish_id}")
-async def delete_dish(dish_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_dish(
+    dish_id: int,
+    current_admin: str = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
     dish = await db.get(Dish, dish_id)
     if not dish:
         raise HTTPException(status_code=404, detail="Блюдо не найдено")
@@ -186,7 +137,11 @@ async def delete_dish(dish_id: int, db: AsyncSession = Depends(get_db)):
     return {"status": "deleted", "id": dish_id}
 
 @router.patch("/{dish_id}/toggle-stop-list")
-async def toggle_stop_list(dish_id: int, db: AsyncSession = Depends(get_db)):
+async def toggle_stop_list(
+    dish_id: int,
+    current_admin: str = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
     """
     1-click instant stop-list toggle.
     Reflects immediately on Mobile Guest and Street Kiosk screens.
@@ -206,6 +161,7 @@ async def toggle_stop_list(dish_id: int, db: AsyncSession = Depends(get_db)):
 @router.post("/reorder")
 async def reorder_dishes(
     items: List[DishReorderItem] = Body(...),
+    current_admin: str = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     for item in items:
@@ -219,10 +175,11 @@ async def reorder_dishes(
 async def upload_dish_video(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    current_admin: str = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Receives raw video (.mp4, .mov, .webm, .mkv, .avi) from smartphone / DSLR,
+    Receives raw video (.mp4, .mov, .webm, .mkv, .avi) or photo from smartphone / DSLR,
     stores in temp storage, creates MediaAsset in PROCESSING state,
     and dispatches background FFmpeg transcoding.
     """
@@ -239,6 +196,11 @@ async def upload_dish_video(
     unique_name = f"{uuid.uuid4().hex}_{file.filename}"
     temp_path = settings.TMP_DIR / unique_name
     await StorageService.save_uploaded_file(file, temp_path)
+
+    # Check file size
+    if not temp_path.exists() or temp_path.stat().st_size == 0:
+        StorageService.cleanup_file(temp_path)
+        raise HTTPException(status_code=400, detail="Загруженный файл пуст (0 байт)")
 
     # Create media asset
     media = MediaAsset(

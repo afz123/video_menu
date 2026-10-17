@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     # Database config (Postgres in Docker by default on port 5435 or standard 5432)
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL", 
-        "postgresql+asyncpg://videomenu:videomenu@127.0.0.1:5431/videomenu"
+        "postgresql+asyncpg://videomenu:videomenu@127.0.0.1:5435/videomenu"
     )
     SQLITE_FALLBACK_URL: str = f"sqlite+aiosqlite:///{BASE_DIR}/storage/videomenu.db"
     

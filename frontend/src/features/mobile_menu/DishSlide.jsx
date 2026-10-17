@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { VideoPlayer } from '../../components/video/VideoPlayer';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { useLanguage } from '../../context/LanguageContext';
-import { Info, Sparkles, AlertCircle, ChevronUp, ChevronDown } from 'lucide-react';
+import { Info, Sparkles, AlertCircle, ChevronUp, ChevronDown, Plus, Wine } from 'lucide-react';
 
-export const DishSlide = ({ dish, isCurrent, categoryName }) => {
+export const DishSlide = ({ dish, isCurrent, categoryName, onAddToCart }) => {
   const { t } = useLanguage();
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
@@ -22,6 +22,10 @@ export const DishSlide = ({ dish, isCurrent, categoryName }) => {
     ingredients = rawDesc.ingredients || '';
     serving = rawDesc.serving || '';
   }
+
+  const badges = dish.badges || [];
+  const pairings = dish.pairings || [];
+  const hasModifiers = dish.modifiers && dish.modifiers.length > 0;
 
   return (
     <div
@@ -41,25 +45,66 @@ export const DishSlide = ({ dish, isCurrent, categoryName }) => {
         enableSoundToggle={true}
       />
 
-      {/* 2. Cinematic Bottom Vignette Gradient */}
+      {/* 2. Top/Middle Badges Ribbon */}
+      {badges.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(110px + env(safe-area-inset-top))',
+            left: '16px',
+            zIndex: 25,
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '6px'
+          }}
+        >
+          {badges.map((badge, bIdx) => (
+            <span
+              key={bIdx}
+              style={{
+                background: badge.includes('Шеф') || badge.includes('Хит')
+                  ? 'var(--accent-gold-gradient)'
+                  : badge.includes('Острое')
+                  ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)'
+                  : 'rgba(15, 15, 20, 0.75)',
+                color: badge.includes('Шеф') || badge.includes('Хит') ? '#09090b' : '#fff',
+                border: badge.includes('Шеф') || badge.includes('Хит') ? 'none' : '1px solid rgba(255, 255, 255, 0.25)',
+                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.4)',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+                padding: '4px 10px',
+                borderRadius: '20px',
+                fontSize: '11px',
+                fontWeight: '700',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase'
+              }}
+            >
+              {badge}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* 3. Cinematic Bottom Vignette Gradient */}
       <div
         style={{
           position: 'absolute',
           bottom: 0,
           left: 0,
           right: 0,
-          height: '50%',
-          background: 'linear-gradient(to top, rgba(9, 9, 11, 0.95) 0%, rgba(9, 9, 11, 0.6) 50%, transparent 100%)',
+          height: '55%',
+          background: 'linear-gradient(to top, rgba(9, 9, 11, 0.96) 0%, rgba(9, 9, 11, 0.65) 50%, transparent 100%)',
           pointerEvents: 'none',
           zIndex: 15
         }}
       />
 
-      {/* 3. Floating Bottom Luxury Card */}
+      {/* 4. Floating Bottom Luxury Card */}
       <div
         style={{
           position: 'absolute',
-          bottom: 'calc(18px + env(safe-area-inset-bottom))',
+          bottom: 'calc(65px + env(safe-area-inset-bottom))',
           left: '14px',
           right: '14px',
           zIndex: 20
@@ -69,11 +114,10 @@ export const DishSlide = ({ dish, isCurrent, categoryName }) => {
           onClick={() => setIsDetailsOpen(!isDetailsOpen)}
           style={{
             cursor: 'pointer',
-            padding: '18px 20px',
-            transform: isDetailsOpen ? 'translateY(0)' : undefined,
-            backgroundColor: 'rgba(15, 15, 20, 0.78)',
-            border: '1px solid rgba(212, 175, 55, 0.28)',
-            boxShadow: '0 12px 36px rgba(0, 0, 0, 0.7)'
+            padding: '16px 18px',
+            backgroundColor: 'rgba(15, 15, 20, 0.82)',
+            border: '1px solid rgba(212, 175, 55, 0.3)',
+            boxShadow: '0 12px 36px rgba(0, 0, 0, 0.75)'
           }}
         >
           {/* Header row: Dish name & Price */}
@@ -98,7 +142,7 @@ export const DishSlide = ({ dish, isCurrent, categoryName }) => {
                     fontWeight: '700',
                     letterSpacing: '0.08em',
                     textTransform: 'uppercase',
-                    marginBottom: '4px'
+                    marginBottom: '3px'
                   }}
                 >
                   <Sparkles size={12} />
@@ -108,11 +152,12 @@ export const DishSlide = ({ dish, isCurrent, categoryName }) => {
               <h2
                 style={{
                   fontFamily: 'var(--font-serif)',
-                  fontSize: '26px',
+                  fontSize: '24px',
                   lineHeight: '1.15',
                   fontWeight: '600',
                   color: 'var(--text-main)',
-                  letterSpacing: '0.01em'
+                  letterSpacing: '0.01em',
+                  margin: 0
                 }}
               >
                 {name}
@@ -127,14 +172,14 @@ export const DishSlide = ({ dish, isCurrent, categoryName }) => {
             >
               <div
                 style={{
-                  fontSize: '24px',
+                  fontSize: '22px',
                   fontWeight: '700',
                   color: 'var(--accent-gold)',
                   fontFamily: 'var(--font-sans)',
                   letterSpacing: '0.02em'
                 }}
               >
-                {dish.price} <span style={{ fontSize: '16px' }}>{dish.currency}</span>
+                {dish.price} <span style={{ fontSize: '15px' }}>{dish.currency}</span>
               </div>
             </div>
           </div>
@@ -144,15 +189,37 @@ export const DishSlide = ({ dish, isCurrent, categoryName }) => {
             <p
               className={isDetailsOpen ? '' : 'line-clamp-2'}
               style={{
-                fontSize: '14px',
-                lineHeight: '1.5',
+                fontSize: '13px',
+                lineHeight: '1.45',
                 color: 'rgba(244, 244, 246, 0.88)',
                 marginBottom: '10px',
-                fontWeight: '400'
+                fontWeight: '400',
+                margin: '0 0 10px 0'
               }}
             >
               {shortDesc}
             </p>
+          )}
+
+          {/* Sommelier Pairing Suggestion */}
+          {pairings.length > 0 && pairings[0]?.text && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: 'rgba(212, 175, 55, 0.08)',
+                border: '1px solid rgba(212, 175, 55, 0.22)',
+                borderRadius: '10px',
+                padding: '6px 10px',
+                marginBottom: '10px',
+                fontSize: '12px',
+                color: 'var(--accent-gold)'
+              }}
+            >
+              <Wine size={14} style={{ flexShrink: 0 }} />
+              <span style={{ lineHeight: '1.3' }}>{pairings[0].text}</span>
+            </div>
           )}
 
           {/* Expanded extra attributes */}
@@ -193,7 +260,7 @@ export const DishSlide = ({ dish, isCurrent, categoryName }) => {
                 </div>
               )}
 
-              {/* Calories (ONLY IF PRESENT!) */}
+              {/* Calories */}
               {dish.calories && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
                   <span>Энергетическая ценность:</span>
@@ -201,7 +268,7 @@ export const DishSlide = ({ dish, isCurrent, categoryName }) => {
                 </div>
               )}
 
-              {/* Allergens (ONLY IF PRESENT!) */}
+              {/* Allergens */}
               {dish.allergens && dish.allergens.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b' }}>
                   <AlertCircle size={14} />
@@ -211,7 +278,7 @@ export const DishSlide = ({ dish, isCurrent, categoryName }) => {
             </div>
           )}
 
-          {/* Footer row: Grams & Category & Tap cue */}
+          {/* Footer row: Grams & Detail toggle & Add to Order button */}
           <div
             style={{
               display: 'flex',
@@ -219,25 +286,53 @@ export const DishSlide = ({ dish, isCurrent, categoryName }) => {
               alignItems: 'center',
               fontSize: '12px',
               color: 'var(--text-muted)',
-              paddingTop: '6px'
+              paddingTop: '6px',
+              borderTop: isDetailsOpen ? '1px solid rgba(255,255,255,0.06)' : 'none'
             }}
           >
-            <span>{dish.weight || '300 г'}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span>{dish.weight || '300 г'}</span>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  color: 'var(--accent-gold)',
+                  fontSize: '11px',
+                  cursor: 'pointer'
+                }}
+              >
+                <span>{isDetailsOpen ? 'Скрыть' : 'Подробнее'}</span>
+                {isDetailsOpen ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
+              </span>
+            </div>
 
-            <div
+            {/* Quick Add to Cart button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onAddToCart) onAddToCart(dish);
+              }}
               style={{
-                display: 'flex',
+                backgroundColor: 'var(--accent-gold)',
+                border: 'none',
+                borderRadius: '10px',
+                padding: '7px 14px',
+                color: '#09090b',
+                fontWeight: '700',
+                fontSize: '12px',
+                cursor: 'pointer',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
-                color: 'var(--accent-gold)',
-                fontSize: '11px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em'
+                gap: '5px',
+                boxShadow: '0 2px 10px rgba(212, 175, 55, 0.35)',
+                transition: 'transform 0.15s ease'
               }}
             >
-              <span>{isDetailsOpen ? 'Скрыть детали' : 'Подробнее'}</span>
-              {isDetailsOpen ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-            </div>
+              <Plus size={14} strokeWidth={3} />
+              <span>{hasModifiers ? 'Настроить & В заказ' : 'В заказ'}</span>
+            </button>
           </div>
         </GlassCard>
       </div>

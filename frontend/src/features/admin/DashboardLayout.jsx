@@ -25,7 +25,12 @@ import {
   AlertCircle,
   FolderPlus,
   LogOut,
-  Building2
+  Building2,
+  Bell,
+  CheckCheck,
+  Clock,
+  Receipt,
+  ShoppingBag
 } from 'lucide-react';
 
 export const DashboardLayout = () => {
@@ -42,11 +47,23 @@ export const DashboardLayout = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
 
+  // Smart Table Service Requests
+  const [serviceRequests, setServiceRequests] = useState([]);
+  const [serviceFilter, setServiceFilter] = useState('ALL'); // 'ALL' | 'PENDING' | 'COMPLETED'
+
+  const loadServiceRequests = async () => {
+    try {
+      const data = await menuService.getServiceRequests(selectedSlug);
+      setServiceRequests(data || []);
+    } catch (_) {}
+  };
+
   const loadMenu = async () => {
     setIsLoading(true);
     try {
       const res = await menuService.getFullMenu(selectedSlug, true); // true = include unavailable items for admin
       setMenuData(res);
+      await loadServiceRequests();
     } catch (err) {
       console.error('Failed to load menu:', err);
     } finally {
@@ -56,6 +73,9 @@ export const DashboardLayout = () => {
 
   useEffect(() => {
     loadMenu();
+    // Poll service requests every 6 seconds
+    const interval = setInterval(loadServiceRequests, 6000);
+    return () => clearInterval(interval);
   }, [selectedSlug]);
 
   const handleToggleStopList = async (dishId) => {
@@ -88,6 +108,17 @@ export const DashboardLayout = () => {
   const filteredDishes = selectedCategoryFilter === 'all'
     ? allDishes
     : allDishes.filter((d) => d.category_id === parseInt(selectedCategoryFilter, 10));
+
+  const pendingRequestsCount = serviceRequests.filter((r) => r.status === 'PENDING').length;
+
+  const handleResolveServiceRequest = async (reqId) => {
+    try {
+      await menuService.updateServiceRequestStatus(selectedSlug, reqId, 'COMPLETED');
+      loadServiceRequests();
+    } catch (err) {
+      alert('Ошибка обновления статуса: ' + err.message);
+    }
+  };
 
   const mobileUrl = `${window.location.origin}/menu/${selectedSlug}`;
   const kioskUrl = `${window.location.origin}/kiosk/${selectedSlug}`;
@@ -247,6 +278,7 @@ export const DashboardLayout = () => {
       >
         {[
           { id: 'dishes', label: 'Позиции меню & Стоп-лист', icon: Utensils, count: allDishes.length },
+          { id: 'service_requests', label: 'Вызовы & Заказы', icon: Bell, count: pendingRequestsCount, highlight: pendingRequestsCount > 0 },
           { id: 'categories', label: 'Управление разделами', icon: Layers, count: categories.length },
           { id: 'settings', label: 'Настройки заведения', icon: Building2 },
           { id: 'theme', label: 'Стиль & Kiosk Display', icon: Palette },
@@ -437,7 +469,7 @@ export const DashboardLayout = () => {
                         </div>
                       </td>
 
-                      {/* Name */}
+                      {/* Name & Badges */}
                       <td style={{ padding: '14px 20px' }}>
                         <div style={{ fontWeight: '600', color: 'var(--text-main)', fontSize: '15px' }}>
                           {dish.name?.ru || Object.values(dish.name)[0]}
@@ -445,6 +477,20 @@ export const DashboardLayout = () => {
                         <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                           {dish.name?.en} • {dish.weight || '300 г'}
                         </div>
+                        {dish.badges && dish.badges.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
+                            {dish.badges.map((b, i) => (
+                              <span key={i} style={{ background: 'rgba(212,175,55,0.15)', color: 'var(--accent-gold)', borderRadius: '10px', padding: '1px 7px', fontSize: '10px', fontWeight: '700' }}>
+                                {b}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {dish.modifiers && dish.modifiers.length > 0 && (
+                          <div style={{ fontSize: '10px', color: '#38bdf8', marginTop: '3px' }}>
+                            🥩 {dish.modifiers.length} групп(ы) модификаторов
+                          </div>
+                        )}
                       </td>
 
                       {/* Category */}
@@ -623,6 +669,153 @@ export const DashboardLayout = () => {
                 </GoldButton>
               </a>
             </div>
+          </GlassCard>
+        </div>
+      )}
+
+      {/* TAB 6: SERVICE REQUESTS (SMART TABLE SERVICE) */}
+      {activeTab === 'service_requests' && (
+        <div>
+          {/* Header & Filter Pills */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {[
+                { id: 'ALL', label: 'Все вызовы' },
+                { id: 'PENDING', label: `Ожидают (${pendingRequestsCount})` },
+                { id: 'COMPLETED', label: 'Выполненные' }
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setServiceFilter(f.id)}
+                  style={{
+                    background: serviceFilter === f.id ? 'var(--accent-gold)' : 'rgba(255,255,255,0.06)',
+                    color: serviceFilter === f.id ? '#09090b' : '#fff',
+                    border: 'none',
+                    borderRadius: '20px',
+                    padding: '6px 16px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={loadServiceRequests}
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: 'var(--accent-gold)',
+                borderRadius: '10px',
+                padding: '8px 14px',
+                fontSize: '12px',
+                cursor: 'pointer'
+              }}
+            >
+              Обновить список
+            </button>
+          </div>
+
+          <GlassCard style={{ padding: 0, overflow: 'hidden' }}>
+            {serviceRequests.filter((r) => serviceFilter === 'ALL' || r.status === serviceFilter).length === 0 ? (
+              <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <Bell size={40} style={{ opacity: 0.3, marginBottom: '12px' }} />
+                <p style={{ fontSize: '16px', color: '#fff', marginBottom: '4px' }}>Нет активных вызовов от гостей</p>
+                <p style={{ fontSize: '13px' }}>Здесь будут мгновенно появляться вызовы официанта, счета и заказы со столов</p>
+              </div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-muted)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <th style={{ padding: '16px 20px' }}>Стол</th>
+                    <th style={{ padding: '16px 20px' }}>Тип запроса</th>
+                    <th style={{ padding: '16px 20px' }}>Детали / Заказ гостя</th>
+                    <th style={{ padding: '16px 20px' }}>Время</th>
+                    <th style={{ padding: '16px 20px' }}>Статус</th>
+                    <th style={{ padding: '16px 20px', textAlign: 'right' }}>Действие</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {serviceRequests
+                    .filter((r) => serviceFilter === 'ALL' || r.status === serviceFilter)
+                    .map((req) => (
+                      <tr key={req.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', backgroundColor: req.status === 'PENDING' ? 'rgba(212,175,55,0.05)' : 'transparent' }}>
+                        <td style={{ padding: '16px 20px', fontWeight: '800', fontSize: '16px', color: 'var(--accent-gold)' }}>
+                          №{req.table_number}
+                        </td>
+                        <td style={{ padding: '16px 20px', fontWeight: '600' }}>
+                          {req.request_type === 'call_waiter' && '🛎️ Вызов официанта'}
+                          {req.request_type === 'request_bill_card' && '💳 Счёт (Карта)'}
+                          {req.request_type === 'request_bill_cash' && '💵 Счёт (Наличные)'}
+                          {req.request_type === 'order' && '🛒 Заказ гостя'}
+                        </td>
+                        <td style={{ padding: '16px 20px' }}>
+                          {req.cart_items && req.cart_items.length > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {req.cart_items.map((item, iIdx) => (
+                                <div key={iIdx} style={{ fontSize: '13px', color: '#fff' }}>
+                                  <b>{item.quantity}x</b> {item.name} ({item.price} {item.currency})
+                                  {item.chosen_options?.length > 0 && (
+                                    <span style={{ color: 'var(--accent-gold)', marginLeft: '6px', fontSize: '12px' }}>
+                                      [{item.chosen_options.map((o) => o.name).join(', ')}]
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                              {req.guest_comment && (
+                                <div style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic', marginTop: '2px' }}>
+                                  «{req.guest_comment}»
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)' }}>{req.guest_comment || '—'}</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '16px 20px', color: 'var(--text-muted)', fontSize: '12px' }}>
+                          {req.created_at ? new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                        </td>
+                        <td style={{ padding: '16px 20px' }}>
+                          <span
+                            style={{
+                              backgroundColor: req.status === 'PENDING' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                              color: req.status === 'PENDING' ? '#ef4444' : '#10b981',
+                              padding: '4px 10px',
+                              borderRadius: '12px',
+                              fontSize: '11px',
+                              fontWeight: '700'
+                            }}
+                          >
+                            {req.status === 'PENDING' ? 'Ожидает' : 'Выполнен'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '16px 20px', textAlign: 'right' }}>
+                          {req.status === 'PENDING' && (
+                            <button
+                              onClick={() => handleResolveServiceRequest(req.id)}
+                              style={{
+                                backgroundColor: 'var(--accent-gold)',
+                                border: 'none',
+                                color: '#09090b',
+                                borderRadius: '8px',
+                                padding: '6px 14px',
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Выполнено
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            )}
           </GlassCard>
         </div>
       )}

@@ -70,14 +70,8 @@ if [ -x "$PS_BIN" ]; then
     fi
 fi
 
-# Экспорт переменных
-export FRONTEND_PORT="3033"
-export BACKEND_PORT="8088"
-export DB_PORT="5431"
-export DATABASE_URL="postgresql+asyncpg://videomenu:videomenu@127.0.0.1:5431/videomenu"
-
-# 4. Запуск PostgreSQL в Docker на порту 5431
-echo "🐳 Запуск контейнера PostgreSQL (порт 5431)..."
+# 4. Проверка и запуск PostgreSQL в Docker
+echo "🐳 Проверка контейнера PostgreSQL..."
 cd "$DIR"
 
 if docker ps -a --format '{{.Names}}' | grep -q "^video_menu_postgres$"; then
@@ -87,7 +81,7 @@ if docker ps -a --format '{{.Names}}' | grep -q "^video_menu_postgres$"; then
 else
     docker run -d \
         --name video_menu_postgres \
-        -p 5431:5432 \
+        -p 5435:5432 \
         -e POSTGRES_USER=videomenu \
         -e POSTGRES_PASSWORD=videomenu \
         -e POSTGRES_DB=videomenu \
@@ -95,10 +89,17 @@ else
         postgres:16-alpine >/dev/null 2>&1 || true
 fi
 
-echo "⏳ Ожидание готовности PostgreSQL..."
+# Определяем реальный порт контейнера
+DETECTED_PORT=$(docker port video_menu_postgres 5432 2>/dev/null | cut -d: -f2 | head -n 1)
+export DB_PORT="${DETECTED_PORT:-5435}"
+export DATABASE_URL="postgresql+asyncpg://videomenu:videomenu@127.0.0.1:${DB_PORT}/videomenu"
+export FRONTEND_PORT="3033"
+export BACKEND_PORT="8088"
+
+echo "⏳ Ожидание готовности PostgreSQL на порту $DB_PORT..."
 for i in {1..15}; do
     if docker exec -i video_menu_postgres pg_isready -U videomenu >/dev/null 2>&1; then
-        echo "✅ База данных готова (PostgreSQL 16 на порту 5431)"
+        echo "✅ База данных готова (PostgreSQL 16 на порту $DB_PORT)"
         break
     fi
     sleep 1

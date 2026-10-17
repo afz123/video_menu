@@ -84,6 +84,14 @@ export const DishFormModal = ({
   const [mediaId, setMediaId] = useState(dishToEdit?.media?.id || null);
   const [isAvailable, setIsAvailable] = useState(dishToEdit ? dishToEdit.is_available : true);
 
+  // Restaurateur features: Badges, Modifiers, Pairings
+  const [badges, setBadges] = useState(dishToEdit?.badges || []);
+  const [newBadgeText, setNewBadgeText] = useState('');
+  const [pairingsText, setPairingsText] = useState(
+    dishToEdit?.pairings?.[0]?.text || ''
+  );
+  const [modifiers, setModifiers] = useState(dishToEdit?.modifiers || []);
+
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
@@ -225,6 +233,9 @@ export const DishFormModal = ({
       weight_info: weightInfo.trim() || null,
       calories_info: caloriesInfo.trim() || null, // NULL IF EMPTY! No fake calories!
       allergens: parsedAllergens,
+      badges: badges,
+      modifiers: modifiers,
+      pairings: pairingsText.trim() ? [{ text: pairingsText.trim() }] : [],
       media_id: mediaId,
       is_available: isAvailable
     };
@@ -779,6 +790,260 @@ export const DishFormModal = ({
                     Через запятую
                   </span>
                 </div>
+              </div>
+            </div>
+
+            {/* Step 5: Badges, Modifiers & Pairings */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--accent-gold)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                5. Маркетинговые бейджи, Модификаторы и Рекомендации
+              </label>
+
+              {/* Dynamic Badges */}
+              <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: '12px', padding: '14px', marginBottom: '12px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                <div style={{ fontSize: '12px', fontWeight: '600', color: '#fff', marginBottom: '8px' }}>
+                  🏷️ Динамические бейджи блюда
+                </div>
+
+                {/* Active badges list */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
+                  {badges.map((b, idx) => (
+                    <span
+                      key={idx}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: 'rgba(212, 175, 55, 0.18)',
+                        border: '1px solid rgba(212, 175, 55, 0.4)',
+                        color: 'var(--accent-gold)',
+                        padding: '4px 10px',
+                        borderRadius: '20px',
+                        fontSize: '12px',
+                        fontWeight: '600'
+                      }}
+                    >
+                      {b}
+                      <button
+                        type="button"
+                        onClick={() => setBadges(badges.filter((_, i) => i !== idx))}
+                        style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 0, fontSize: '14px', lineHeight: 1 }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                  {badges.length === 0 && (
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Нет добавленных бейджей</span>
+                  )}
+                </div>
+
+                {/* Quick chip suggestions */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', alignSelf: 'center' }}>Быстрый выбор:</span>
+                  {['Хит', 'Выбор Шефа', 'NEW', 'Острое 🌶️', 'Премиум', 'Авторское', 'Десерт от Шефа', 'Signature Cocktail'].map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => {
+                        if (!badges.includes(tag)) setBadges([...badges, tag]);
+                      }}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        color: '#fff',
+                        borderRadius: '14px',
+                        padding: '3px 8px',
+                        fontSize: '11px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      + {tag}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Add custom badge input */}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    placeholder="Создать свой бейдж (например: 'Осталось 3 порции')"
+                    value={newBadgeText}
+                    onChange={(e) => setNewBadgeText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (newBadgeText.trim() && !badges.includes(newBadgeText.trim())) {
+                          setBadges([...badges, newBadgeText.trim()]);
+                          setNewBadgeText('');
+                        }
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      backgroundColor: 'rgba(10, 10, 14, 0.8)',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      color: '#fff',
+                      fontSize: '12px'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newBadgeText.trim() && !badges.includes(newBadgeText.trim())) {
+                        setBadges([...badges, newBadgeText.trim()]);
+                        setNewBadgeText('');
+                      }
+                    }}
+                    style={{
+                      backgroundColor: 'var(--accent-gold)',
+                      border: 'none',
+                      color: '#000',
+                      borderRadius: '8px',
+                      padding: '8px 14px',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Добавить
+                  </button>
+                </div>
+              </div>
+
+              {/* Food Pairing / Sommelier Suggestion */}
+              <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: '12px', padding: '14px', marginBottom: '12px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#fff', marginBottom: '6px' }}>
+                  🍷 Рекомендация сомелье / Food Pairing (+18% к среднему чеку)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Например: Идеально сочетается с: Бокал Malbec Grand Reserve (120 TJS)"
+                  value={pairingsText}
+                  onChange={(e) => setPairingsText(e.target.value)}
+                  style={{
+                    width: '100%',
+                    backgroundColor: 'rgba(10, 10, 14, 0.8)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    borderRadius: '8px',
+                    padding: '10px 12px',
+                    color: '#fff',
+                    fontSize: '13px'
+                  }}
+                />
+              </div>
+
+              {/* Modifiers (Steak Doneness, Sauces, Addons) */}
+              <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: '12px', padding: '14px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: '600', color: '#fff' }}>
+                    🥩 Модификаторы блюда (прожарка, соусы, допы)
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModifiers([
+                        {
+                          id: 'doneness',
+                          name: 'Степень прожарки',
+                          type: 'single',
+                          required: true,
+                          options: [
+                            { name: 'Rare (С кровью, 50-52°C)', price: 0 },
+                            { name: 'Medium Rare (Идеальная сочность, 54-57°C)', price: 0 },
+                            { name: 'Medium (Средняя прожарка, 60-63°C)', price: 0 },
+                            { name: 'Well Done (Полная прожарка, 70°C+)', price: 0 }
+                          ]
+                        },
+                        {
+                          id: 'sauce',
+                          name: 'Авторский соус',
+                          type: 'single',
+                          required: false,
+                          options: [
+                            { name: 'Черный трюфельный демиглас', price: 35 },
+                            { name: 'Сливочно-перечный соус с коньяком', price: 25 },
+                            { name: 'Розмариновое топленое масло', price: 15 }
+                          ]
+                        },
+                        {
+                          id: 'addons',
+                          name: 'Дополнения к блюду',
+                          type: 'multiple',
+                          required: false,
+                          options: [
+                            { name: 'Тигровая креветка на гриле (+1 шт)', price: 60 },
+                            { name: 'Свежий черный трюфель (5 г)', price: 85 },
+                            { name: 'Запеченный чеснок конфи', price: 20 }
+                          ]
+                        }
+                      ]);
+                    }}
+                    style={{
+                      background: 'none',
+                      border: '1px dashed var(--accent-gold)',
+                      color: 'var(--accent-gold)',
+                      borderRadius: '8px',
+                      padding: '4px 10px',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    + Шаблон стейкхауса
+                  </button>
+                </div>
+
+                {modifiers.length === 0 ? (
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    Нет модификаторов. Нажмите кнопку выше для применения шаблона для мясных и основных блюд.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {modifiers.map((mod, mIdx) => (
+                      <div
+                        key={mIdx}
+                        style={{
+                          backgroundColor: 'rgba(0,0,0,0.3)',
+                          border: '1px solid rgba(255,255,255,0.06)',
+                          borderRadius: '8px',
+                          padding: '10px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                          <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--accent-gold)' }}>
+                            {mod.name} ({mod.type === 'single' ? 'Один вариант' : 'Несколько вариантов'})
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setModifiers(modifiers.filter((_, i) => i !== mIdx))}
+                            style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '11px' }}
+                          >
+                            Удалить группу
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          {mod.options.map((opt, oIdx) => (
+                            <span
+                              key={oIdx}
+                              style={{
+                                background: 'rgba(255,255,255,0.06)',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '11px',
+                                color: 'rgba(255,255,255,0.85)'
+                              }}
+                            >
+                              {opt.name} {opt.price > 0 ? `(+${opt.price} TJS)` : ''}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

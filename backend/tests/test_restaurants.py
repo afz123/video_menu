@@ -9,7 +9,6 @@ async def test_list_restaurants(client):
     data = response.json()
     assert isinstance(data, list)
     assert len(data) >= 1
-    # Check default restaurant exists
     slugs = [r["slug"] for r in data]
     assert "asr-royale" in slugs
 
@@ -33,13 +32,24 @@ async def test_get_restaurant_not_found(client):
 
 
 @pytest.mark.asyncio
-async def test_update_restaurant(client):
-    """Test updating restaurant details."""
+async def test_update_restaurant_requires_auth(client):
+    """Test mutating restaurant without auth returns 401."""
+    res = await client.put(
+        "/api/v1/restaurants/asr-royale",
+        json={"description": "Hack attempt without token"}
+    )
+    assert res.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_update_restaurant(client, admin_headers):
+    """Test updating restaurant details with admin token."""
     response = await client.put(
         "/api/v1/restaurants/asr-royale",
         json={
             "description": "Updated luxury restaurant description for pytest"
-        }
+        },
+        headers=admin_headers
     )
     assert response.status_code == 200
     data = response.json()
@@ -48,10 +58,63 @@ async def test_update_restaurant(client):
 
 @pytest.mark.asyncio
 async def test_get_restaurant_full_menu(client):
-    """Test optimized full-menu endpoint."""
+    """Test optimized full-menu endpoint returns badges, modifiers, and categories."""
     response = await client.get("/api/v1/restaurants/asr-royale/full-menu")
     assert response.status_code == 200
     data = response.json()
     assert "restaurant" in data
     assert "categories" in data
     assert isinstance(data["categories"], list)
+    if len(data["categories"]) > 0 and len(data["categories"][0]["dishes"]) > 0:
+        d = data["categories"][0]["dishes"][0]
+        assert "badges" in d
+        assert "modifiers" in d
+        assert "pairings" in d
+
+
+@pytest.mark.asyncio
+async def test_smart_table_service_requests(client, admin_headers):
+    """Test guest waiter call, bill request, and admin resolution."""
+    # 1. Guest calls waiter from Table 14
+    call_res = await client.post(
+        "/api/v1/restaurants/asr-royale/service-requests",
+        json={
+            "table_number": "14",
+            "request_type": "call_waiter",
+            "guest_comment": "Пожалуйста, принесите дополнительное меню десертов"
+        }
+    )
+    assert call_res.status_code == 200
+    req_data = call_res.json()
+    req_id = req_data["id"]
+    assert req_data["table_number"] == "14"
+    assert req_data["status"] == "PENDING"
+
+    # 2. Guest requests bill with card from Table 14
+    bill_res = await client.post(
+        "/api/v1/restaurants/asr-royale/service-requests",
+        json={
+            "table_number": "14",
+            "request_type": "request_bill_card",
+            "guest_comment": "Оплата картой"
+        }
+    )
+    assert bill_res.status_code == 200
+
+    # 3. Admin lists active service requests (requires auth)
+    unauth_list = await client.get("/api/v1/restaurants/asr-royale/service-requests")
+    assert unauth_list.status_code == 401
+
+    auth_list = await client.get("/api/v1/restaurants/asr-royale/service-requests", headers=admin_headers)
+    assert auth_list.status_code == 200
+    items = auth_list.json()
+    assert len(items) >= 2
+
+    # 4. Admin resolves request
+    update_res = await client.patch(
+        f"/api/v1/restaurants/asr-royale/service-requests/{req_id}/status",
+        json={"status": "COMPLETED"},
+        headers=admin_headers
+    )
+    assert update_res.status_code == 200
+    assert update_res.json()["status"] == "COMPLETED"

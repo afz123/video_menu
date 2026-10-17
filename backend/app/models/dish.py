@@ -18,6 +18,15 @@ class Dish(Base):
     calories_info = Column(String(64), nullable=True) # "520 ккал"
     allergens = Column(JSON, default=list) # ["лактоза", "орехи"]
     
+    # Dynamic badges: e.g. ["Хит", "Острое 🌶️", "Выбор Шефа", "NEW"]
+    badges = Column(JSON, default=list)
+    
+    # Modifiers & options: e.g. degrees of doneness, sauces, additions
+    modifiers = Column(JSON, default=list)
+    
+    # Food pairings & sommelier recommendations
+    pairings = Column(JSON, default=list)
+    
     price = Column(Numeric(10, 2), nullable=False)
     currency = Column(String(8), default="TJS")
     

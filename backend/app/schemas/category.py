@@ -7,6 +7,9 @@ class CategoryBase(BaseModel):
     icon: Optional[str] = "utensils"
     display_order: int = 0
     is_active: bool = True
+    schedule_start: Optional[str] = None
+    schedule_end: Optional[str] = None
+    daypart: Optional[str] = "all"
 
 class CategoryCreate(CategoryBase):
     restaurant_id: int
@@ -16,6 +19,9 @@ class CategoryUpdate(BaseModel):
     icon: Optional[str] = None
     display_order: Optional[int] = None
     is_active: Optional[bool] = None
+    schedule_start: Optional[str] = None
+    schedule_end: Optional[str] = None
+    daypart: Optional[str] = None
 
 class CategoryResponse(CategoryBase):
     id: int

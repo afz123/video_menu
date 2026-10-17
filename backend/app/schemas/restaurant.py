@@ -5,6 +5,7 @@ from datetime import datetime
 class RestaurantBase(BaseModel):
     name: str
     slug: str
+    old_slugs: Optional[List[str]] = []
     tagline: Optional[str] = None
     description: Optional[str] = None
     supported_locales: List[str] = ["ru", "en", "tj"]

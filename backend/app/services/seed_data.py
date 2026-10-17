@@ -2,13 +2,14 @@ import asyncio
 import os
 import subprocess
 import logging
-from sqlalchemy import select
+from sqlalchemy import select, text
 from app.core.config import settings
 from app.core.database import get_session, init_engine, Base
 from app.models.restaurant import Restaurant
 from app.models.category import Category
 from app.models.dish import Dish
 from app.models.media import MediaAsset
+from app.models.service_request import ServiceRequest
 from app.services.video_transcoder import get_ffmpeg_path
 
 logger = logging.getLogger("video_menu.seeder")
@@ -42,18 +43,147 @@ def create_sample_video_clip(output_mp4: str, title: str, color_gradient: str, d
 
     return output_mp4
 
+SAMPLE_MODIFIERS_STEAK = [
+    {
+        "id": "doneness",
+        "name": "Степень прожарки",
+        "type": "single",
+        "required": True,
+        "options": [
+            {"name": "Rare (С кровью, 50-52°C)", "price": 0},
+            {"name": "Medium Rare (Идеальная сочность, 54-57°C)", "price": 0},
+            {"name": "Medium (Средняя прожарка, 60-63°C)", "price": 0},
+            {"name": "Well Done (Полная прожарка, 70°C+)", "price": 0}
+        ]
+    },
+    {
+        "id": "sauce",
+        "name": "Авторский соус",
+        "type": "single",
+        "required": False,
+        "options": [
+            {"name": "Черный трюфельный демиглас", "price": 35},
+            {"name": "Сливочно-перечный соус с коньяком", "price": 25},
+            {"name": "Розмариновое топленое масло", "price": 15}
+        ]
+    },
+    {
+        "id": "addons",
+        "name": "Дополнения к стейку",
+        "type": "multiple",
+        "required": False,
+        "options": [
+            {"name": "Тигровая креветка на гриле (+1 шт)", "price": 60},
+            {"name": "Свежий черный трюфель (5 г)", "price": 85},
+            {"name": "Запеченный чеснок конфи", "price": 20}
+        ]
+    }
+]
+
+SAMPLE_MODIFIERS_LAMB = [
+    {
+        "id": "garnish",
+        "name": "Выбор гарнира",
+        "type": "single",
+        "required": True,
+        "options": [
+            {"name": "Бархатное пюре из сельдерея", "price": 0},
+            {"name": "Спаржа на гриле с пармезаном", "price": 45},
+            {"name": "Мини-картофель конфи с тимьяном", "price": 30}
+        ]
+    }
+]
+
 async def seed_database():
     engine = await init_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        
+        # Schema migration helper for PostgreSQL and SQLite
+        is_postgres = "postgres" in str(engine.url)
+        if is_postgres:
+            stmts = [
+                "ALTER TABLE dishes ADD COLUMN IF NOT EXISTS badges JSON DEFAULT '[]'::json;",
+                "ALTER TABLE dishes ADD COLUMN IF NOT EXISTS modifiers JSON DEFAULT '[]'::json;",
+                "ALTER TABLE dishes ADD COLUMN IF NOT EXISTS pairings JSON DEFAULT '[]'::json;",
+                "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS old_slugs JSON DEFAULT '[]'::json;",
+                "ALTER TABLE categories ADD COLUMN IF NOT EXISTS schedule_start VARCHAR(8);",
+                "ALTER TABLE categories ADD COLUMN IF NOT EXISTS schedule_end VARCHAR(8);",
+                "ALTER TABLE categories ADD COLUMN IF NOT EXISTS daypart VARCHAR(32) DEFAULT 'all';"
+            ]
+            for stmt in stmts:
+                try:
+                    await conn.execute(text(stmt))
+                except Exception as e:
+                    logger.debug(f"Migration note: {e}")
+        else:
+            # SQLite fallback migrations
+            try:
+                await conn.execute(text("ALTER TABLE dishes ADD COLUMN badges JSON DEFAULT '[]';"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE dishes ADD COLUMN modifiers JSON DEFAULT '[]';"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE dishes ADD COLUMN pairings JSON DEFAULT '[]';"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE restaurants ADD COLUMN old_slugs JSON DEFAULT '[]';"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE categories ADD COLUMN schedule_start VARCHAR(8);"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE categories ADD COLUMN schedule_end VARCHAR(8);"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE categories ADD COLUMN daypart VARCHAR(32) DEFAULT 'all';"))
+            except Exception: pass
 
     session = await get_session()
     async with session as db:
         # Check if restaurant exists
         res = await db.execute(select(Restaurant).where(Restaurant.slug == "asr-royale"))
         existing_rest = res.scalar_one_or_none()
+        
         if existing_rest:
-            logger.info("Database already seeded with asr-royale")
+            logger.info("Database already seeded with asr-royale. Checking dish modifiers & badges...")
+            # Ensure existing dishes have sample modifiers if empty
+            dishes_res = await db.execute(select(Dish).where(Dish.restaurant_id == existing_rest.id))
+            all_dishes = dishes_res.scalars().all()
+            updated = False
+            for d in all_dishes:
+                name_ru = (d.name_translations or {}).get("ru", "")
+                if not d.modifiers:
+                    if "Томагавк" in name_ru or "Филе-миньон" in name_ru:
+                        d.modifiers = SAMPLE_MODIFIERS_STEAK
+                        updated = True
+                    elif "ягненка" in name_ru:
+                        d.modifiers = SAMPLE_MODIFIERS_LAMB
+                        updated = True
+                if not d.badges:
+                    if "Томагавк" in name_ru:
+                        d.badges = ["Хит", "Выбор Шефа"]
+                        updated = True
+                    elif "Филе-миньон" in name_ru:
+                        d.badges = ["Выбор Шефа", "Премиум"]
+                        updated = True
+                    elif "Тартар" in name_ru:
+                        d.badges = ["NEW", "Острое 🌶️"]
+                        updated = True
+                    elif "сфера" in name_ru:
+                        d.badges = ["Хит", "Десерт от Шефа"]
+                        updated = True
+                if not d.pairings:
+                    if "Томагавк" in name_ru or "Филе-миньон" in name_ru:
+                        d.pairings = [{"text": "Идеально сочетается с: Бокал Malbec Grand Reserve (120 TJS)"}]
+                        updated = True
+                    elif "Тартар" in name_ru:
+                        d.pairings = [{"text": "Рекомендация: Royale Smoked Old Fashioned (170 TJS)"}]
+                        updated = True
+            if updated:
+                await db.commit()
+                logger.info("Enriched existing dishes with modifiers, badges, and pairings.")
             return
 
         logger.info("Seeding database with demo luxury restaurant...")
@@ -62,6 +192,7 @@ async def seed_database():
         restaurant = Restaurant(
             name="ASR Maison Royale",
             slug="asr-royale",
+            old_slugs=[],
             tagline="Haute Cuisine & Dry-Aged Steaks",
             description="Флагманский гастрономический ресторан премиум-класса с авторской кухней шеф-повара и собственной камерой сухого вызревания мяса.",
             supported_locales=["ru", "en", "tj"],
@@ -97,27 +228,39 @@ async def seed_database():
         attract_video_file = str(settings.VIDEOS_DIR / "attract_royale_kiosk.mp4")
         create_sample_video_clip(attract_video_file, "Attract Promo", "0x161208", duration=5)
 
-        # 4 Categories
+        # 4 Categories with dayparting
         categories_data = [
             {
                 "name": {"ru": "Фирменные стейки", "en": "Signature Steaks", "tj": "Стейкҳои хусусӣ"},
                 "icon": "flame",
-                "order": 1
+                "order": 1,
+                "schedule_start": "12:00",
+                "schedule_end": "23:59",
+                "daypart": "main"
             },
             {
                 "name": {"ru": "Холодные закуски & Raw Bar", "en": "Cold Appetizers & Raw Bar", "tj": "Газакҳои сард"},
                 "icon": "sparkles",
-                "order": 2
+                "order": 2,
+                "schedule_start": "11:00",
+                "schedule_end": "23:59",
+                "daypart": "main"
             },
             {
                 "name": {"ru": "Десерты от шефа", "en": "Chef's Desserts", "tj": "Шириниҳои сарошпаз"},
                 "icon": "cake",
-                "order": 3
+                "order": 3,
+                "schedule_start": "10:00",
+                "schedule_end": "23:59",
+                "daypart": "all"
             },
             {
                 "name": {"ru": "Авторский бар", "en": "Craft Bar", "tj": "Бари муаллифӣ"},
                 "icon": "wine",
-                "order": 4
+                "order": 4,
+                "schedule_start": "16:00",
+                "schedule_end": "03:00",
+                "daypart": "bar"
             }
         ]
 
@@ -127,13 +270,16 @@ async def seed_database():
                 restaurant_id=restaurant.id,
                 name_translations=cdata["name"],
                 icon=cdata["icon"],
-                display_order=cdata["order"]
+                display_order=cdata["order"],
+                schedule_start=cdata.get("schedule_start"),
+                schedule_end=cdata.get("schedule_end"),
+                daypart=cdata.get("daypart", "all")
             )
             db.add(cat)
             created_categories.append(cat)
         await db.flush()
 
-        # Dishes data
+        # Dishes data: (cat_id, name, desc, weight, cals, allergens, badges, modifiers, pairings, price, currency, color)
         dishes_raw = [
             # Steaks
             (
@@ -142,7 +288,11 @@ async def seed_database():
                 {"ru": "Премиальный рибай на кости сухого вызревания с розмариновым маслом, печеным чесноком и черным трюфелем.",
                  "en": "Prime bone-in ribeye with rosemary herb butter, roasted black garlic and shaved winter truffle.",
                  "tj": "Рибайи олиҷаноб бо равғани розмарин ва сири сиёҳи пухта."},
-                "1100 г", "980 ккал", ["лактоза"], 890.0, "TJS", "0x2e1208"
+                "1100 г", "980 ккал", ["лактоза"],
+                ["Хит", "Выбор Шефа"],
+                SAMPLE_MODIFIERS_STEAK,
+                [{"text": "Идеально сочетается с: Бокал Malbec Grand Reserve (120 TJS)"}],
+                890.0, "TJS", "0x2e1208"
             ),
             (
                 created_categories[0].id,
@@ -150,7 +300,11 @@ async def seed_database():
                 {"ru": "Нежнейшая мраморная вырезка зернового откорма, эскалоп из утиной фуа-гра и демиглас на портвейне.",
                  "en": "Tender grain-fed tenderloin medallion, seared duck foie gras escalope and ruby port reduction.",
                  "tj": "Гӯшти нарм бо фуа-гра ва чошнии махсуси демиглас."},
-                "340 г", "620 ккал", ["лактоза"], 450.0, "TJS", "0x2b1509"
+                "340 г", "620 ккал", ["лактоза"],
+                ["Выбор Шефа", "Премиум"],
+                SAMPLE_MODIFIERS_STEAK,
+                [{"text": "Идеально сочетается с: Бокал Malbec Grand Reserve (120 TJS)"}],
+                450.0, "TJS", "0x2b1509"
             ),
             (
                 created_categories[0].id,
@@ -158,7 +312,11 @@ async def seed_database():
                 {"ru": "Королевское каре в фисташковой панировке с пюре из печеного сельдерея и можжевеловым соусом.",
                  "en": "Crusted pistachio herb rack with velvety celeriac puree and mountain juniper glaze.",
                  "tj": "Караи барра бо писта ва пюреи махсус."},
-                "420 г", "580 ккал", ["орехи", "лактоза"], 380.0, "TJS", "0x201309"
+                "420 г", "580 ккал", ["орехи", "лактоза"],
+                ["Премиум"],
+                SAMPLE_MODIFIERS_LAMB,
+                [{"text": "Рекомендация сомелье: Shiraz Reserve (140 TJS)"}],
+                380.0, "TJS", "0x201309"
             ),
 
             # Appetizers
@@ -168,7 +326,11 @@ async def seed_database():
                 {"ru": "Тонко нарезанная вырезка Black Angus с трюфельным айоли, каперсами и чипсом из льна.",
                  "en": "Hand-cut Black Angus with black truffle aioli, salted capers, quail yolk and flaxseed crisp.",
                  "tj": "Тартари хушсифат бо айолии трюфел ва зардии тухми бедона."},
-                "210 г", "340 ккал", ["яйца"], 210.0, "TJS", "0x161a0a"
+                "210 г", "340 ккал", ["яйца"],
+                ["NEW", "Острое 🌶️"],
+                [],
+                [{"text": "Рекомендация: Royale Smoked Old Fashioned (170 TJS)"}],
+                210.0, "TJS", "0x161a0a"
             ),
             (
                 created_categories[1].id,
@@ -176,7 +338,11 @@ async def seed_database():
                 {"ru": "Сахалинский гребешок, цитрусовый юдзу-дрессинг, слайсы черного трюфеля и микрозелень.",
                  "en": "Thinly shaved sea scallops, yuzu citrus ponzu, black winter truffle pearls and purple shiso.",
                  "tj": "Гребешоки баҳрӣ бо соуси ситрусии юдзу ва трюфел."},
-                "180 г", "210 ккал", ["морепродукты"], 260.0, "TJS", "0x0d1f1c"
+                "180 г", "210 ккал", ["морепродукты"],
+                ["Raw Bar"],
+                [],
+                [{"text": "Рекомендация: Шабли Premier Cru (160 TJS)"}],
+                260.0, "TJS", "0x0d1f1c"
             ),
 
             # Desserts
@@ -186,7 +352,11 @@ async def seed_database():
                 {"ru": "Шоколадный ганаш Valrhona 70%, жидкая сердцевина из маракуйи и съедобное сусальное золото 24K.",
                  "en": "Dark Valrhona 70% chocolate dome, passion fruit melting core and 24K edible gold leaves.",
                  "tj": "Шоколади сиёҳи фаронсавӣ бо дили маракуйя ва тиллои 24K."},
-                "190 г", "440 ккал", ["лактоза"], 180.0, "TJS", "0x2a1a06"
+                "190 г", "440 ккал", ["лактоза"],
+                ["Хит", "Десерт от Шефа"],
+                [],
+                [{"text": "Идеально с: Эспрессо со взбитыми сливками (35 TJS)"}],
+                180.0, "TJS", "0x2a1a06"
             ),
             (
                 created_categories[2].id,
@@ -194,7 +364,11 @@ async def seed_database():
                 {"ru": "Карамелизованная корочка, кремовая тающая текстура и соус из дикой лесной малины.",
                  "en": "Caramelized charred exterior with ultra-creamy center infused with Bourbon vanilla pods.",
                  "tj": "Чизкейки нарми қаймоқӣ бо малинаи ҷангалӣ."},
-                "220 г", "510 ккал", ["лактоза", "яйца"], 140.0, "TJS", "0x281907"
+                "220 г", "510 ккал", ["лактоза", "яйца"],
+                ["Выбор гостей"],
+                [],
+                [],
+                140.0, "TJS", "0x281907"
             ),
 
             # Cocktails
@@ -204,25 +378,27 @@ async def seed_database():
                 {"ru": "Бурбон 12 лет, вишневый биттер, кленовый сироп и дым дубовых чипсов под стеклянным клошем.",
                  "en": "Single barrel 12yo bourbon, barrel-aged cherry bitters, maple and aromatic oak smoke.",
                  "tj": "Бурбони 12-сола бо дуди дарахти булут ва сиропи махсус."},
-                "160 мл", "190 ккал", [], 170.0, "TJS", "0x29140a"
+                "160 мл", "190 ккал", [],
+                ["Signature Cocktail", "Хит"],
+                [],
+                [],
+                170.0, "TJS", "0x29140a"
             )
         ]
 
         order_idx = 1
-        for cat_id, name, desc, weight, cals, allergens, price, currency, color in dishes_raw:
+        for cat_id, name, desc, weight, cals, allergens, badges, modifiers, pairings, price, currency, color in dishes_raw:
             # Create video asset
             video_filename = f"sample_dish_{order_idx}.mp4"
             video_path = str(settings.VIDEOS_DIR / video_filename)
             create_sample_video_clip(video_path, name["en"], color, duration=4)
 
-            # Transcode into standard artifacts
             base_n = f"asset_seed_{order_idx}"
             lqip_p = settings.VIDEOS_DIR / f"{base_n}_lqip.webp"
             hd_p = settings.VIDEOS_DIR / f"{base_n}_hd.webp"
             mob_p = settings.VIDEOS_DIR / f"{base_n}_mobile.mp4"
             kiosk_p = settings.VIDEOS_DIR / f"{base_n}_kiosk.mp4"
 
-            # Quick copy/transcode for sample
             ffmpeg_bin = get_ffmpeg_path()
             try:
                 subprocess.run([
@@ -274,6 +450,9 @@ async def seed_database():
                 weight_info=weight,
                 calories_info=cals,
                 allergens=allergens,
+                badges=badges,
+                modifiers=modifiers,
+                pairings=pairings,
                 price=price,
                 currency=currency,
                 is_available=True,

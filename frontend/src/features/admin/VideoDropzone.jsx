@@ -43,7 +43,7 @@ export const VideoDropzone = ({ onMediaReady, currentMediaId }) => {
 
       if (onMediaReady) onMediaReady(res.media_id);
 
-      // Poll status for 15 seconds
+      // Poll status up to 90 seconds (60 attempts x 1.5s)
       let attempts = 0;
       const pollInterval = setInterval(async () => {
         attempts++;
@@ -60,7 +60,7 @@ export const VideoDropzone = ({ onMediaReady, currentMediaId }) => {
           }
         } catch (_) {}
 
-        if (attempts > 20) {
+        if (attempts > 60) {
           clearInterval(pollInterval);
           setIsProcessing(false);
           setStatusMessage('Обработка продолжается в фоне.');
