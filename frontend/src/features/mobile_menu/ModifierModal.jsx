@@ -237,6 +237,29 @@ export const ModifierModal = ({ dish, onClose, onAddToCart }) => {
           })}
 
           {/* Special instructions comment */}
+          {/* Chef / Sommelier Pairing Recommendation Cross-Sell */}
+          {dish.pairings && dish.pairings.length > 0 && (
+            <div
+              style={{
+                backgroundColor: 'rgba(212, 175, 55, 0.08)',
+                border: '1px solid rgba(212, 175, 55, 0.25)',
+                borderRadius: '12px',
+                padding: '10px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px'
+              }}
+            >
+              <span style={{ fontSize: '20px' }}>🍷</span>
+              <div style={{ fontSize: '12px', color: '#fff', lineHeight: '1.4' }}>
+                <span style={{ color: 'var(--accent-gold)', fontWeight: '700', textTransform: 'uppercase', fontSize: '10px', display: 'block', letterSpacing: '0.06em' }}>
+                  Идеальная пара к блюду
+                </span>
+                <span>{dish.pairings[0].text || dish.pairings[0].dish_name || 'Бокал выдержанного вина'}</span>
+              </div>
+            </div>
+          )}
+
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
               Пожелание повару / официанту (опционально):

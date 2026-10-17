@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -218,11 +218,34 @@ async def get_restaurant_full_menu(
 async def create_service_request(
     slug: str,
     data: ServiceRequestCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
 ):
     restaurant = await find_restaurant_by_slug(slug, db)
     if not restaurant:
         raise HTTPException(status_code=404, detail="Ресторан не найден")
+
+    # Stop-list validation for orders
+    if data.request_type == "order" and data.cart_items:
+        dish_ids = [
+            int(item.get("dish_id") or item.get("id"))
+            for item in data.cart_items
+            if (item.get("dish_id") or item.get("id")) and str(item.get("dish_id") or item.get("id")).isdigit()
+        ]
+        if dish_ids:
+            query = select(Dish).where(
+                Dish.restaurant_id == restaurant.id,
+                Dish.id.in_(dish_ids),
+                Dish.is_available == False
+            )
+            res = await db.execute(query)
+            unavailable = res.scalars().all()
+            if unavailable:
+                names = [d.name_translations.get("ru") or str(d.id) for d in unavailable]
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Следующие позиции временно недоступны (в стоп-листе): {', '.join(names)}. Пожалуйста, обновите заказ."
+                )
 
     req = ServiceRequest(
         restaurant_id=restaurant.id,
@@ -236,23 +259,22 @@ async def create_service_request(
     await db.commit()
     await db.refresh(req)
 
-    # Deliver instant alert to staff Telegram group if enabled
+    # Deliver reliable alert to staff Telegram group via FastAPI BackgroundTasks
     if restaurant.telegram_enabled and restaurant.telegram_bot_token and restaurant.telegram_chat_id:
         try:
-            asyncio.create_task(
-                TelegramService.notify_service_request(
-                    bot_token=restaurant.telegram_bot_token,
-                    chat_id=restaurant.telegram_chat_id,
-                    restaurant_name=restaurant.name,
-                    table_number=req.table_number,
-                    request_type=req.request_type,
-                    guest_comment=req.guest_comment,
-                    cart_items=req.cart_items,
-                    service_charge_percent=restaurant.service_charge_percent if restaurant.service_charge_percent is not None else 10.0
-                )
+            background_tasks.add_task(
+                TelegramService.notify_service_request,
+                bot_token=restaurant.telegram_bot_token,
+                chat_id=restaurant.telegram_chat_id,
+                restaurant_name=restaurant.name,
+                table_number=req.table_number,
+                request_type=req.request_type,
+                guest_comment=req.guest_comment,
+                cart_items=req.cart_items,
+                service_charge_percent=restaurant.service_charge_percent if restaurant.service_charge_percent is not None else 10.0
             )
         except Exception as e:
-            logger.error(f"Failed to trigger telegram notification task: {e}")
+            logger.error(f"Failed to queue telegram notification: {e}")
 
     return req
 

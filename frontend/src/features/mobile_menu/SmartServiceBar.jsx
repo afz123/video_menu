@@ -12,8 +12,12 @@ export const SmartServiceBar = ({
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState('WAITER'); // 'WAITER' | 'BILL'
+  const [specialistType, setSpecialistType] = useState('waiter'); // 'waiter' | 'sommelier' | 'hookah'
   const [table, setTable] = useState(tableNumber || '');
+  const [isEditingTable, setIsEditingTable] = useState(false);
+  const isTableFromQr = Boolean(tableNumber);
   const [billMethod, setBillMethod] = useState('card'); // 'card' | 'cash'
+  const [npsRating, setNpsRating] = useState(5);
   const [guestNote, setGuestNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
@@ -34,11 +38,28 @@ export const SmartServiceBar = ({
       if (onSetTableNumber) onSetTableNumber(table.trim());
 
       let reqType = 'call_waiter';
-      let comment = guestNote.trim() || 'Гость вызвал официанта к столу';
+      let comment = guestNote.trim() || 'Гость вызвал персонал к столу';
 
       if (modalType === 'BILL') {
         reqType = billMethod === 'card' ? 'request_bill_card' : 'request_bill_cash';
-        comment = `Запрос счёта: оплата ${billMethod === 'card' ? 'банковской картой' : 'наличными'}. ${guestNote.trim()}`;
+        const npsText = `Оценка визита: ${npsRating}/5 ⭐.`;
+        comment = `Запрос счёта: оплата ${billMethod === 'card' ? 'банковской картой' : 'наличными'}. ${npsText} ${guestNote.trim()}`;
+        
+        // If guest gave low score (1-3), also add manager alert in comment
+        if (npsRating <= 3) {
+          comment = `⚠️ ВНИМАНИЕ: Гость оценил визит на ${npsRating}/5 звёзд! Требуется внимание управляющего.\n` + comment;
+        }
+      } else {
+        if (specialistType === 'sommelier') {
+          reqType = 'call_sommelier';
+          comment = `🍷 Вызов сомелье для винной консультации. ${guestNote.trim()}`;
+        } else if (specialistType === 'hookah') {
+          reqType = 'call_hookah';
+          comment = `💨 Вызов кальянного мастера. ${guestNote.trim()}`;
+        } else {
+          reqType = 'call_waiter';
+          comment = guestNote.trim() || 'Гость вызвал официанта к столу';
+        }
       }
 
       await menuService.createServiceRequest(restaurantSlug, {
@@ -48,11 +69,16 @@ export const SmartServiceBar = ({
       });
 
       setIsModalOpen(false);
-      setToastMessage(
-        modalType === 'WAITER'
-          ? `🛎️ Официант вызван к столу №${table.trim()}!`
-          : `💳 Счёт (${billMethod === 'card' ? 'карта' : 'наличные'}) запрошен для стола №${table.trim()}!`
-      );
+      let toast = `🛎️ Официант вызван к столу №${table.trim()}!`;
+      if (modalType === 'BILL') {
+        toast = `💳 Счёт (${billMethod === 'card' ? 'карта' : 'наличные'}) запрошен для стола №${table.trim()}!`;
+      } else if (specialistType === 'sommelier') {
+        toast = `🍷 Сомелье приглашён к столу №${table.trim()}!`;
+      } else if (specialistType === 'hookah') {
+        toast = `💨 Кальянный мастер приглашён к столу №${table.trim()}!`;
+      }
+
+      setToastMessage(toast);
       setTimeout(() => setToastMessage(null), 4500);
       setGuestNote('');
     } catch (err) {
@@ -248,69 +274,206 @@ export const SmartServiceBar = ({
               </button>
             </div>
 
-            {/* Table Number */}
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                Номер вашего стола *
-              </label>
-              <input
-                type="text"
-                placeholder="Например: 12 или VIP-2"
-                value={table}
-                onChange={(e) => setTable(e.target.value)}
+            {/* Table Number with QR Lock */}
+            {isTableFromQr && !isEditingTable ? (
+              <div
                 style={{
-                  width: '100%',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(212, 175, 55, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  backgroundColor: 'rgba(212, 175, 55, 0.08)',
                   borderRadius: '12px',
-                  padding: '12px 14px',
-                  color: '#fff',
-                  fontSize: '15px',
-                  fontWeight: '700',
-                  outline: 'none'
+                  padding: '10px 14px',
+                  border: '1px solid rgba(212, 175, 55, 0.25)'
                 }}
-              />
-            </div>
+              >
+                <span style={{ fontSize: '13px', color: '#fff' }}>
+                  Стол: <strong style={{ color: 'var(--accent-gold)', fontSize: '15px' }}>№{table}</strong>
+                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginLeft: '6px' }}>(по QR-коду)</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Вы действительно пересели за другой стол? Пожалуйста, меняйте номер только если сменили место.')) {
+                      setIsEditingTable(true);
+                    }
+                  }}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '8px',
+                    padding: '4px 10px',
+                    color: 'var(--text-muted)',
+                    fontSize: '11px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Изменить
+                </button>
+              </div>
+            ) : (
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                  Номер вашего стола *
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    placeholder="Например: 12 или VIP-2"
+                    value={table}
+                    onChange={(e) => setTable(e.target.value)}
+                    style={{
+                      flex: 1,
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid rgba(212, 175, 55, 0.3)',
+                      borderRadius: '12px',
+                      padding: '12px 14px',
+                      color: '#fff',
+                      fontSize: '15px',
+                      fontWeight: '700',
+                      outline: 'none'
+                    }}
+                  />
+                  {isEditingTable && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingTable(false)}
+                      style={{
+                        background: 'rgba(212, 175, 55, 0.15)',
+                        border: '1px solid var(--accent-gold)',
+                        borderRadius: '10px',
+                        padding: '0 12px',
+                        color: 'var(--accent-gold)',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Готово
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
-            {/* If BILL, choose payment method */}
-            {modalType === 'BILL' && (
+            {/* If WAITER, choose specialist: Waiter, Sommelier, Hookah Master */}
+            {modalType === 'WAITER' && (
               <div>
                 <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                  Способ оплаты
+                  Кого пригласить к столу?
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setBillMethod('card')}
-                    style={{
-                      padding: '12px',
-                      borderRadius: '12px',
-                      backgroundColor: billMethod === 'card' ? 'rgba(212, 175, 55, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                      border: billMethod === 'card' ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
-                      color: billMethod === 'card' ? 'var(--accent-gold)' : '#fff',
-                      fontWeight: '600',
-                      fontSize: '13px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    💳 Банковская карта
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBillMethod('cash')}
-                    style={{
-                      padding: '12px',
-                      borderRadius: '12px',
-                      backgroundColor: billMethod === 'cash' ? 'rgba(212, 175, 55, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                      border: billMethod === 'cash' ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
-                      color: billMethod === 'cash' ? 'var(--accent-gold)' : '#fff',
-                      fontWeight: '600',
-                      fontSize: '13px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    💵 Наличные
-                  </button>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                  {[
+                    { id: 'waiter', label: 'Официант', icon: '🛎️' },
+                    { id: 'sommelier', label: 'Сомелье', icon: '🍷' },
+                    { id: 'hookah', label: 'Кальянщик', icon: '💨' }
+                  ].map((s) => {
+                    const isSelected = specialistType === s.id;
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setSpecialistType(s.id)}
+                        style={{
+                          padding: '10px 6px',
+                          borderRadius: '12px',
+                          backgroundColor: isSelected ? 'rgba(212, 175, 55, 0.16)' : 'rgba(255, 255, 255, 0.04)',
+                          border: isSelected ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
+                          color: isSelected ? 'var(--accent-gold)' : '#fff',
+                          fontWeight: '600',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '4px',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <span style={{ fontSize: '20px' }}>{s.icon}</span>
+                        <span>{s.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* If BILL, choose payment method & NPS Feedback */}
+            {modalType === 'BILL' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                    Способ оплаты
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setBillMethod('card')}
+                      style={{
+                        padding: '12px',
+                        borderRadius: '12px',
+                        backgroundColor: billMethod === 'card' ? 'rgba(212, 175, 55, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                        border: billMethod === 'card' ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
+                        color: billMethod === 'card' ? 'var(--accent-gold)' : '#fff',
+                        fontWeight: '600',
+                        fontSize: '13px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      💳 Банковская карта
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBillMethod('cash')}
+                      style={{
+                        padding: '12px',
+                        borderRadius: '12px',
+                        backgroundColor: billMethod === 'cash' ? 'rgba(212, 175, 55, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                        border: billMethod === 'cash' ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
+                        color: billMethod === 'cash' ? 'var(--accent-gold)' : '#fff',
+                        fontWeight: '600',
+                        fontSize: '13px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      💵 Наличные
+                    </button>
+                  </div>
+                </div>
+
+                {/* 1-Tap NPS Rating */}
+                <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: '14px', padding: '12px 14px', border: '1px solid rgba(212, 175, 55, 0.15)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                      Оцените ваш визит сегодня:
+                    </span>
+                    <span style={{ fontSize: '11px', color: npsRating >= 4 ? 'var(--accent-gold)' : '#f87171', fontWeight: '700' }}>
+                      {npsRating === 5 ? 'Превосходно! ✨' : npsRating === 4 ? 'Хорошо 👍' : 'Есть замечания ⚠️'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px' }}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setNpsRating(star)}
+                        style={{
+                          flex: 1,
+                          padding: '8px 0',
+                          borderRadius: '10px',
+                          border: star <= npsRating ? '1px solid var(--accent-gold)' : '1px solid rgba(255,255,255,0.08)',
+                          backgroundColor: star <= npsRating ? 'rgba(212, 175, 55, 0.2)' : 'rgba(255,255,255,0.02)',
+                          color: star <= npsRating ? 'var(--accent-gold)' : 'rgba(255,255,255,0.3)',
+                          fontSize: '18px',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -355,7 +518,15 @@ export const SmartServiceBar = ({
                 marginTop: '4px'
               }}
             >
-              {isSubmitting ? 'Отправка...' : modalType === 'WAITER' ? 'Позвать официанта' : 'Запросить счёт'}
+              {isSubmitting
+                ? 'Отправка...'
+                : modalType === 'BILL'
+                ? 'Запросить счёт'
+                : specialistType === 'sommelier'
+                ? '🍷 Пригласить сомелье'
+                : specialistType === 'hookah'
+                ? '💨 Пригласить кальянщика'
+                : '🛎️ Позвать официанта'}
             </button>
           </div>
         </div>

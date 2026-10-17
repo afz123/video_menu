@@ -1,6 +1,30 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 
+let audioUnlocked = false;
+const unlockAudio = () => {
+  if (audioUnlocked || typeof window === 'undefined') return;
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) {
+      const ctx = new AudioCtx();
+      ctx.resume().then(() => {
+        audioUnlocked = true;
+      }).catch(() => {});
+    }
+  } catch (_) {}
+};
+
+if (typeof window !== 'undefined') {
+  const onFirstGesture = () => {
+    unlockAudio();
+    window.removeEventListener('touchstart', onFirstGesture);
+    window.removeEventListener('click', onFirstGesture);
+  };
+  window.addEventListener('touchstart', onFirstGesture, { passive: true, once: true });
+  window.addEventListener('click', onFirstGesture, { passive: true, once: true });
+}
+
 export const VideoPlayer = ({
   lqip,
   poster,
@@ -51,9 +75,13 @@ export const VideoPlayer = ({
 
   const toggleSound = (e) => {
     e.stopPropagation();
+    unlockAudio();
     if (!videoRef.current) return;
     const nextMuted = !isMuted;
     videoRef.current.muted = nextMuted;
+    if (!nextMuted) {
+      videoRef.current.play().catch(() => {});
+    }
     setIsMuted(nextMuted);
   };
 

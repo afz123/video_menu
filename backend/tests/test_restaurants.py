@@ -150,3 +150,59 @@ async def test_service_charge_and_telegram_settings(client, admin_headers):
     unauth_test = await client.post("/api/v1/restaurants/asr-royale/test-telegram")
     assert unauth_test.status_code == 401
 
+
+@pytest.mark.asyncio
+async def test_order_stop_list_validation(client, admin_headers):
+    """Test that submitting an order containing an unavailable dish returns 400 Bad Request."""
+    # 1. Get an existing dish ID
+    menu_res = await client.get("/api/v1/restaurants/asr-royale/full-menu?include_unavailable=true")
+    assert menu_res.status_code == 200
+    dish_id = menu_res.json()["categories"][0]["dishes"][0]["id"]
+
+    # 2. Put the dish into stop-list (is_available = False)
+    put_res = await client.put(f"/api/v1/dishes/{dish_id}", json={"is_available": False}, headers=admin_headers)
+    assert put_res.status_code == 200
+
+    # 3. Attempt to place an order with this stopped dish -> Should fail with 400
+    order_res = await client.post(
+        "/api/v1/restaurants/asr-royale/service-requests",
+        json={
+            "table_number": "7",
+            "request_type": "order",
+            "guest_comment": "Тестовый заказ",
+            "cart_items": [
+                {
+                    "dish_id": dish_id,
+                    "name": "Стейк из стоп-листа",
+                    "quantity": 1,
+                    "price": 350.0
+                }
+            ]
+        }
+    )
+    assert order_res.status_code == 400
+    assert "стоп-листе" in order_res.json()["detail"]
+
+    # 4. Restore availability -> Order should succeed
+    restore_res = await client.put(f"/api/v1/dishes/{dish_id}", json={"is_available": True}, headers=admin_headers)
+    assert restore_res.status_code == 200
+
+    success_order = await client.post(
+        "/api/v1/restaurants/asr-royale/service-requests",
+        json={
+            "table_number": "7",
+            "request_type": "order",
+            "guest_comment": "Повторный заказ",
+            "cart_items": [
+                {
+                    "dish_id": dish_id,
+                    "name": "Стейк доступен",
+                    "quantity": 1,
+                    "price": 350.0
+                }
+            ]
+        }
+    )
+    assert success_order.status_code == 200
+    assert success_order.json()["status"] == "PENDING"
+

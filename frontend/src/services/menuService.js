@@ -8,7 +8,18 @@ export const menuService = {
   getRestaurant: (slug) => api.get(`/restaurants/${slug}`),
   updateRestaurant: (slug, data) => api.put(`/restaurants/${slug}`, data),
   
-  // Resilient Full Menu with Offline Storage fallback
+  getCachedMenu: (slug, includeUnavailable = false) => {
+    if (typeof window === 'undefined') return null;
+    const cacheKey = `${CACHE_PREFIX}${slug}_${includeUnavailable}`;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      return cached ? JSON.parse(cached) : null;
+    } catch (_) {
+      return null;
+    }
+  },
+
+  // Resilient Full Menu with Stale-While-Revalidate strategy
   getFullMenu: async (slug, includeUnavailable = false) => {
     const cacheKey = `${CACHE_PREFIX}${slug}_${includeUnavailable}`;
     try {

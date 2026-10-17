@@ -60,6 +60,8 @@ class TelegramService:
         time_str = "Сейчас"
         type_titles = {
             "call_waiter": "🛎️ ВЫЗОВ ОФИЦИАНТА",
+            "call_sommelier": "🍷 ВЫЗОВ СОМЕЛЬЕ",
+            "call_hookah": "💨 ВЫЗОВ КАЛЬЯННОГО МАСТЕРА",
             "request_bill_cash": "💵 ЗАПРОС СЧЁТА (НАЛИЧНЫЕ)",
             "request_bill_card": "💳 ЗАПРОС СЧЁТА (КАРТА)",
             "order": "🍽️ НОВЫЙ ЗАКАЗ ИЗ МЕНЮ"

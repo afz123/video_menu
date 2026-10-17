@@ -7,6 +7,7 @@ import { X, Calendar, User, Phone, Users, Clock, CheckCircle } from 'lucide-reac
 export const BookingModal = ({ restaurantSlug, restaurantName, onClose }) => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('+992 ');
+  const [confirmedPhone, setConfirmedPhone] = useState('');
   const [guestsCount, setGuestsCount] = useState('2');
   const [time, setTime] = useState('19:30');
   const [date, setDate] = useState('Сегодня');
@@ -21,13 +22,19 @@ export const BookingModal = ({ restaurantSlug, restaurantName, onClose }) => {
     }
 
     setIsSubmitting(true);
+    const guestPhone = phone.trim();
     try {
       await menuService.createServiceRequest(restaurantSlug, {
         table_number: 'КИОСК-УЛИЦА',
         request_type: 'call_waiter',
-        guest_comment: `📅 БРОНЬ СТОЛА С УЛИЧНОГО КИОСКА:\nГость: ${name.trim()}\nТелефон: ${phone.trim()}\nДата/Время: ${date} в ${time}\nПерсон: ${guestsCount}`
+        guest_comment: `📅 БРОНЬ СТОЛА С УЛИЧНОГО КИОСКА:\nГость: ${name.trim()}\nТелефон: ${guestPhone}\nДата/Время: ${date} в ${time}\nПерсон: ${guestsCount}`
       });
+      setConfirmedPhone(guestPhone);
       setIsSuccess(true);
+      // Immediately clear sensitive input fields for kiosk security
+      setName('');
+      setPhone('+992 ');
+      setGuestsCount('2');
       setTimeout(() => {
         onClose();
       }, 3500);
@@ -110,9 +117,25 @@ export const BookingModal = ({ restaurantSlug, restaurantName, onClose }) => {
             <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '32px', color: '#fff', margin: '0 0 12px' }}>
               Стол предварительно забронирован!
             </h3>
-            <p style={{ fontSize: '16px', color: 'var(--text-muted)', lineHeight: '1.5', maxWidth: '420px', margin: '0 auto' }}>
-              Хостес заведения <b>{restaurantName}</b> уже получила вашу заявку и свяжется с вами по номеру <b>{phone}</b> для подтверждения.
+            <p style={{ fontSize: '16px', color: 'var(--text-muted)', lineHeight: '1.5', maxWidth: '420px', margin: '0 auto 20px' }}>
+              Хостес заведения <b>{restaurantName}</b> уже получила вашу заявку и свяжется с вами по номеру <b style={{ color: 'var(--accent-gold)' }}>{confirmedPhone}</b> для подтверждения.
             </p>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                background: 'var(--accent-gold-gradient)',
+                border: 'none',
+                borderRadius: '12px',
+                padding: '12px 28px',
+                color: '#000',
+                fontWeight: '700',
+                fontSize: '14px',
+                cursor: 'pointer'
+              }}
+            >
+              Закрыть окно
+            </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

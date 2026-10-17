@@ -88,31 +88,41 @@ class VideoTranscodeService:
 
         logger.info(f"Starting parallel transcoding for asset {asset_id} using {ffmpeg_bin}...")
         
-        # Execute tasks
-        def run_proc(cmd):
+        async def run_async_proc(cmd, timeout=120):
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
             try:
-                res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120)
-                if res.returncode != 0:
-                    logger.error(f"FFmpeg error: {res.stderr.decode('utf-8', errors='ignore')}")
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+                if proc.returncode != 0:
+                    err_msg = stderr.decode('utf-8', errors='ignore') if stderr else ''
+                    logger.error(f"FFmpeg error: {err_msg}")
                     raise RuntimeError(f"FFmpeg command failed: {' '.join(cmd)}")
-            except subprocess.TimeoutExpired:
-                logger.error(f"FFmpeg command timed out after 120s: {' '.join(cmd)}")
+            except asyncio.TimeoutError:
+                try:
+                    proc.kill()
+                    await proc.wait()
+                except Exception:
+                    pass
+                logger.error(f"FFmpeg command timed out after {timeout}s: {' '.join(cmd)}")
                 raise TimeoutError(f"FFmpeg transcoding timed out: {' '.join(cmd)}")
 
         # Stage 1: Fast poster generation (LQIP + HD WebP frames in < 1s)
         logger.info(f"Asset {asset_id}: Stage 1 - generating WebP posters...")
         await asyncio.gather(
-            asyncio.to_thread(run_proc, cmd_lqip),
-            asyncio.to_thread(run_proc, cmd_hd),
+            run_async_proc(cmd_lqip, timeout=30),
+            run_async_proc(cmd_hd, timeout=30),
         )
 
         # Stage 2: Mobile video encoding (FastStart H.264 720p)
         logger.info(f"Asset {asset_id}: Stage 2 - encoding mobile H.264 stream...")
-        await asyncio.to_thread(run_proc, cmd_mobile)
+        await run_async_proc(cmd_mobile, timeout=120)
 
         # Stage 3: Kiosk video encoding (High profile 1080p)
         logger.info(f"Asset {asset_id}: Stage 3 - encoding kiosk 1080p stream...")
-        await asyncio.to_thread(run_proc, cmd_kiosk)
+        await run_async_proc(cmd_kiosk, timeout=120)
 
         # Get file size
         total_size = 0
@@ -162,19 +172,30 @@ class VideoTranscodeService:
             str(hd_path)
         ]
 
-        def run_proc(cmd):
+        async def run_async_proc(cmd, timeout=30):
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
             try:
-                res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
-                if res.returncode != 0:
-                    logger.error(f"FFmpeg error: {res.stderr.decode('utf-8', errors='ignore')}")
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+                if proc.returncode != 0:
+                    err_msg = stderr.decode('utf-8', errors='ignore') if stderr else ''
+                    logger.error(f"FFmpeg error: {err_msg}")
                     raise RuntimeError(f"FFmpeg command failed: {' '.join(cmd)}")
-            except subprocess.TimeoutExpired:
-                logger.error(f"FFmpeg command timed out after 60s: {' '.join(cmd)}")
+            except asyncio.TimeoutError:
+                try:
+                    proc.kill()
+                    await proc.wait()
+                except Exception:
+                    pass
+                logger.error(f"FFmpeg command timed out after {timeout}s: {' '.join(cmd)}")
                 raise TimeoutError(f"FFmpeg image processing timed out: {' '.join(cmd)}")
 
         await asyncio.gather(
-            asyncio.to_thread(run_proc, cmd_lqip),
-            asyncio.to_thread(run_proc, cmd_hd),
+            run_async_proc(cmd_lqip, timeout=30),
+            run_async_proc(cmd_hd, timeout=30),
         )
 
         total_size = hd_path.stat().st_size if hd_path.exists() else 0

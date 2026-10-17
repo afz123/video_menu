@@ -43,6 +43,8 @@ export const CartDrawer = ({
         request_type: 'order',
         guest_comment: 'Заказ блюд через интерактивное мобильное меню',
         cart_items: cartItems.map((item) => ({
+          dish_id: item.dish.id,
+          id: item.dish.id,
           name: t(item.dish.name),
           quantity: item.quantity || 1,
           price: item.totalPrice,

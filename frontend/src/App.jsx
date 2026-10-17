@@ -31,14 +31,24 @@ export default function App() {
       return;
     }
 
-    const fetchData = async () => {
+    // Stale-While-Revalidate: Show instant cached menu for 0ms cold-start, revalidate in background
+    const cached = menuService.getCachedMenu ? menuService.getCachedMenu(slug, false) : null;
+    if (cached) {
+      setRestaurantData(cached);
+      setIsLoading(false);
+    } else {
       setIsLoading(true);
+    }
+
+    const fetchData = async () => {
       try {
         const data = await menuService.getFullMenu(slug, false);
         setRestaurantData(data);
       } catch (err) {
-        console.error('Failed to load menu data:', err);
-        setError(err.message);
+        if (!cached) {
+          console.error('Failed to load menu data:', err);
+          setError(err.message);
+        }
       } finally {
         setIsLoading(false);
       }
