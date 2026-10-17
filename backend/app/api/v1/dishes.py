@@ -143,10 +143,12 @@ async def toggle_stop_list(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    1-click instant stop-list toggle.
-    Reflects immediately on Mobile Guest and Street Kiosk screens.
+    1-click instant stop-list toggle with row-level transaction lock (with_for_update).
+    Eliminates race conditions and lost updates across simultaneous waitstaff/manager tablets.
     """
-    dish = await db.get(Dish, dish_id)
+    stmt = select(Dish).where(Dish.id == dish_id).with_for_update()
+    res = await db.execute(stmt)
+    dish = res.scalar_one_or_none()
     if not dish:
         raise HTTPException(status_code=404, detail="Блюдо не найдено")
 

@@ -11,7 +11,9 @@ class RestaurantBase(BaseModel):
     supported_locales: List[str] = ["ru", "en", "tj"]
     default_locale: str = "ru"
     theme_config: Optional[Dict[str, Any]] = None
+    currency: Optional[str] = "TJS"
     service_charge_percent: Optional[float] = 10.0
+    call_types_enabled: Optional[List[str]] = ["waiter", "bill", "sommelier", "hookah", "admin"]
     telegram_bot_token: Optional[str] = None
     telegram_chat_id: Optional[str] = None
     telegram_enabled: Optional[bool] = False
@@ -27,8 +29,10 @@ class RestaurantUpdate(BaseModel):
     supported_locales: Optional[List[str]] = None
     default_locale: Optional[str] = None
     theme_config: Optional[Dict[str, Any]] = None
+    currency: Optional[str] = None
     is_active: Optional[bool] = None
     service_charge_percent: Optional[float] = None
+    call_types_enabled: Optional[List[str]] = None
     telegram_bot_token: Optional[str] = None
     telegram_chat_id: Optional[str] = None
     telegram_enabled: Optional[bool] = None

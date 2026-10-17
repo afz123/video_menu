@@ -18,31 +18,22 @@ async def init_engine():
     if _engine is not None:
         return _engine
     
-    # Try PostgreSQL first (user asked for Docker DB)
-    urls_to_try = [settings.DATABASE_URL]
-    if "5431" in settings.DATABASE_URL:
-        urls_to_try.append(settings.DATABASE_URL.replace("5431", "5435"))
-    elif "5435" in settings.DATABASE_URL:
-        urls_to_try.append(settings.DATABASE_URL.replace("5435", "5431"))
-    
     from sqlalchemy import text
     connected = False
-    for db_url in urls_to_try:
-        try:
-            engine = create_async_engine(
-                db_url,
-                echo=False,
-                future=True,
-                poolclass=NullPool
-            )
-            async with engine.connect() as conn:
-                await conn.execute(text("SELECT 1"))
-            _engine = engine
-            logger.info(f"Connected successfully to PostgreSQL at {db_url}")
-            connected = True
-            break
-        except Exception as e:
-            logger.debug(f"Attempt failed for {db_url}: {e}")
+    try:
+        engine = create_async_engine(
+            settings.DATABASE_URL,
+            echo=False,
+            future=True,
+            poolclass=NullPool
+        )
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        _engine = engine
+        logger.info(f"Connected successfully to PostgreSQL at {settings.DATABASE_URL}")
+        connected = True
+    except Exception as e:
+        logger.debug(f"PostgreSQL connection failed for {settings.DATABASE_URL}: {e}")
 
     if not connected:
         logger.warning(f"All PostgreSQL attempts failed. Falling back to SQLite: {settings.SQLITE_FALLBACK_URL}")

@@ -71,6 +71,21 @@ export const DashboardLayout = () => {
     }
   };
 
+  const loadRestaurants = async () => {
+    try {
+      const data = await menuService.getRestaurants();
+      if (Array.isArray(data) && data.length > 0) {
+        setRestaurants(data);
+      }
+    } catch (err) {
+      console.error('Failed to load restaurants list:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadRestaurants();
+  }, []);
+
   useEffect(() => {
     loadMenu();
     // Poll service requests every 6 seconds
@@ -165,25 +180,54 @@ export const DashboardLayout = () => {
             <Utensils size={16} />
             <span>Панель Управления Рестораном</span>
           </div>
-          <h1
-            onClick={() => setActiveTab('settings')}
-            style={{
-              fontFamily: 'var(--font-serif)',
-              fontSize: '38px',
-              fontWeight: '600',
-              color: '#fff',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '10px'
-            }}
-            title="Нажмите, чтобы изменить название и настройки заведения"
-          >
-            <span>{restaurant?.name || 'ASR Maison Royale'}</span>
-            <span style={{ fontSize: '13px', color: 'var(--accent-gold)', opacity: 0.8, backgroundColor: 'rgba(212, 175, 55, 0.12)', border: '1px solid rgba(212, 175, 55, 0.3)', borderRadius: '20px', padding: '2px 8px' }}>
-              изменить
-            </span>
-          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+            <h1
+              onClick={() => setActiveTab('settings')}
+              style={{
+                fontFamily: 'var(--font-serif)',
+                fontSize: '38px',
+                fontWeight: '600',
+                color: '#fff',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '10px',
+                margin: 0
+              }}
+              title="Нажмите, чтобы изменить название и настройки заведения"
+            >
+              <span>{restaurant?.name || 'ASR Maison Royale'}</span>
+              <span style={{ fontSize: '13px', color: 'var(--accent-gold)', opacity: 0.8, backgroundColor: 'rgba(212, 175, 55, 0.12)', border: '1px solid rgba(212, 175, 55, 0.3)', borderRadius: '20px', padding: '2px 8px' }}>
+                изменить
+              </span>
+            </h1>
+
+            {restaurants.length > 1 && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.04)', padding: '4px 10px', borderRadius: '12px', border: '1px solid rgba(212,175,55,0.2)' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Заведение:</span>
+                <select
+                  value={selectedSlug}
+                  onChange={(e) => setSelectedSlug(e.target.value)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--accent-gold)',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
+                  title="Быстрое переключение между заведениями сети"
+                >
+                  {restaurants.map((r) => (
+                    <option key={r.slug} value={r.slug} style={{ background: '#121216', color: '#fff' }}>
+                      🏛️ {r.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Action Buttons: Open Mobile & Open Kiosk */}
@@ -581,7 +625,7 @@ export const DashboardLayout = () => {
       {/* TAB 2: CATEGORIES MANAGEMENT */}
       {activeTab === 'categories' && (
         <CategoryManager
-          restaurantId={restaurant?.id || 1}
+          restaurantId={restaurant?.id}
           categories={categories}
           onCategoriesChanged={loadMenu}
           onAddDishToCategory={(catId) => {
@@ -823,7 +867,8 @@ export const DashboardLayout = () => {
       {/* Dish Form Modal */}
       {isDishModalOpen && (
         <DishFormModal
-          restaurantId={restaurant?.id || 1}
+          restaurantId={restaurant?.id}
+          defaultCurrency={restaurant?.currency || 'TJS'}
           categories={categories}
           dishToEdit={editingDish}
           initialCategoryId={initialCategoryId}

@@ -106,6 +106,8 @@ async def seed_database():
                 "ALTER TABLE dishes ADD COLUMN IF NOT EXISTS badges JSON DEFAULT '[]'::json;",
                 "ALTER TABLE dishes ADD COLUMN IF NOT EXISTS modifiers JSON DEFAULT '[]'::json;",
                 "ALTER TABLE dishes ADD COLUMN IF NOT EXISTS pairings JSON DEFAULT '[]'::json;",
+                "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS currency VARCHAR(8) DEFAULT 'TJS';",
+                "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS call_types_enabled JSON DEFAULT '[\"waiter\", \"bill\", \"sommelier\", \"hookah\", \"admin\"]'::json;",
                 "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS old_slugs JSON DEFAULT '[]'::json;",
                 "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS service_charge_percent FLOAT DEFAULT 10.0;",
                 "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS telegram_bot_token VARCHAR(128);",
@@ -122,6 +124,12 @@ async def seed_database():
                     logger.debug(f"Migration note: {e}")
         else:
             # SQLite fallback migrations
+            try:
+                await conn.execute(text("ALTER TABLE restaurants ADD COLUMN currency VARCHAR(8) DEFAULT 'TJS';"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE restaurants ADD COLUMN call_types_enabled JSON DEFAULT '[\"waiter\", \"bill\", \"sommelier\", \"hookah\", \"admin\"]';"))
+            except Exception: pass
             try:
                 await conn.execute(text("ALTER TABLE dishes ADD COLUMN badges JSON DEFAULT '[]';"))
             except Exception: pass

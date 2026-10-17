@@ -7,12 +7,13 @@ export const SmartServiceBar = ({
   tableNumber,
   cartCount = 0,
   hidden = false,
+  callTypesEnabled = ['waiter', 'bill', 'sommelier', 'hookah', 'admin'],
   onOpenCart,
   onSetTableNumber
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState('WAITER'); // 'WAITER' | 'BILL'
-  const [specialistType, setSpecialistType] = useState('waiter'); // 'waiter' | 'sommelier' | 'hookah'
+  const [specialistType, setSpecialistType] = useState('waiter'); // 'waiter' | 'sommelier' | 'hookah' | 'admin'
   const [table, setTable] = useState(tableNumber || '');
   const [isEditingTable, setIsEditingTable] = useState(false);
   const isTableFromQr = Boolean(tableNumber);
@@ -56,6 +57,9 @@ export const SmartServiceBar = ({
         } else if (specialistType === 'hookah') {
           reqType = 'call_hookah';
           comment = `💨 Вызов кальянного мастера. ${guestNote.trim()}`;
+        } else if (specialistType === 'admin') {
+          reqType = 'call_admin';
+          comment = `👔 Вызов администратора / управляющего залом. ${guestNote.trim()}`;
         } else {
           reqType = 'call_waiter';
           comment = guestNote.trim() || 'Гость вызвал официанта к столу';
@@ -76,6 +80,8 @@ export const SmartServiceBar = ({
         toast = `🍷 Сомелье приглашён к столу №${table.trim()}!`;
       } else if (specialistType === 'hookah') {
         toast = `💨 Кальянный мастер приглашён к столу №${table.trim()}!`;
+      } else if (specialistType === 'admin') {
+        toast = `👔 Администратор приглашён к столу №${table.trim()}!`;
       }
 
       setToastMessage(toast);
@@ -241,7 +247,10 @@ export const SmartServiceBar = ({
               padding: '24px 20px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '16px'
+              gap: '16px',
+              pointerEvents: isSubmitting ? 'none' : 'auto',
+              opacity: isSubmitting ? 0.6 : 1,
+              transition: 'opacity 0.2s ease'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -356,46 +365,54 @@ export const SmartServiceBar = ({
               </div>
             )}
 
-            {/* If WAITER, choose specialist: Waiter, Sommelier, Hookah Master */}
+            {/* If WAITER, choose specialist: Waiter, Sommelier, Hookah Master, Admin */}
             {modalType === 'WAITER' && (
               <div>
                 <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
                   Кого пригласить к столу?
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                  {[
+                {(() => {
+                  const ALL_SPECIALISTS = [
                     { id: 'waiter', label: 'Официант', icon: '🛎️' },
                     { id: 'sommelier', label: 'Сомелье', icon: '🍷' },
-                    { id: 'hookah', label: 'Кальянщик', icon: '💨' }
-                  ].map((s) => {
-                    const isSelected = specialistType === s.id;
-                    return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => setSpecialistType(s.id)}
-                        style={{
-                          padding: '10px 6px',
-                          borderRadius: '12px',
-                          backgroundColor: isSelected ? 'rgba(212, 175, 55, 0.16)' : 'rgba(255, 255, 255, 0.04)',
-                          border: isSelected ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
-                          color: isSelected ? 'var(--accent-gold)' : '#fff',
-                          fontWeight: '600',
-                          fontSize: '12px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: '4px',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        <span style={{ fontSize: '20px' }}>{s.icon}</span>
-                        <span>{s.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+                    { id: 'hookah', label: 'Кальянщик', icon: '💨' },
+                    { id: 'admin', label: 'Управляющий', icon: '👔' }
+                  ];
+                  const specialists = ALL_SPECIALISTS.filter((s) => callTypesEnabled.includes(s.id));
+                  const displaySpecialists = specialists.length > 0 ? specialists : [ALL_SPECIALISTS[0]];
+                  return (
+                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(displaySpecialists.length, 4)}, 1fr)`, gap: '8px' }}>
+                      {displaySpecialists.map((s) => {
+                        const isSelected = specialistType === s.id;
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => setSpecialistType(s.id)}
+                            style={{
+                              padding: '10px 6px',
+                              borderRadius: '12px',
+                              backgroundColor: isSelected ? 'rgba(212, 175, 55, 0.16)' : 'rgba(255, 255, 255, 0.04)',
+                              border: isSelected ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
+                              color: isSelected ? 'var(--accent-gold)' : '#fff',
+                              fontWeight: '600',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '4px',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <span style={{ fontSize: '20px' }}>{s.icon}</span>
+                            <span>{s.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -526,6 +543,8 @@ export const SmartServiceBar = ({
                 ? '🍷 Пригласить сомелье'
                 : specialistType === 'hookah'
                 ? '💨 Пригласить кальянщика'
+                : specialistType === 'admin'
+                ? '👔 Пригласить управляющего'
                 : '🛎️ Позвать официанта'}
             </button>
           </div>

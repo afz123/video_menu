@@ -8,6 +8,7 @@ export const CartDrawer = ({
   cartItems = [],
   tableNumber = '',
   restaurantSlug = '',
+  currency = 'TJS',
   serviceChargePercent = 10,
   onClose,
   onUpdateQty,
@@ -21,6 +22,8 @@ export const CartDrawer = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSentSuccess, setOrderSentSuccess] = useState(false);
   const [showWaiterScreen, setShowWaiterScreen] = useState(false);
+
+  const activeCurrency = currency || cartItems[0]?.dish?.currency || 'TJS';
 
   const subtotal = cartItems.reduce((acc, item) => {
     return acc + (Number(item.totalPrice) || 0) * (item.quantity || 1);
@@ -117,7 +120,7 @@ export const CartDrawer = ({
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: '700' }}>
                   <span>{item.quantity}x {t(item.dish.name)}</span>
-                  <span style={{ color: 'var(--accent-gold)' }}>{(item.totalPrice * item.quantity).toFixed(0)} TJS</span>
+                  <span style={{ color: 'var(--accent-gold)' }}>{(item.totalPrice * item.quantity).toFixed(0)} {activeCurrency}</span>
                 </div>
                 {item.chosenOptions?.length > 0 && (
                   <div style={{ fontSize: '13px', color: 'var(--accent-gold)', marginTop: '4px' }}>
@@ -137,18 +140,18 @@ export const CartDrawer = ({
         <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.15)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', color: 'var(--text-muted)' }}>
             <span>Стоимость блюд:</span>
-            <span>{subtotal.toFixed(0)} TJS</span>
+            <span>{subtotal.toFixed(0)} {activeCurrency}</span>
           </div>
           {serviceCharge > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: 'rgba(212, 175, 55, 0.9)' }}>
               <span>Обслуживание ({serviceChargePercent}%):</span>
-              <span>+{serviceCharge.toFixed(1)} TJS</span>
+              <span>+{serviceCharge.toFixed(1)} {activeCurrency}</span>
             </div>
           )}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 0 12px', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: '8px' }}>
             <span style={{ fontSize: '16px', fontWeight: '700', color: '#fff' }}>Итого к оплате:</span>
             <span style={{ fontSize: '28px', fontWeight: '800', color: 'var(--accent-gold)' }}>
-              {grandTotal.toFixed(1)} TJS
+              {grandTotal.toFixed(1)} {activeCurrency}
             </span>
           </div>
           <button
@@ -202,7 +205,10 @@ export const CartDrawer = ({
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 -10px 40px rgba(0,0,0,0.85)',
-          overflowY: 'auto'
+          overflowY: 'auto',
+          pointerEvents: isSubmitting ? 'none' : 'auto',
+          opacity: isSubmitting ? 0.6 : 1,
+          transition: 'opacity 0.2s ease'
         }}
       >
         {/* Header */}
@@ -479,18 +485,18 @@ export const CartDrawer = ({
             <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: 'var(--text-muted)' }}>
                 <span>Блюда:</span>
-                <span>{subtotal.toFixed(0)} TJS</span>
+                <span>{subtotal.toFixed(0)} {activeCurrency}</span>
               </div>
               {serviceCharge > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'rgba(212, 175, 55, 0.9)' }}>
                   <span>Обслуживание ({serviceChargePercent}%):</span>
-                  <span>+{serviceCharge.toFixed(1)} TJS</span>
+                  <span>+{serviceCharge.toFixed(1)} {activeCurrency}</span>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '2px 0 6px' }}>
                 <span style={{ fontSize: '14px', fontWeight: '600', color: '#fff' }}>Итого к оплате:</span>
                 <span style={{ fontSize: '24px', fontWeight: '800', color: 'var(--accent-gold)' }}>
-                  {grandTotal.toFixed(1)} TJS
+                  {grandTotal.toFixed(1)} {activeCurrency}
                 </span>
               </div>
 

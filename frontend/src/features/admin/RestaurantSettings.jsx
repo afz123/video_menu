@@ -39,6 +39,8 @@ export const RestaurantSettings = ({
     phone: restaurant?.theme?.contact_info?.phone || '+992 900 00 00 00',
     address: restaurant?.theme?.contact_info?.address || 'ул. Рудаки, 12',
     hours: restaurant?.theme?.contact_info?.hours || '11:00 — 23:00',
+    currency: restaurant?.currency || 'TJS',
+    call_types_enabled: restaurant?.call_types_enabled || ['waiter', 'bill', 'sommelier', 'hookah', 'admin'],
     service_charge_percent: restaurant?.service_charge_percent ?? 10.0,
     telegram_enabled: Boolean(restaurant?.telegram_enabled),
     telegram_bot_token: restaurant?.telegram_bot_token || '',
@@ -106,6 +108,8 @@ export const RestaurantSettings = ({
         phone: restaurant.theme?.contact_info?.phone || '+992 900 00 00 00',
         address: restaurant.theme?.contact_info?.address || 'ул. Рудаки, 12',
         hours: restaurant.theme?.contact_info?.hours || '11:00 — 23:00',
+        currency: restaurant.currency || 'TJS',
+        call_types_enabled: restaurant.call_types_enabled || ['waiter', 'bill', 'sommelier', 'hookah', 'admin'],
         service_charge_percent: restaurant.service_charge_percent ?? 10.0,
         telegram_enabled: Boolean(restaurant.telegram_enabled),
         telegram_bot_token: restaurant.telegram_bot_token || '',
@@ -187,6 +191,8 @@ export const RestaurantSettings = ({
         slug: formData.slug.trim(),
         default_locale: formData.default_locale,
         supported_locales: formData.supported_locales,
+        currency: formData.currency,
+        call_types_enabled: formData.call_types_enabled,
         service_charge_percent: Number(formData.service_charge_percent) || 0,
         telegram_enabled: formData.telegram_enabled,
         telegram_bot_token: formData.telegram_bot_token.trim(),
@@ -620,7 +626,7 @@ export const RestaurantSettings = ({
         </div>
       </GlassCard>
 
-      {/* SECTION 4: Restaurant Economics & Service Charge */}
+      {/* SECTION 4: Restaurant Economics, Currency & Staff Call Dispatchers */}
       <GlassCard style={{ padding: '28px 32px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '14px' }}>
           <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: 'rgba(212, 175, 55, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-gold)' }}>
@@ -628,13 +634,125 @@ export const RestaurantSettings = ({
           </div>
           <div>
             <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', margin: 0 }}>
-              Процент за обслуживание (Service Charge)
+              Экономика, Валюта и Вызовы Персонала
             </h3>
             <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '2px 0 0' }}>
-              Автоматически рассчитывается в корзине гостя и на экране официанта (обычно 10–15%)
+              Валюта заведения, процент за обслуживание (Service Charge) и активные типы вызова персонала
             </p>
           </div>
         </div>
+
+        {/* Currency Selector */}
+        <div style={{ marginBottom: '22px' }}>
+          <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '600' }}>
+            Основная валюта заведения (Currency):
+          </label>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '8px' }}>
+            {[
+              { code: 'TJS', label: 'TJS (Сомони)', symbol: 'смн' },
+              { code: 'RUB', label: 'RUB (Рубли)', symbol: '₽' },
+              { code: 'USD', label: 'USD (Доллар)', symbol: '$' },
+              { code: 'EUR', label: 'EUR (Евро)', symbol: '€' },
+              { code: 'KZT', label: 'KZT (Тенге)', symbol: '₸' },
+              { code: 'UZS', label: 'UZS (Сум)', symbol: "so'm" },
+              { code: 'AED', label: 'AED (Дирхам)', symbol: 'د.إ' }
+            ].map((c) => {
+              const isSelected = formData.currency === c.code;
+              return (
+                <button
+                  key={c.code}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, currency: c.code })}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '10px',
+                    border: isSelected ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
+                    backgroundColor: isSelected ? 'rgba(212, 175, 55, 0.18)' : 'rgba(255, 255, 255, 0.03)',
+                    color: isSelected ? 'var(--accent-gold-light)' : 'var(--text-main)',
+                    fontWeight: isSelected ? '700' : '500',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <span style={{ fontWeight: '700', color: isSelected ? 'var(--accent-gold)' : 'var(--text-muted)', marginRight: '4px' }}>{c.symbol}</span>
+                  <span>{c.code}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0 }}>
+            Выбранная валюта <b style={{ color: 'var(--accent-gold)' }}>{formData.currency}</b> автоматически подставляется в меню, корзину гостя, уличный киоск и чеки Telegram.
+          </p>
+        </div>
+
+        {/* Staff Call Dispatchers */}
+        <div style={{ marginBottom: '22px', borderTop: '1px solid rgba(255, 255, 255, 0.06)', paddingTop: '18px' }}>
+          <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '600' }}>
+            Кнопки вызова персонала для гостей (Staff Call Dispatchers):
+          </label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+            {[
+              { id: 'waiter', label: 'Вызов официанта', icon: '🛎️' },
+              { id: 'sommelier', label: 'Вызов сомелье', icon: '🍷' },
+              { id: 'hookah', label: 'Вызов кальянщика', icon: '💨' },
+              { id: 'admin', label: 'Вызов администратора', icon: '👔' }
+            ].map((btn) => {
+              const isEnabled = (formData.call_types_enabled || []).includes(btn.id);
+              return (
+                <button
+                  key={btn.id}
+                  type="button"
+                  onClick={() => {
+                    const current = formData.call_types_enabled || [];
+                    const updated = current.includes(btn.id)
+                      ? current.filter((x) => x !== btn.id)
+                      : [...current, btn.id];
+                    setFormData({ ...formData, call_types_enabled: updated });
+                  }}
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    border: isEnabled ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.08)',
+                    backgroundColor: isEnabled ? 'rgba(212, 175, 55, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                    color: isEnabled ? '#fff' : 'var(--text-dim)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    fontSize: '13px',
+                    fontWeight: isEnabled ? '600' : '400',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '16px' }}>{btn.icon}</span>
+                    <span>{btn.label}</span>
+                  </div>
+                  <span
+                    style={{
+                      width: '18px',
+                      height: '18px',
+                      borderRadius: '50%',
+                      backgroundColor: isEnabled ? 'var(--accent-gold)' : 'rgba(255, 255, 255, 0.1)',
+                      color: '#09090b',
+                      fontSize: '11px',
+                      fontWeight: '800',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    {isEnabled ? '✓' : ''}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Service Charge Sub-section */}
+        <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)', paddingTop: '18px' }}>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
@@ -700,6 +818,7 @@ export const RestaurantSettings = ({
           <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: 0 }}>
             💡 Пример: при заказе стейка за 300 TJS с обслуживанием {formData.service_charge_percent}% гость увидит: блюда 300 TJS + обслуживание {(300 * (Number(formData.service_charge_percent) / 100)).toFixed(1)} TJS = Итого к оплате {(300 * (1 + Number(formData.service_charge_percent) / 100)).toFixed(1)} TJS.
           </p>
+        </div>
         </div>
       </GlassCard>
 

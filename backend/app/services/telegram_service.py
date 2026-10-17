@@ -52,7 +52,8 @@ class TelegramService:
         request_type: str,
         guest_comment: Optional[str] = None,
         cart_items: Optional[List[Dict[str, Any]]] = None,
-        service_charge_percent: float = 10.0
+        service_charge_percent: float = 10.0,
+        restaurant_currency: str = "TJS"
     ) -> bool:
         """
         Formats a restaurant-grade dispatch alert for waitstaff and hosts.
@@ -62,6 +63,7 @@ class TelegramService:
             "call_waiter": "🛎️ ВЫЗОВ ОФИЦИАНТА",
             "call_sommelier": "🍷 ВЫЗОВ СОМЕЛЬЕ",
             "call_hookah": "💨 ВЫЗОВ КАЛЬЯННОГО МАСТЕРА",
+            "call_admin": "👔 ВЫЗОВ АДМИНИСТРАТОРА / УПРАВЛЯЮЩЕГО",
             "request_bill_cash": "💵 ЗАПРОС СЧЁТА (НАЛИЧНЫЕ)",
             "request_bill_card": "💳 ЗАПРОС СЧЁТА (КАРТА)",
             "order": "🍽️ НОВЫЙ ЗАКАЗ ИЗ МЕНЮ"
@@ -80,7 +82,7 @@ class TelegramService:
         if cart_items and len(cart_items) > 0:
             lines.append("\n📋 <b>Состав заказа:</b>")
             subtotal = 0.0
-            currency = "TJS"
+            currency = restaurant_currency or "TJS"
             for idx, item in enumerate(cart_items, 1):
                 name = item.get("name") or "Блюдо"
                 qty = item.get("quantity", 1)

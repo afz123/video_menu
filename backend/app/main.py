@@ -12,6 +12,9 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+import asyncio
+from app.services.storage_service import StorageService
+
 logger = logging.getLogger("video_menu.main")
 
 @asynccontextmanager
@@ -21,7 +24,17 @@ async def lifespan(app: FastAPI):
         await seed_database()
     except Exception as e:
         logger.error(f"Seeder execution failed: {e}", exc_info=True)
+
+    # Initial cleanup and background periodic task (every 30 mins)
+    StorageService.cleanup_expired_tmp_files(settings.TMP_DIR, max_age_seconds=3600)
+    async def periodic_tmp_cleanup():
+        while True:
+            await asyncio.sleep(1800)
+            StorageService.cleanup_expired_tmp_files(settings.TMP_DIR, max_age_seconds=3600)
+
+    cleanup_task = asyncio.create_task(periodic_tmp_cleanup())
     yield
+    cleanup_task.cancel()
     logger.info("Shutting down Video Menu Luxury Platform Backend...")
 
 app = FastAPI(

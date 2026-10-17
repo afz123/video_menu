@@ -167,7 +167,7 @@ async def get_restaurant_full_menu(
                 "name": dish.name_translations,
                 "description": dish.description_translations or {},
                 "price": float(dish.price),
-                "currency": dish.currency,
+                "currency": dish.currency or restaurant.currency or "TJS",
                 "weight": dish.weight_info,
                 "calories": dish.calories_info,
                 "allergens": dish.allergens or [],
@@ -175,7 +175,6 @@ async def get_restaurant_full_menu(
                 "modifiers": dish.modifiers or [],
                 "pairings": dish.pairings or [],
                 "is_available": dish.is_available,
-                "is_featured": dish.is_featured,
                 "display_order": dish.display_order,
                 "category_id": dish.category_id,
                 "media": media_info
@@ -201,6 +200,8 @@ async def get_restaurant_full_menu(
             "old_slugs": restaurant.old_slugs or [],
             "tagline": restaurant.tagline,
             "description": restaurant.description,
+            "currency": restaurant.currency or "TJS",
+            "call_types_enabled": restaurant.call_types_enabled or ["waiter", "bill", "sommelier", "hookah", "admin"],
             "service_charge_percent": restaurant.service_charge_percent if restaurant.service_charge_percent is not None else 10.0,
             "telegram_enabled": bool(restaurant.telegram_enabled),
             "theme": restaurant.theme_config or {},
@@ -271,7 +272,8 @@ async def create_service_request(
                 request_type=req.request_type,
                 guest_comment=req.guest_comment,
                 cart_items=req.cart_items,
-                service_charge_percent=restaurant.service_charge_percent if restaurant.service_charge_percent is not None else 10.0
+                service_charge_percent=restaurant.service_charge_percent if restaurant.service_charge_percent is not None else 10.0,
+                restaurant_currency=restaurant.currency or "TJS"
             )
         except Exception as e:
             logger.error(f"Failed to queue telegram notification: {e}")

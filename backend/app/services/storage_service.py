@@ -35,3 +35,24 @@ class StorageService:
                 file_path.unlink()
         except Exception:
             pass
+
+    @staticmethod
+    def cleanup_expired_tmp_files(directory: Path, max_age_seconds: int = 3600) -> int:
+        """Removes temporary files older than max_age_seconds (default 1 hour)."""
+        import time
+        deleted_count = 0
+        try:
+            if not directory.exists():
+                return 0
+            now = time.time()
+            for item in directory.glob("*"):
+                if item.is_file():
+                    try:
+                        if now - item.stat().st_mtime > max_age_seconds:
+                            item.unlink()
+                            deleted_count += 1
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        return deleted_count

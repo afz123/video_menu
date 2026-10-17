@@ -73,6 +73,23 @@ export const VideoPlayer = ({
     };
   }, [isCurrent]);
 
+  // Handle Android Chrome background tab unfocus / refocus seamlessly
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const video = videoRef.current;
+      if (!video) return;
+      if (document.hidden) {
+        video.pause();
+      } else if (isCurrent) {
+        video.play().catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isCurrent]);
+
   const toggleSound = (e) => {
     e.stopPropagation();
     unlockAudio();

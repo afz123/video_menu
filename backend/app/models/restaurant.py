@@ -19,8 +19,12 @@ class Restaurant(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Restaurant Economics & Hospitality settings
+    currency = Column(String(8), default="TJS")
     service_charge_percent = Column(Float, default=10.0) # Standard 10-15% in Central Asia / Luxury Dining
     
+    # Enabled Staff Call types: ["waiter", "bill", "sommelier", "hookah", "admin"]
+    call_types_enabled = Column(JSON, default=lambda: ["waiter", "bill", "sommelier", "hookah", "admin"])
+
     # Staff Telegram Bot integration for live waiter calls and bills
     telegram_bot_token = Column(String(128), nullable=True)
     telegram_chat_id = Column(String(64), nullable=True)

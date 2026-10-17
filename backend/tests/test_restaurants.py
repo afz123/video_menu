@@ -206,3 +206,169 @@ async def test_order_stop_list_validation(client, admin_headers):
     assert success_order.status_code == 200
     assert success_order.json()["status"] == "PENDING"
 
+
+@pytest.mark.asyncio
+async def test_dynamic_service_charge_calculation_in_telegram(client, admin_headers):
+    """Test dynamic calculation of service charge (e.g. 15%) on an order of 200 -> total 230."""
+    from unittest.mock import patch, AsyncMock
+    from app.services.telegram_service import TelegramService
+
+    # 1. Update restaurant to 15% service charge
+    update_res = await client.put(
+        "/api/v1/restaurants/asr-royale",
+        json={
+            "service_charge_percent": 15.0,
+            "currency": "TJS",
+            "telegram_enabled": True,
+            "telegram_bot_token": "valid_mock_token_123",
+            "telegram_chat_id": "-100123456789"
+        },
+        headers=admin_headers
+    )
+    assert update_res.status_code == 200
+    assert update_res.json()["service_charge_percent"] == 15.0
+
+    # 2. Intercept TelegramService.send_message
+    with patch.object(TelegramService, "send_message", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = True
+
+        order_res = await client.post(
+            "/api/v1/restaurants/asr-royale/service-requests",
+            json={
+                "table_number": "12",
+                "request_type": "order",
+                "guest_comment": "Стейк рибай с соусом",
+                "cart_items": [
+                    {
+                        "name": "Стейк Рибай Прайм",
+                        "quantity": 1,
+                        "price": 200.0,
+                        "chosen_options": [
+                            {"group": "Прожарка", "name": "Medium Rare", "price": 0}
+                        ]
+                    }
+                ]
+            }
+        )
+        assert order_res.status_code == 200
+        req_id = order_res.json()["id"]
+        assert req_id is not None
+
+        # Check that Telegram notification was dispatched with 15% calculation (200 + 30 = 230)
+        assert mock_send.called
+        sent_text = mock_send.call_args[0][2]
+        assert "15%" in sent_text
+        assert "200.0 TJS" in sent_text
+        assert "30.0 TJS" in sent_text
+        assert "230.0 TJS" in sent_text
+
+
+@pytest.mark.asyncio
+async def test_multitenancy_isolation_by_slug(client, admin_headers):
+    """Test multitenancy isolation: categories and dishes of different restaurants do not overlap."""
+    import uuid
+    uid = uuid.uuid4().hex[:6]
+    slug_a = f"cafe-shashlik-{uid}"
+    slug_b = f"lounge-bar-{uid}"
+
+    # 1. Create Restaurant A
+    res_a = await client.post(
+        "/api/v1/restaurants",
+        json={
+            "name": f"Кафе Шашлычная {uid}",
+            "slug": slug_a,
+            "currency": "TJS",
+            "service_charge_percent": 10.0
+        },
+        headers=admin_headers
+    )
+    assert res_a.status_code == 200
+    rest_a_id = res_a.json()["id"]
+
+    # 2. Create Restaurant B
+    res_b = await client.post(
+        "/api/v1/restaurants",
+        json={
+            "name": f"Skyline Lounge {uid}",
+            "slug": slug_b,
+            "currency": "USD",
+            "service_charge_percent": 15.0
+        },
+        headers=admin_headers
+    )
+    assert res_b.status_code == 200
+    rest_b_id = res_b.json()["id"]
+
+    # 3. Add Category to Restaurant A
+    cat_a = await client.post(
+        "/api/v1/categories",
+        json={
+            "restaurant_id": rest_a_id,
+            "name_translations": {"ru": "Мангал и Шашлыки", "en": "Grill & BBQ"},
+            "icon": "flame",
+            "display_order": 1
+        },
+        headers=admin_headers
+    )
+    assert cat_a.status_code == 200
+    cat_a_id = cat_a.json()["id"]
+
+    # 4. Add Category to Restaurant B
+    cat_b = await client.post(
+        "/api/v1/categories",
+        json={
+            "restaurant_id": rest_b_id,
+            "name_translations": {"ru": "Коктейли и Смузи", "en": "Cocktails & Smoothies"},
+            "icon": "wine",
+            "display_order": 1
+        },
+        headers=admin_headers
+    )
+    assert cat_b.status_code == 200
+    cat_b_id = cat_b.json()["id"]
+
+    # 5. Query Full Menu for Restaurant A -> only A's categories
+    menu_a = await client.get(f"/api/v1/restaurants/{slug_a}/full-menu")
+    assert menu_a.status_code == 200
+    cats_a_names = [c["name"].get("ru") for c in menu_a.json()["categories"]]
+    assert "Мангал и Шашлыки" in cats_a_names
+    assert "Коктейли и Смузи" not in cats_a_names
+
+    # 6. Query Full Menu for Restaurant B -> only B's categories
+    menu_b = await client.get(f"/api/v1/restaurants/{slug_b}/full-menu")
+    assert menu_b.status_code == 200
+    cats_b_names = [c["name"].get("ru") for c in menu_b.json()["categories"]]
+    assert "Коктейли и Смузи" in cats_b_names
+    assert "Мангал и Шашлыки" not in cats_b_names
+
+    # 7. Check category list filtering by restaurant_id
+    cat_list_a = await client.get(f"/api/v1/categories?restaurant_id={rest_a_id}")
+    assert cat_list_a.status_code == 200
+    assert all(c["restaurant_id"] == rest_a_id for c in cat_list_a.json())
+
+
+@pytest.mark.asyncio
+async def test_telegram_test_endpoint_bad_gateway(client, admin_headers):
+    """Test that invalid telegram credentials return 502 Bad Gateway instead of 500 unhandled crash."""
+    from unittest.mock import patch, AsyncMock
+    from app.services.telegram_service import TelegramService
+
+    # 1. Update restaurant with broken telegram bot credentials
+    await client.put(
+        "/api/v1/restaurants/asr-royale",
+        json={
+            "telegram_bot_token": "broken_invalid_token",
+            "telegram_chat_id": "-9999999999"
+        },
+        headers=admin_headers
+    )
+
+    # 2. Mock send_message returning False (simulating Telegram API rejection)
+    with patch.object(TelegramService, "send_message", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = False
+
+        res = await client.post("/api/v1/restaurants/asr-royale/test-telegram", headers=admin_headers)
+        assert res.status_code == 502
+        assert "Не удалось доставить сообщение в Telegram" in res.json()["detail"]
+
+

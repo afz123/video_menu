@@ -22,6 +22,7 @@ export const DishFormModal = ({
   dishToEdit = null,
   initialCategoryId = null,
   supportedLocales = ['ru', 'tj', 'en'],
+  defaultCurrency = 'TJS',
   onClose,
   onSaved
 }) => {
@@ -71,7 +72,7 @@ export const DishFormModal = ({
 
   // Other fields
   const [price, setPrice] = useState(dishToEdit?.price !== undefined ? String(dishToEdit.price) : '');
-  const [currency, setCurrency] = useState(dishToEdit?.currency || 'TJS');
+  const [currency, setCurrency] = useState(dishToEdit?.currency || defaultCurrency || 'TJS');
   const [weightInfo, setWeightInfo] = useState(dishToEdit?.weight || '350 г');
   // CALORIES ARE EMPTY BY DEFAULT! Only filled if explicitly provided in existing dish!
   const [caloriesInfo, setCaloriesInfo] = useState(dishToEdit?.calories || '');
@@ -91,6 +92,11 @@ export const DishFormModal = ({
     dishToEdit?.pairings?.[0]?.text || ''
   );
   const [modifiers, setModifiers] = useState(dishToEdit?.modifiers || []);
+  const [isAddingGroup, setIsAddingGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupType, setNewGroupType] = useState('single');
+  const [newGroupRequired, setNewGroupRequired] = useState(false);
+  const [optInputs, setOptInputs] = useState({});
 
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -935,110 +941,314 @@ export const DishFormModal = ({
                 />
               </div>
 
-              {/* Modifiers (Steak Doneness, Sauces, Addons) */}
+              {/* Dynamic Modifiers & Option Constructor */}
               <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: '12px', padding: '14px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: '600', color: '#fff' }}>
-                    🥩 Модификаторы блюда (прожарка, соусы, допы)
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>
+                    ⚙️ Конструктор модификаторов и опций ({modifiers.length})
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setModifiers([
-                        {
-                          id: 'doneness',
-                          name: 'Степень прожарки',
-                          type: 'single',
-                          required: true,
-                          options: [
-                            { name: 'Rare (С кровью, 50-52°C)', price: 0 },
-                            { name: 'Medium Rare (Идеальная сочность, 54-57°C)', price: 0 },
-                            { name: 'Medium (Средняя прожарка, 60-63°C)', price: 0 },
-                            { name: 'Well Done (Полная прожарка, 70°C+)', price: 0 }
-                          ]
-                        },
-                        {
-                          id: 'sauce',
-                          name: 'Авторский соус',
-                          type: 'single',
-                          required: false,
-                          options: [
-                            { name: 'Черный трюфельный демиглас', price: 35 },
-                            { name: 'Сливочно-перечный соус с коньяком', price: 25 },
-                            { name: 'Розмариновое топленое масло', price: 15 }
-                          ]
-                        },
-                        {
-                          id: 'addons',
-                          name: 'Дополнения к блюду',
-                          type: 'multiple',
-                          required: false,
-                          options: [
-                            { name: 'Тигровая креветка на гриле (+1 шт)', price: 60 },
-                            { name: 'Свежий черный трюфель (5 г)', price: 85 },
-                            { name: 'Запеченный чеснок конфи', price: 20 }
-                          ]
-                        }
-                      ]);
-                    }}
-                    style={{
-                      background: 'none',
-                      border: '1px dashed var(--accent-gold)',
-                      color: 'var(--accent-gold)',
-                      borderRadius: '8px',
-                      padding: '4px 10px',
-                      fontSize: '11px',
-                      fontWeight: '600',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    + Шаблон стейкхауса
-                  </button>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModifiers([
+                          {
+                            id: 'doneness',
+                            name: 'Степень прожарки',
+                            type: 'single',
+                            required: true,
+                            options: [
+                              { name: 'Rare (С кровью, 50-52°C)', price: 0 },
+                              { name: 'Medium Rare (Идеальная сочность, 54-57°C)', price: 0 },
+                              { name: 'Medium (Средняя прожарка, 60-63°C)', price: 0 },
+                              { name: 'Well Done (Полная прожарка, 70°C+)', price: 0 }
+                            ]
+                          },
+                          {
+                            id: 'sauce',
+                            name: 'Авторский соус',
+                            type: 'single',
+                            required: false,
+                            options: [
+                              { name: 'Черный трюфельный демиглас', price: 35 },
+                              { name: 'Сливочно-перечный соус с коньяком', price: 25 },
+                              { name: 'Розмариновое топленое масло', price: 15 }
+                            ]
+                          },
+                          {
+                            id: 'addons',
+                            name: 'Дополнения к блюду',
+                            type: 'multiple',
+                            required: false,
+                            options: [
+                              { name: 'Тигровая креветка на гриле (+1 шт)', price: 60 },
+                              { name: 'Свежий черный трюфель (5 г)', price: 85 },
+                              { name: 'Запеченный чеснок конфи', price: 20 }
+                            ]
+                          }
+                        ]);
+                      }}
+                      style={{ background: 'none', border: '1px dashed var(--accent-gold)', color: 'var(--accent-gold)', borderRadius: '8px', padding: '4px 8px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}
+                    >
+                      + 🥩 Стейкхаус
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModifiers([
+                          {
+                            id: 'pizza_size',
+                            name: 'Размер пиццы',
+                            type: 'single',
+                            required: true,
+                            options: [
+                              { name: 'Стандарт (30 см)', price: 0 },
+                              { name: 'Большая (40 см)', price: 35 }
+                            ]
+                          },
+                          {
+                            id: 'pizza_crust',
+                            name: 'Тип бортика',
+                            type: 'single',
+                            required: false,
+                            options: [
+                              { name: 'Классический бортик', price: 0 },
+                              { name: 'Сырный бортик (Моцарелла)', price: 25 },
+                              { name: 'Пепперони бортик', price: 30 }
+                            ]
+                          },
+                          {
+                            id: 'pizza_extra',
+                            name: 'Дополнительные топинги',
+                            type: 'multiple',
+                            required: false,
+                            options: [
+                              { name: 'Двойной сыр моцарелла', price: 20 },
+                              { name: 'Халапеньо (Острое)', price: 15 },
+                              { name: 'Трюфельное масло', price: 25 }
+                            ]
+                          }
+                        ]);
+                      }}
+                      style={{ background: 'none', border: '1px dashed #38bdf8', color: '#38bdf8', borderRadius: '8px', padding: '4px 8px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}
+                    >
+                      + 🍕 Пиццерия
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModifiers([
+                          {
+                            id: 'ice_level',
+                            name: 'Количество льда',
+                            type: 'single',
+                            required: true,
+                            options: [
+                              { name: 'Стандартный лед', price: 0 },
+                              { name: 'Меньше льда', price: 0 },
+                              { name: 'Без льда', price: 0 }
+                            ]
+                          },
+                          {
+                            id: 'bar_portion',
+                            name: 'Объем / Крепость порции',
+                            type: 'single',
+                            required: true,
+                            options: [
+                              { name: 'Стандартная порция (Single)', price: 0 },
+                              { name: 'Двойная порция (Double)', price: 40 }
+                            ]
+                          }
+                        ]);
+                      }}
+                      style={{ background: 'none', border: '1px dashed #a855f7', color: '#a855f7', borderRadius: '8px', padding: '4px 8px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}
+                    >
+                      + 🍸 Бар / Напитки
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingGroup(true)}
+                      style={{ background: 'rgba(212, 175, 55, 0.15)', border: '1px solid var(--accent-gold)', color: 'var(--accent-gold)', borderRadius: '8px', padding: '4px 10px', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
+                    >
+                      + Своя группа
+                    </button>
+                  </div>
                 </div>
 
+                {/* Inline Custom Group Creator */}
+                {isAddingGroup && (
+                  <div style={{ backgroundColor: 'rgba(0,0,0,0.5)', border: '1px solid var(--accent-gold)', borderRadius: '12px', padding: '12px', marginBottom: '14px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--accent-gold)', marginBottom: '8px' }}>
+                      Создание новой группы модификаторов:
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                      <input
+                        type="text"
+                        placeholder="Название группы (напр. Степень остроты, Соус...)"
+                        value={newGroupName}
+                        onChange={(e) => setNewGroupName(e.target.value)}
+                        style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', padding: '8px 10px', color: '#fff', fontSize: '12px' }}
+                      />
+                      <select
+                        value={newGroupType}
+                        onChange={(e) => setNewGroupType(e.target.value)}
+                        style={{ backgroundColor: '#1a1a24', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', padding: '8px', color: '#fff', fontSize: '12px' }}
+                      >
+                        <option value="single">Один выбор (Radio)</option>
+                        <option value="multiple">Несколько (Checkbox)</option>
+                      </select>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#fff', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={newGroupRequired}
+                          onChange={(e) => setNewGroupRequired(e.target.checked)}
+                          style={{ accentColor: 'var(--accent-gold)' }}
+                        />
+                        <span>Обязательно</span>
+                      </label>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingGroup(false);
+                          setNewGroupName('');
+                        }}
+                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer' }}
+                      >
+                        Отмена
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!newGroupName.trim()) {
+                            alert('Введите название группы');
+                            return;
+                          }
+                          const newGrp = {
+                            id: `mod_${Date.now()}`,
+                            name: newGroupName.trim(),
+                            type: newGroupType,
+                            required: newGroupRequired,
+                            options: []
+                          };
+                          setModifiers([...modifiers, newGrp]);
+                          setNewGroupName('');
+                          setIsAddingGroup(false);
+                        }}
+                        style={{ backgroundColor: 'var(--accent-gold)', border: 'none', borderRadius: '6px', padding: '6px 14px', color: '#000', fontWeight: '700', fontSize: '12px', cursor: 'pointer' }}
+                      >
+                        Создать группу
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Modifiers List & Option Management */}
                 {modifiers.length === 0 ? (
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    Нет модификаторов. Нажмите кнопку выше для применения шаблона для мясных и основных блюд.
+                    Нет модификаторов. Выберите готовый люкс-шаблон выше (Стейкхаус, Пиццерия, Бар) или нажмите «+ Своя группа».
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {modifiers.map((mod, mIdx) => (
                       <div
                         key={mIdx}
                         style={{
                           backgroundColor: 'rgba(0,0,0,0.3)',
-                          border: '1px solid rgba(255,255,255,0.06)',
-                          borderRadius: '8px',
-                          padding: '10px'
+                          border: '1px solid rgba(255,255,255,0.08)',
+                          borderRadius: '10px',
+                          padding: '12px'
                         }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                          <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--accent-gold)' }}>
-                            {mod.name} ({mod.type === 'single' ? 'Один вариант' : 'Несколько вариантов'})
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--accent-gold)' }}>
+                            {mod.name} <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '400' }}>({mod.type === 'single' ? 'Один вариант' : 'Несколько вариантов'}{mod.required ? ', Обязательно' : ''})</span>
                           </span>
                           <button
                             type="button"
                             onClick={() => setModifiers(modifiers.filter((_, i) => i !== mIdx))}
-                            style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '11px' }}
+                            style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '12px' }}
                           >
                             Удалить группу
                           </button>
                         </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                          {mod.options.map((opt, oIdx) => (
+
+                        {/* Existing Options */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                          {(mod.options || []).map((opt, oIdx) => (
                             <span
                               key={oIdx}
                               style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
                                 background: 'rgba(255,255,255,0.06)',
-                                padding: '3px 8px',
-                                borderRadius: '6px',
-                                fontSize: '11px',
-                                color: 'rgba(255,255,255,0.85)'
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                padding: '4px 10px',
+                                borderRadius: '8px',
+                                fontSize: '12px',
+                                color: 'rgba(255,255,255,0.9)'
                               }}
                             >
-                              {opt.name} {opt.price > 0 ? `(+${opt.price} TJS)` : ''}
+                              <span>{opt.name} {opt.price > 0 ? `(+${opt.price} ${currency || 'TJS'})` : ''}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = [...modifiers];
+                                  updated[mIdx].options = updated[mIdx].options.filter((_, i) => i !== oIdx);
+                                  setModifiers(updated);
+                                }}
+                                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '13px', lineHeight: 1 }}
+                              >
+                                ×
+                              </button>
                             </span>
                           ))}
+                          {(!mod.options || mod.options.length === 0) && (
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>В этой группе пока нет вариантов</span>
+                          )}
+                        </div>
+
+                        {/* Add Option to this Group */}
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', paddingTop: '4px' }}>
+                          <input
+                            type="text"
+                            placeholder="Новая опция (напр. Сырный соус)"
+                            value={optInputs[mIdx]?.name || ''}
+                            onChange={(e) => setOptInputs({
+                              ...optInputs,
+                              [mIdx]: { ...(optInputs[mIdx] || {}), name: e.target.value }
+                            })}
+                            style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '6px', padding: '6px 10px', color: '#fff', fontSize: '12px' }}
+                          />
+                          <input
+                            type="number"
+                            placeholder="+ Цена"
+                            value={optInputs[mIdx]?.price ?? ''}
+                            onChange={(e) => setOptInputs({
+                              ...optInputs,
+                              [mIdx]: { ...(optInputs[mIdx] || {}), price: e.target.value }
+                            })}
+                            style={{ width: '80px', backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '6px', padding: '6px 10px', color: '#fff', fontSize: '12px' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const input = optInputs[mIdx];
+                              if (!input?.name?.trim()) return;
+                              const updated = [...modifiers];
+                              updated[mIdx].options = [
+                                ...(updated[mIdx].options || []),
+                                { name: input.name.trim(), price: Number(input.price) || 0 }
+                              ];
+                              setModifiers(updated);
+                              setOptInputs({ ...optInputs, [mIdx]: { name: '', price: '' } });
+                            }}
+                            style={{ backgroundColor: 'rgba(212, 175, 55, 0.2)', border: '1px solid var(--accent-gold)', borderRadius: '6px', padding: '6px 12px', color: 'var(--accent-gold)', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
+                          >
+                            + Добавить
+                          </button>
                         </div>
                       </div>
                     ))}

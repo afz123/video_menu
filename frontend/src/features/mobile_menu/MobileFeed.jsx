@@ -86,7 +86,12 @@ export const MobileFeed = ({ restaurantData }) => {
     isProgrammaticScrollRef.current = true;
     setActiveCategoryId(catId);
     setCurrentSlideIndex(0);
-    setBadgeFilter('ALL');
+    // Preserve global dietary/lifestyle preferences (Halal, Vegan, etc.) across categories
+    const GLOBAL_DIETARY_KEYWORDS = ['халяль', 'halal', 'веган', 'vegan', 'постное', 'вегетариан', 'без глютена', 'gluten'];
+    const isGlobalDietary = badgeFilter !== 'ALL' && GLOBAL_DIETARY_KEYWORDS.some((kw) => badgeFilter.toLowerCase().includes(kw));
+    if (!isGlobalDietary) {
+      setBadgeFilter('ALL');
+    }
     setIsDetailExpanded(false);
     if (containerRef.current) {
       containerRef.current.scrollTo({ top: 0, behavior: 'auto' });
@@ -331,6 +336,7 @@ export const MobileFeed = ({ restaurantData }) => {
         tableNumber={tableNumber}
         cartCount={cartItems.reduce((acc, i) => acc + (i.quantity || 1), 0)}
         hidden={isDetailExpanded}
+        callTypesEnabled={restaurantData.restaurant?.call_types_enabled || ['waiter', 'bill', 'sommelier', 'hookah', 'admin']}
         onOpenCart={() => setIsCartOpen(true)}
         onSetTableNumber={(tbl) => {
           setTableNumber(tbl);
@@ -353,6 +359,7 @@ export const MobileFeed = ({ restaurantData }) => {
           cartItems={cartItems}
           tableNumber={tableNumber}
           restaurantSlug={restaurantSlug}
+          currency={restaurantData.restaurant?.currency || 'TJS'}
           serviceChargePercent={restaurantData.restaurant?.service_charge_percent ?? 10}
           onClose={() => setIsCartOpen(false)}
           onUpdateQty={handleUpdateQty}

@@ -138,7 +138,17 @@ export const BookingModal = ({ restaurantSlug, restaurantName, onClose }) => {
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <form
+            onSubmit={handleSubmit}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '20px',
+              pointerEvents: isSubmitting ? 'none' : 'auto',
+              opacity: isSubmitting ? 0.6 : 1,
+              transition: 'opacity 0.2s ease'
+            }}
+          >
             <div>
               <span style={{ fontSize: '12px', color: 'var(--accent-gold)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                 Предварительное бронирование
