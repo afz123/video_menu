@@ -66,9 +66,12 @@ class TelegramService:
             "call_admin": "👔 ВЫЗОВ АДМИНИСТРАТОРА / УПРАВЛЯЮЩЕГО",
             "request_bill_cash": "💵 ЗАПРОС СЧЁТА (НАЛИЧНЫЕ)",
             "request_bill_card": "💳 ЗАПРОС СЧЁТА (КАРТА)",
-            "order": "🍽️ НОВЫЙ ЗАКАЗ ИЗ МЕНЮ"
+            "order": "🍽️ НОВЫЙ ЗАКАЗ ИЗ МЕНЮ",
+            "repeat_order": "🔁 ДОЗАКАЗ К СТОЛУ (ДОП. БЛЮДА)"
         }
         header = type_titles.get(request_type, "🛎️ ВЫЗОВ В ЗАЛЕ")
+        if guest_comment and "ДОЗАКАЗ" in guest_comment:
+            header = "🔁 ДОЗАКАЗ К СТОЛУ (ДОП. БЛЮДА)"
 
         lines = [
             f"<b>{header}</b>",

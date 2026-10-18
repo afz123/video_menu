@@ -10,7 +10,9 @@ export const MobileHeader = ({
   activeCategoryId,
   onSelectCategory,
   badgeFilter = 'ALL',
-  onSelectBadgeFilter
+  onSelectBadgeFilter,
+  tableNumber = '',
+  onChangeTable
 }) => {
   const { currentLang, t } = useLanguage();
   const [isCategoryDrawerOpen, setIsCategoryDrawerOpen] = useState(false);
@@ -102,19 +104,51 @@ export const MobileHeader = ({
             </span>
           </button>
 
-          {/* Center: Restaurant Brand Name */}
+          {/* Center: Restaurant Brand Name & Table Badge */}
           <div
             style={{
-              fontFamily: 'var(--font-serif)',
-              fontSize: '18px',
-              fontWeight: '600',
-              color: '#fff',
-              letterSpacing: '0.04em',
-              textAlign: 'center',
-              textShadow: '0 2px 10px rgba(0,0,0,0.8)'
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center'
             }}
           >
-            {restaurantName}
+            <div
+              style={{
+                fontFamily: 'var(--font-serif)',
+                fontSize: '17px',
+                fontWeight: '600',
+                color: '#fff',
+                letterSpacing: '0.03em',
+                textShadow: '0 2px 10px rgba(0,0,0,0.8)',
+                lineHeight: '1.2'
+              }}
+            >
+              {restaurantName}
+            </div>
+            {tableNumber && (
+              <button
+                type="button"
+                onClick={onChangeTable}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: 'rgba(212, 175, 55, 0.18)',
+                  border: '1px solid rgba(212, 175, 55, 0.4)',
+                  borderRadius: '12px',
+                  padding: '1px 8px',
+                  marginTop: '2px',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  color: 'var(--accent-gold)',
+                  cursor: onChangeTable ? 'pointer' : 'default'
+                }}
+              >
+                <span>📍 Стол №{tableNumber}</span>
+              </button>
+            )}
           </div>
 
           {/* Right: Language Pill */}

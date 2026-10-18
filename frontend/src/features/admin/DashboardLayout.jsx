@@ -7,6 +7,7 @@ import { CategoryManager } from './CategoryManager';
 import { ThemeCustomizer } from './ThemeCustomizer';
 import { RestaurantSettings } from './RestaurantSettings';
 import { AdminLogin } from './AdminLogin';
+import { TableQrGenerator } from './TableQrGenerator';
 import { menuService } from '../../services/menuService';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -701,56 +702,62 @@ export const DashboardLayout = () => {
 
       {/* TAB 3: PREVIEW & QR */}
       {activeTab === 'preview' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '32px' }}>
-          {/* Mobile QR Card */}
-          <GlassCard style={{ padding: '36px', textAlign: 'center' }}>
-            <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', background: 'rgba(212, 175, 55, 0.15)', color: 'var(--accent-gold)', marginBottom: '16px' }}>
-              <Smartphone size={32} />
-            </div>
-            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '26px', marginBottom: '8px' }}>
-              QR-код для столов и гостей
-            </h3>
-            <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '24px' }}>
-              Распечатайте этот QR-код для меню на столах или тейбл-тентах
-            </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+          {/* Table Specific QR Code Generator with Print Support */}
+          <TableQrGenerator restaurant={currentRestaurant} />
 
-            <div style={{ display: 'inline-block', background: '#fff', padding: '16px', borderRadius: '20px', marginBottom: '20px' }}>
-              <QRCodeSVG value={mobileUrl} size={200} level="H" />
-            </div>
+          {/* Additional Displays & General Links */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px' }} className="no-print">
+            {/* General Restaurant QR Card (For entrance/Instagram) */}
+            <GlassCard style={{ padding: '28px', textAlign: 'center' }}>
+              <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', background: 'rgba(212, 175, 55, 0.15)', color: 'var(--accent-gold)', marginBottom: '16px' }}>
+                <Smartphone size={28} />
+              </div>
+              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', marginBottom: '8px' }}>
+                Общий QR-код заведения
+              </h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
+                Для размещения на входе, в Instagram, буклетах и рекламе (без привязки к конкретному столу)
+              </p>
 
-            <div>
-              <a href={mobileUrl} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
-                <GoldButton variant="outline" size="sm" icon={ExternalLink}>
-                  Открыть меню в новой вкладке
-                </GoldButton>
-              </a>
-            </div>
-          </GlassCard>
+              <div style={{ display: 'inline-block', background: '#fff', padding: '14px', borderRadius: '16px', marginBottom: '18px' }}>
+                <QRCodeSVG value={mobileUrl} size={160} level="H" />
+              </div>
 
-          {/* Kiosk Display Info */}
-          <GlassCard style={{ padding: '36px', textAlign: 'center' }}>
-            <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', background: 'rgba(212, 175, 55, 0.15)', color: 'var(--accent-gold)', marginBottom: '16px' }}>
-              <Tv size={32} />
-            </div>
-            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '26px', marginBottom: '8px' }}>
-              Уличная интерактивная витрина
-            </h3>
-            <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '24px' }}>
-              Запустите этот URL на уличных планшетах, тотемах или сенсорных панелях в режиме Kiosk
-            </p>
+              <div>
+                <a href={mobileUrl} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+                  <GoldButton variant="outline" size="sm" icon={ExternalLink}>
+                    Открыть общее меню
+                  </GoldButton>
+                </a>
+              </div>
+            </GlassCard>
 
-            <div style={{ padding: '20px', borderRadius: '16px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '24px', wordBreak: 'break-all', fontSize: '14px', color: 'var(--accent-gold)' }}>
-              {kioskUrl}
-            </div>
+            {/* Kiosk Display Info */}
+            <GlassCard style={{ padding: '28px', textAlign: 'center' }}>
+              <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', background: 'rgba(212, 175, 55, 0.15)', color: 'var(--accent-gold)', marginBottom: '16px' }}>
+                <Tv size={28} />
+              </div>
+              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', marginBottom: '8px' }}>
+                Уличная интерактивная витрина
+              </h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
+                Для запуска на уличных сенсорных тотемах, планшетах у входа или экранах в режиме Kiosk
+              </p>
 
-            <div>
-              <a href={kioskUrl} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
-                <GoldButton variant="primary" size="sm" icon={Tv}>
-                  Запустить Kiosk экран
-                </GoldButton>
-              </a>
-            </div>
-          </GlassCard>
+              <div style={{ padding: '16px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '20px', wordBreak: 'break-all', fontSize: '13px', color: 'var(--accent-gold)' }}>
+                {kioskUrl}
+              </div>
+
+              <div>
+                <a href={kioskUrl} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+                  <GoldButton variant="primary" size="sm" icon={Tv}>
+                    Запустить Kiosk экран
+                  </GoldButton>
+                </a>
+              </div>
+            </GlassCard>
+          </div>
         </div>
       )}
 
@@ -829,9 +836,20 @@ export const DashboardLayout = () => {
                         </td>
                         <td style={{ padding: '16px 20px', fontWeight: '600' }}>
                           {req.request_type === 'call_waiter' && '🛎️ Вызов официанта'}
+                          {req.request_type === 'call_sommelier' && '🍷 Вызов сомелье'}
+                          {req.request_type === 'call_hookah' && '💨 Вызов кальянного мастера'}
+                          {req.request_type === 'call_admin' && '👔 Вызов администратора'}
                           {req.request_type === 'request_bill_card' && '💳 Счёт (Карта)'}
                           {req.request_type === 'request_bill_cash' && '💵 Счёт (Наличные)'}
-                          {req.request_type === 'order' && '🛒 Заказ гостя'}
+                          {(req.request_type === 'order' || req.request_type === 'repeat_order') && (
+                            req.guest_comment?.includes('ДОЗАКАЗ') ? (
+                              <span style={{ color: 'var(--accent-gold)', display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(212,175,55,0.15)', padding: '3px 8px', borderRadius: '8px' }}>
+                                🔁 Дозаказ гостя
+                              </span>
+                            ) : (
+                              '🛒 Заказ гостя'
+                            )
+                          )}
                         </td>
                         <td style={{ padding: '16px 20px' }}>
                           {req.cart_items && req.cart_items.length > 0 ? (

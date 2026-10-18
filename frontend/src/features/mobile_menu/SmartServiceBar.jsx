@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bell, CreditCard, ShoppingBag, CheckCircle, X, ChevronRight } from 'lucide-react';
 import { menuService } from '../../services/menuService';
 
@@ -16,7 +16,14 @@ export const SmartServiceBar = ({
   const [specialistType, setSpecialistType] = useState('waiter'); // 'waiter' | 'sommelier' | 'hookah' | 'admin'
   const [table, setTable] = useState(tableNumber || '');
   const [isEditingTable, setIsEditingTable] = useState(false);
-  const isTableFromQr = Boolean(tableNumber);
+
+  useEffect(() => {
+    if (tableNumber) {
+      setTable(tableNumber);
+    }
+  }, [tableNumber]);
+
+  const isTableFromQr = Boolean(table);
   const [billMethod, setBillMethod] = useState('card'); // 'card' | 'cash'
   const [npsRating, setNpsRating] = useState(5);
   const [guestNote, setGuestNote] = useState('');
@@ -325,7 +332,7 @@ export const SmartServiceBar = ({
                 <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
                   Номер вашего стола *
                 </label>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
                   <input
                     type="text"
                     placeholder="Например: 12 или VIP-2"
@@ -361,6 +368,31 @@ export const SmartServiceBar = ({
                       Готово
                     </button>
                   )}
+                </div>
+                {/* Quick table pick buttons */}
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '12', '15', 'VIP-1', 'VIP-2'].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => {
+                        setTable(num);
+                        if (isEditingTable) setIsEditingTable(false);
+                      }}
+                      style={{
+                        background: table === num ? 'var(--accent-gold)' : 'rgba(255, 255, 255, 0.06)',
+                        color: table === num ? '#000' : 'var(--text-muted)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '8px',
+                        padding: '4px 10px',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {num}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
@@ -497,12 +529,48 @@ export const SmartServiceBar = ({
 
             {/* Optional note */}
             <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                Комментарий (опционально)
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  {modalType === 'WAITER' ? 'Быстрые просьбы к официанту:' : 'Комментарий к счёту:'}
+                </label>
+              </div>
+
+              {modalType === 'WAITER' && (
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                  {['🧊 Лёд и вода', '🥢 Приборы и салфетки', '🍋 Лимон к чаю', '🧂 Соль / перец', '🥫 Дополнительный соус'].map((req) => {
+                    const isSelected = guestNote.includes(req);
+                    return (
+                      <button
+                        key={req}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setGuestNote((prev) => prev.replace(req, '').replace(/,\s*,/g, ',').replace(/^,\s*|,\s*$/g, '').trim());
+                          } else {
+                            setGuestNote((prev) => prev ? `${prev}, ${req}` : req);
+                          }
+                        }}
+                        style={{
+                          background: isSelected ? 'rgba(212, 175, 55, 0.22)' : 'rgba(255, 255, 255, 0.05)',
+                          border: isSelected ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
+                          color: isSelected ? 'var(--accent-gold)' : 'var(--text-muted)',
+                          borderRadius: '14px',
+                          padding: '4px 10px',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {isSelected ? `✓ ${req}` : `+ ${req}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
               <input
                 type="text"
-                placeholder={modalType === 'WAITER' ? 'Принести бокалы / меню напитков...' : 'Нужен раздельный чек...'}
+                placeholder={modalType === 'WAITER' ? 'Своя просьба / принести бокалы...' : 'Нужен раздельный чек / по безналу...'}
                 value={guestNote}
                 onChange={(e) => setGuestNote(e.target.value)}
                 style={{

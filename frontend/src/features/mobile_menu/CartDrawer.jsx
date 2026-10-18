@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { useLanguage } from '../../context/LanguageContext';
 import { menuService } from '../../services/menuService';
-import { X, Trash2, Plus, Minus, Send, CheckCircle2, QrCode, Sparkles } from 'lucide-react';
+import { X, Trash2, Plus, Minus, Send, CheckCircle2, QrCode, Sparkles, RefreshCw } from 'lucide-react';
 
 export const CartDrawer = ({
   cartItems = [],
@@ -18,10 +18,19 @@ export const CartDrawer = ({
   const { t } = useLanguage();
   const [table, setTable] = useState(tableNumber || '');
   const [isEditingTable, setIsEditingTable] = useState(false);
-  const isTableFromQr = Boolean(tableNumber);
+  const isTableFromQr = Boolean(table);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSentSuccess, setOrderSentSuccess] = useState(false);
   const [showWaiterScreen, setShowWaiterScreen] = useState(false);
+
+  // Sync if tableNumber changes
+  useEffect(() => {
+    if (tableNumber) {
+      setTable(tableNumber);
+    }
+  }, [tableNumber]);
+
+  const isRepeatOrder = typeof window !== 'undefined' && Boolean(sessionStorage.getItem('guest_ordered_' + (restaurantSlug || 'menu')));
 
   const activeCurrency = currency || cartItems[0]?.dish?.currency || 'TJS';
 
@@ -41,10 +50,14 @@ export const CartDrawer = ({
     try {
       if (onSetTableNumber) onSetTableNumber(table.trim());
 
+      const orderComment = isRepeatOrder
+        ? `🔁 ДОЗАКАЗ блюд к столу №${table.trim()}`
+        : 'Заказ блюд через интерактивное мобильное меню';
+
       await menuService.createServiceRequest(restaurantSlug, {
         table_number: table.trim(),
         request_type: 'order',
-        guest_comment: 'Заказ блюд через интерактивное мобильное меню',
+        guest_comment: orderComment,
         cart_items: cartItems.map((item) => ({
           dish_id: item.dish.id,
           id: item.dish.id,
@@ -56,6 +69,10 @@ export const CartDrawer = ({
           comment: item.comment || ''
         }))
       });
+
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('guest_ordered_' + (restaurantSlug || 'menu'), 'true');
+      }
 
       setOrderSentSuccess(true);
       onClearCart();
@@ -216,9 +233,14 @@ export const CartDrawer = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '20px' }}>🛒</span>
             <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', color: '#fff', margin: 0 }}>
-              Мой заказ
+              {isRepeatOrder ? 'Дозаказ к столу' : 'Мой заказ'}
             </h3>
-            {cartItems.length > 0 && (
+            {isRepeatOrder && (
+              <span style={{ background: 'rgba(212, 175, 55, 0.25)', border: '1px solid var(--accent-gold)', color: 'var(--accent-gold)', fontSize: '11px', fontWeight: '800', padding: '2px 8px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <RefreshCw size={11} /> ДОЗАКАЗ
+              </span>
+            )}
+            {cartItems.length > 0 && !isRepeatOrder && (
               <span style={{ background: 'rgba(212, 175, 55, 0.2)', color: 'var(--accent-gold)', fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '12px' }}>
                 {cartItems.length} поз.
               </span>

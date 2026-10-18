@@ -234,6 +234,15 @@ export const MobileFeed = ({ restaurantData }) => {
         onSelectCategory={handleSelectCategory}
         badgeFilter={badgeFilter}
         onSelectBadgeFilter={handleSelectBadgeFilter}
+        tableNumber={tableNumber}
+        onChangeTable={() => {
+          const newTbl = window.prompt('Укажите номер вашего стола (например: 12 или VIP-1):', tableNumber || '');
+          if (newTbl && newTbl.trim()) {
+            const trimmed = newTbl.trim();
+            setTableNumber(trimmed);
+            sessionStorage.setItem(tableStorageKey, trimmed);
+          }
+        }}
       />
 
       {/* Vertical Reels Container */}
