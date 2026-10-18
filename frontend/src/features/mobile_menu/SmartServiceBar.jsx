@@ -305,7 +305,7 @@ export const SmartServiceBar = ({
               >
                 <span style={{ fontSize: '13px', color: '#fff' }}>
                   Стол: <strong style={{ color: 'var(--accent-gold)', fontSize: '15px' }}>№{table}</strong>
-                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginLeft: '6px' }}>(по QR-коду)</span>
+                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginLeft: '6px' }}>(зафиксирован по QR)</span>
                 </span>
                 <button
                   type="button"

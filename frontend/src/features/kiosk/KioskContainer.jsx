@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AttractScreen } from './AttractScreen';
 import { InteractiveMenu } from './InteractiveMenu';
 import { QrBridgeModal } from './QrBridgeModal';
@@ -9,21 +9,39 @@ export const KioskContainer = ({ restaurantData }) => {
   const [mode, setMode] = useState('ATTRACT'); // 'ATTRACT' | 'INTERACTIVE'
   const [isQrBridgeOpen, setIsQrBridgeOpen] = useState(false);
   const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [sessionResetKey, setSessionResetKey] = useState(0);
 
   const theme = restaurantData.theme || {};
   const kioskSettings = theme.kiosk_settings || {};
   const inactivitySeconds = kioskSettings.inactivity_seconds || 45;
 
-  // Auto-reset back to Attract screen when idle with 10s countdown warning
+  // Auto-reset back to Attract screen when idle with 10s countdown warning and sanitization
   const { resetTimer, secondsRemaining, isWarning } = useInactivityTimer(
     inactivitySeconds,
     () => {
       setMode('ATTRACT');
       setIsQrBridgeOpen(false);
+      setIsBookingOpen(false);
+      // Forced mount key bump destroys DOM form memory & wipes guest PII
+      setSessionResetKey((prev) => prev + 1);
     },
     mode === 'INTERACTIVE',
     10 // 10 seconds warning
   );
+
+  // E2E test listeners for automated QA
+  useEffect(() => {
+    const handleTimeout = () => {
+      setMode('ATTRACT');
+      setIsQrBridgeOpen(false);
+      setIsBookingOpen(false);
+      setSessionResetKey((prev) => prev + 1);
+    };
+    window.addEventListener('test-inactivity-timeout', handleTimeout);
+    return () => {
+      window.removeEventListener('test-inactivity-timeout', handleTimeout);
+    };
+  }, []);
 
   const handleFirstTouch = () => {
     if (mode === 'ATTRACT') {
@@ -157,6 +175,7 @@ export const KioskContainer = ({ restaurantData }) => {
       {/* Street Kiosk Table Reservation Modal */}
       {isBookingOpen && (
         <BookingModal
+          key={sessionResetKey}
           restaurantSlug={restaurantData.slug}
           restaurantName={restaurantData.name}
           onClose={() => {

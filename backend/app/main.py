@@ -54,8 +54,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount video and asset storage
-app.mount("/static/videos", StaticFiles(directory=str(settings.VIDEOS_DIR)), name="videos")
+class VideoStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Accept-Ranges"] = "bytes"
+        if not response.headers.get("Cache-Control"):
+            response.headers["Cache-Control"] = "public, max-age=86400"
+        return response
+
+# Mount video and asset storage with iOS Safari streaming support (HTTP 206 / Accept-Ranges)
+app.mount("/static/videos", VideoStaticFiles(directory=str(settings.VIDEOS_DIR)), name="videos")
 
 # Register API v1
 app.include_router(api_router, prefix=settings.API_V1_STR)

@@ -26,6 +26,34 @@ def get_ffmpeg_path() -> str:
 
 class VideoTranscodeService:
     @classmethod
+    async def _run_async_proc(cls, cmd, timeout=120):
+        """
+        Executes FFmpeg with DEVNULL for stdout and bounded reading of stderr
+        to prevent OS PIPE buffer deadlocks on long or verbose streams.
+        """
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE
+        )
+        try:
+            _, stderr_data = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+            if proc.returncode != 0:
+                err_msg = stderr_data.decode('utf-8', errors='ignore')[-8192:] if stderr_data else ''
+                logger.error(f"FFmpeg failed with code {proc.returncode}: {err_msg}")
+                raise RuntimeError(f"FFmpeg execution error (code {proc.returncode}): {err_msg}")
+        except asyncio.TimeoutError:
+            try:
+                proc.kill()
+                await proc.wait()
+            except ProcessLookupError:
+                pass
+            except Exception:
+                pass
+            logger.error(f"FFmpeg command timed out after {timeout}s: {' '.join(cmd)}")
+            raise TimeoutError(f"FFmpeg timed out after {timeout}s: {' '.join(cmd)}")
+
+    @classmethod
     async def process_video(cls, input_path: str, output_dir: Path, asset_id: int) -> dict:
         """
         Executes an asynchronous transcoding pipeline:
@@ -66,12 +94,15 @@ class VideoTranscodeService:
             str(hd_path)
         ]
 
-        # Command 3: Mobile loop (720x1280, H.264, FastStart for zero-delay stream, yuv420p)
+        # Command 3: Mobile loop (720x1280, H.264, FastStart for zero-delay stream, yuv420p, preserve ASMR audio if present)
         cmd_mobile = [
             ffmpeg_bin, "-y", "-i", input_path,
+            "-threads", "2",
             "-vf", "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280",
             "-c:v", "libx264", "-profile:v", "high", "-preset", "fast",
-            "-crf", "23", "-pix_fmt", "yuv420p", "-an",
+            "-crf", "23", "-pix_fmt", "yuv420p",
+            "-map", "0:v:0", "-map", "0:a?",
+            "-c:a", "aac", "-b:a", "96k",
             "-movflags", "+faststart",
             str(mobile_path)
         ]
@@ -79,50 +110,32 @@ class VideoTranscodeService:
         # Command 4: Kiosk Full HD loop (1080x1920)
         cmd_kiosk = [
             ffmpeg_bin, "-y", "-i", input_path,
+            "-threads", "2",
             "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920",
             "-c:v", "libx264", "-profile:v", "high", "-preset", "medium",
-            "-crf", "20", "-pix_fmt", "yuv420p", "-an",
+            "-crf", "20", "-pix_fmt", "yuv420p",
+            "-map", "0:v:0", "-map", "0:a?",
+            "-c:a", "aac", "-b:a", "128k",
             "-movflags", "+faststart",
             str(kiosk_path)
         ]
 
         logger.info(f"Starting parallel transcoding for asset {asset_id} using {ffmpeg_bin}...")
-        
-        async def run_async_proc(cmd, timeout=120):
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            try:
-                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-                if proc.returncode != 0:
-                    err_msg = stderr.decode('utf-8', errors='ignore') if stderr else ''
-                    logger.error(f"FFmpeg error: {err_msg}")
-                    raise RuntimeError(f"FFmpeg command failed: {' '.join(cmd)}")
-            except asyncio.TimeoutError:
-                try:
-                    proc.kill()
-                    await proc.wait()
-                except Exception:
-                    pass
-                logger.error(f"FFmpeg command timed out after {timeout}s: {' '.join(cmd)}")
-                raise TimeoutError(f"FFmpeg transcoding timed out: {' '.join(cmd)}")
 
         # Stage 1: Fast poster generation (LQIP + HD WebP frames in < 1s)
         logger.info(f"Asset {asset_id}: Stage 1 - generating WebP posters...")
         await asyncio.gather(
-            run_async_proc(cmd_lqip, timeout=30),
-            run_async_proc(cmd_hd, timeout=30),
+            cls._run_async_proc(cmd_lqip, timeout=30),
+            cls._run_async_proc(cmd_hd, timeout=30),
         )
 
         # Stage 2: Mobile video encoding (FastStart H.264 720p)
         logger.info(f"Asset {asset_id}: Stage 2 - encoding mobile H.264 stream...")
-        await run_async_proc(cmd_mobile, timeout=120)
+        await cls._run_async_proc(cmd_mobile, timeout=120)
 
         # Stage 3: Kiosk video encoding (High profile 1080p)
         logger.info(f"Asset {asset_id}: Stage 3 - encoding kiosk 1080p stream...")
-        await run_async_proc(cmd_kiosk, timeout=120)
+        await cls._run_async_proc(cmd_kiosk, timeout=120)
 
         # Get file size
         total_size = 0
@@ -172,30 +185,9 @@ class VideoTranscodeService:
             str(hd_path)
         ]
 
-        async def run_async_proc(cmd, timeout=30):
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            try:
-                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-                if proc.returncode != 0:
-                    err_msg = stderr.decode('utf-8', errors='ignore') if stderr else ''
-                    logger.error(f"FFmpeg error: {err_msg}")
-                    raise RuntimeError(f"FFmpeg command failed: {' '.join(cmd)}")
-            except asyncio.TimeoutError:
-                try:
-                    proc.kill()
-                    await proc.wait()
-                except Exception:
-                    pass
-                logger.error(f"FFmpeg command timed out after {timeout}s: {' '.join(cmd)}")
-                raise TimeoutError(f"FFmpeg image processing timed out: {' '.join(cmd)}")
-
         await asyncio.gather(
-            run_async_proc(cmd_lqip, timeout=30),
-            run_async_proc(cmd_hd, timeout=30),
+            cls._run_async_proc(cmd_lqip, timeout=30),
+            cls._run_async_proc(cmd_hd, timeout=30),
         )
 
         total_size = hd_path.stat().st_size if hd_path.exists() else 0

@@ -25,10 +25,26 @@ export const TableQrGenerator = ({ restaurant }) => {
   const slug = restaurant?.slug || 'menu';
   const restaurantName = restaurant?.name || 'ASR Maison Royale';
 
-  // Base mobile menu URL
-  const baseUrl = typeof window !== 'undefined' 
-    ? `${window.location.origin}/menu/${slug}`
-    : `http://localhost:3033/menu/${slug}`;
+  // Base mobile menu URL with customizable public domain/IP
+  const [customDomain, setCustomDomain] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(`qr_custom_domain_${slug}`);
+      if (saved) return saved;
+      return window.location.origin;
+    }
+    return 'http://localhost:3033';
+  });
+
+  const handleDomainChange = (val) => {
+    setCustomDomain(val);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`qr_custom_domain_${slug}`, val);
+    }
+  };
+
+  const cleanBase = (customDomain || '').trim().replace(/\/+$/, '');
+  const baseUrl = cleanBase ? `${cleanBase}/menu/${slug}` : `http://localhost:3033/menu/${slug}`;
+  const isLocalhost = cleanBase.includes('localhost') || cleanBase.includes('127.0.0.1');
 
   // Compute table list
   const tables = useMemo(() => {
@@ -236,6 +252,76 @@ export const TableQrGenerator = ({ restaurant }) => {
                     fontSize: '14px'
                   }}
                 />
+              </div>
+            )}
+          </div>
+
+          {/* Public Base URL / Network IP configuration */}
+          <div style={{ marginTop: '20px', paddingTop: '18px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Smartphone size={14} style={{ color: 'var(--accent-gold)' }} />
+                <span>Публичный адрес меню (для QR-кодов столов):</span>
+              </label>
+              {typeof window !== 'undefined' && (
+                <button
+                  type="button"
+                  onClick={() => handleDomainChange(window.location.origin)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--accent-gold)',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Сбросить на {window.location.origin}
+                </button>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                value={customDomain}
+                onChange={(e) => handleDomainChange(e.target.value)}
+                placeholder="https://menu.myelegantrestaurant.com или http://192.168.1.50:3033"
+                style={{
+                  flex: '1 1 320px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  border: isLocalhost ? '1px solid rgba(245, 158, 11, 0.5)' : '1px solid rgba(255, 255, 255, 0.15)',
+                  borderRadius: '10px',
+                  padding: '10px 14px',
+                  color: '#fff',
+                  fontSize: '13px',
+                  fontFamily: 'monospace'
+                }}
+              />
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                Итоговая ссылка стола 1: <code style={{ color: 'var(--accent-gold)' }}>{baseUrl}?table=1</code>
+              </span>
+            </div>
+
+            {isLocalhost && (
+              <div
+                style={{
+                  marginTop: '10px',
+                  backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  borderRadius: '10px',
+                  padding: '10px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '12px',
+                  color: '#fbbf24'
+                }}
+              >
+                <Info size={16} style={{ flexShrink: 0 }} />
+                <span>
+                  Внимание: указан <b>localhost</b>. Телефоны гостей не смогут открыть локалхост компьютера! 
+                  Для печати в зале укажите IP-адрес сервера в Wi-Fi сети заведения (например, <code>http://192.168.1.50:3033</code>) или публичный домен.
+                </span>
               </div>
             )}
           </div>

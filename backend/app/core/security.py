@@ -1,14 +1,24 @@
 import json
+import os
 import secrets
 import hashlib
+import logging
 from pathlib import Path
 from typing import Optional, Dict, Any
 from fastapi import HTTPException, Security, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.core.config import settings
 
+logger = logging.getLogger("video_menu.security")
+
 TOKENS_FILE = settings.STORAGE_DIR / "admin_tokens.json"
 MASTER_DEMO_TOKEN = "demo_master_token"
+
+def _is_dev_environment() -> bool:
+    env = getattr(settings, "ENVIRONMENT", "production").lower()
+    return env in ("development", "dev", "test", "testing")
+
+ALLOW_MASTER_DEMO_TOKEN: bool = _is_dev_environment()
 
 security_bearer = HTTPBearer(auto_error=False)
 
@@ -61,13 +71,14 @@ class AdminSession(str):
 
 
 def _load_persisted_tokens() -> Dict[str, Dict[str, Any]]:
-    tokens: Dict[str, Dict[str, Any]] = {
-        MASTER_DEMO_TOKEN: {
+    tokens: Dict[str, Dict[str, Any]] = {}
+    if _is_dev_environment():
+        tokens[MASTER_DEMO_TOKEN] = {
             "role": "superadmin",
             "restaurant_id": None,
             "restaurant_slug": None
         }
-    }
+
     if TOKENS_FILE.exists():
         try:
             with open(TOKENS_FILE, "r", encoding="utf-8") as f:
@@ -81,18 +92,21 @@ def _load_persisted_tokens() -> Dict[str, Dict[str, Any]]:
                             "restaurant_id": None,
                             "restaurant_slug": None
                         }
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to read tokens file: {e}")
     return tokens
 
 
 def _save_persisted_tokens(tokens: Dict[str, Dict[str, Any]]):
     try:
         settings.STORAGE_DIR.mkdir(parents=True, exist_ok=True)
-        with open(TOKENS_FILE, "w", encoding="utf-8") as f:
+        # Atomic file write to avoid worker race condition
+        temp_file = settings.STORAGE_DIR / f"admin_tokens_{secrets.token_hex(6)}.tmp"
+        with open(temp_file, "w", encoding="utf-8") as f:
             json.dump(tokens, f, indent=2)
-    except Exception:
-        pass
+        os.replace(temp_file, TOKENS_FILE)
+    except Exception as e:
+        logger.error(f"Failed to persist admin tokens: {e}")
 
 
 VALID_SESSIONS: Dict[str, Dict[str, Any]] = _load_persisted_tokens()
@@ -104,28 +118,43 @@ def create_admin_token(
     restaurant_slug: Optional[str] = None
 ) -> str:
     token = secrets.token_hex(24)
-    VALID_SESSIONS[token] = {
+    # Refresh in-memory sessions first
+    fresh = _load_persisted_tokens()
+    fresh[token] = {
         "role": role,
         "restaurant_id": restaurant_id,
         "restaurant_slug": restaurant_slug
     }
+    VALID_SESSIONS.update(fresh)
     _save_persisted_tokens(VALID_SESSIONS)
     return token
 
 
 def revoke_admin_token(token: str):
-    if token != MASTER_DEMO_TOKEN and token in VALID_SESSIONS:
+    fresh = _load_persisted_tokens()
+    if token in fresh:
+        del fresh[token]
+    if token in VALID_SESSIONS:
         del VALID_SESSIONS[token]
-        _save_persisted_tokens(VALID_SESSIONS)
+    _save_persisted_tokens(VALID_SESSIONS)
 
 
 def is_valid_token(token: str) -> bool:
     if not token:
         return False
+    if not _is_dev_environment() and token == MASTER_DEMO_TOKEN:
+        return False
+    if token in VALID_SESSIONS:
+        return True
+    # Re-sync in case another worker created the token
+    fresh = _load_persisted_tokens()
+    VALID_SESSIONS.update(fresh)
     return token in VALID_SESSIONS
 
 
 def get_admin_session(token: str) -> Optional[AdminSession]:
+    if not is_valid_token(token):
+        return None
     info = VALID_SESSIONS.get(token)
     if not info:
         return None
@@ -158,12 +187,12 @@ async def get_current_admin(
     request: Request,
     auth_creds: Optional[HTTPAuthorizationCredentials] = Security(security_bearer)
 ) -> AdminSession:
+    # Tokens accepted strictly via Authorization: Bearer or X-Admin-Token header
     token = None
     if auth_creds:
         token = auth_creds.credentials
-    else:
-        # Check X-Admin-Token or query parameter fallback for dev/kiosk
-        token = request.headers.get("x-admin-token") or request.query_params.get("admin_token")
+    elif request.headers.get("x-admin-token"):
+        token = request.headers.get("x-admin-token")
     
     if not token or not is_valid_token(token):
         raise HTTPException(

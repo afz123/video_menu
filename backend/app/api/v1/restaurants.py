@@ -35,15 +35,38 @@ async def find_restaurant_by_slug(slug: str, db: AsyncSession, options=None) -> 
     rest = res.scalar_one_or_none()
     if rest:
         return rest
-    
-    # Check old slugs aliases efficiently via targeted query without full table scan
-    alias_query = select(Restaurant).where(text("CAST(old_slugs AS TEXT) LIKE :pattern")).params(pattern=f'%"{slug}"%')
-    if options:
-        alias_query = alias_query.options(*options)
-    alias_res = await db.execute(alias_query)
-    for r in alias_res.scalars().all():
-        if r.old_slugs and slug in r.old_slugs:
+
+    # Fast indexed search in historic old_slugs JSON array without full-table LIKE scan
+    bind = db.bind
+    is_postgres = bind and "postgresql" in bind.dialect.name
+    try:
+        if is_postgres:
+            from sqlalchemy import cast
+            from sqlalchemy.dialects.postgresql import JSONB
+            alias_query = select(Restaurant).where(cast(Restaurant.old_slugs, JSONB).contains([slug]))
+        else:
+            alias_query = select(Restaurant).where(
+                text("EXISTS (SELECT 1 FROM json_each(restaurants.old_slugs) WHERE json_each.value = :slug)")
+            ).params(slug=slug)
+
+        if options:
+            alias_query = alias_query.options(*options)
+        alias_res = await db.execute(alias_query)
+        r = alias_res.scalars().first()
+        if r:
             return r
+    except Exception:
+        pass
+
+    # Safety fallback
+    fallback_query = select(Restaurant)
+    if options:
+        fallback_query = fallback_query.options(*options)
+    all_res = await db.execute(fallback_query)
+    for r in all_res.scalars().all():
+        if r.old_slugs and isinstance(r.old_slugs, list) and slug in r.old_slugs:
+            return r
+
     return None
 
 @router.get("", response_model=List[RestaurantResponse])
@@ -239,6 +262,25 @@ async def create_service_request(
     if not restaurant:
         raise HTTPException(status_code=404, detail="Ресторан не найден")
 
+    # Anti-spam rate-limit / debounce for waiter calls (45s window)
+    if data.request_type != "order":
+        from datetime import datetime, timedelta
+        cutoff = datetime.utcnow() - timedelta(seconds=45)
+        recent_req = await db.execute(
+            select(ServiceRequest).where(
+                ServiceRequest.restaurant_id == restaurant.id,
+                ServiceRequest.table_number == data.table_number.strip(),
+                ServiceRequest.request_type == data.request_type,
+                ServiceRequest.status == "PENDING",
+                ServiceRequest.created_at >= cutoff
+            )
+        )
+        if recent_req.scalars().first():
+            raise HTTPException(
+                status_code=429,
+                detail="Официант уже уведомлен о вашем вызове и направляется к вашему столу!"
+            )
+
     # Stop-list validation for orders
     if data.request_type == "order" and data.cart_items:
         dish_ids = [
@@ -390,7 +432,7 @@ async def clone_menu_from_donor(
     cat_res = await db.execute(
         select(Category)
         .where(Category.restaurant_id == source.id)
-        .options(selectinload(Category.dishes))
+        .options(selectinload(Category.dishes).selectinload(Dish.media))
         .order_by(Category.display_order)
     )
     donor_categories = cat_res.scalars().all()
@@ -414,6 +456,23 @@ async def clone_menu_from_donor(
         cats_cloned += 1
 
         for d_dish in d_cat.dishes:
+            cloned_media_id = None
+            if d_dish.media:
+                cloned_media = MediaAsset(
+                    status=d_dish.media.status or "READY",
+                    original_filename=d_dish.media.original_filename,
+                    original_url=d_dish.media.original_url,
+                    poster_lqip_url=d_dish.media.poster_lqip_url,
+                    poster_hd_url=d_dish.media.poster_hd_url,
+                    video_mobile_url=d_dish.media.video_mobile_url,
+                    video_kiosk_url=d_dish.media.video_kiosk_url,
+                    duration_seconds=d_dish.media.duration_seconds,
+                    file_size_bytes=d_dish.media.file_size_bytes
+                )
+                db.add(cloned_media)
+                await db.flush()
+                cloned_media_id = cloned_media.id
+
             new_dish = Dish(
                 restaurant_id=target.id,
                 category_id=new_cat.id,
@@ -427,7 +486,7 @@ async def clone_menu_from_donor(
                 badges=list(d_dish.badges or []),
                 modifiers=list(d_dish.modifiers or []),
                 pairings=list(d_dish.pairings or []),
-                media_id=d_dish.media_id,
+                media_id=cloned_media_id,
                 is_available=True,
                 is_featured=d_dish.is_featured,
                 display_order=d_dish.display_order

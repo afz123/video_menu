@@ -42,9 +42,20 @@ export const useInactivityTimer = (timeoutSeconds, onInactive, enabled = true, w
       }
     }, 1000);
 
-    const events = ['touchstart', 'touchmove', 'click', 'mousemove', 'keydown', 'scroll'];
-    const handleActivity = () => resetTimer();
+    let lastCoords = { x: 0, y: 0 };
 
+    const handleActivity = (e) => {
+      if (e && e.type === 'mousemove') {
+        // Ignore minor cursor jitter under 15px (weather/electromagnetic noise on outdoor kiosk glass)
+        const deltaX = Math.abs((e.clientX || 0) - lastCoords.x);
+        const deltaY = Math.abs((e.clientY || 0) - lastCoords.y);
+        if (deltaX < 15 && deltaY < 15) return;
+        lastCoords = { x: e.clientX || 0, y: e.clientY || 0 };
+      }
+      resetTimer();
+    };
+
+    const events = ['touchstart', 'click', 'keydown', 'mousemove'];
     events.forEach((evt) => window.addEventListener(evt, handleActivity, { passive: true }));
 
     return () => {

@@ -62,6 +62,8 @@ async def call_mymemory_api(client: httpx.AsyncClient, text: str, sl: str, tl: s
         logger.warning(f"MyMemory API failed [{sl}->{tl}]: {e}")
     return None
 
+_TRANSLATION_CACHE: Dict[str, str] = {}
+
 async def translate_text_async(client: httpx.AsyncClient, text: str, source_lang: str, target_lang: str) -> str:
     if not text or not text.strip():
         return ""
@@ -72,15 +74,21 @@ async def translate_text_async(client: httpx.AsyncClient, text: str, source_lang
     if sl == tl:
         return text
 
+    cache_key = f"{sl}:{tl}:{text.strip()}"
+    if cache_key in _TRANSLATION_CACHE:
+        return _TRANSLATION_CACHE[cache_key]
+
     # Try Google dict API first
     res = await call_google_dict_api(client, text, sl, tl)
-    if res:
-        return res
+    if res and res.strip():
+        _TRANSLATION_CACHE[cache_key] = res.strip()
+        return res.strip()
 
     # Try MyMemory API fallback
     res = await call_mymemory_api(client, text, sl, tl)
-    if res:
-        return res
+    if res and res.strip():
+        _TRANSLATION_CACHE[cache_key] = res.strip()
+        return res.strip()
 
     return text
 

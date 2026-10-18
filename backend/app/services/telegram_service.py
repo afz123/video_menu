@@ -1,3 +1,4 @@
+import html
 import logging
 from typing import Optional, List, Dict, Any
 import httpx
@@ -30,13 +31,13 @@ class TelegramService:
             payload["reply_markup"] = reply_markup
 
         try:
-            async with httpx.AsyncClient(timeout=8.0) as client:
+            async with httpx.AsyncClient(timeout=6.0) as client:
                 res = await client.post(url, json=payload)
                 if res.status_code == 200:
                     logger.info(f"Telegram notification sent successfully to chat {chat_id}")
                     return True
                 else:
-                    logger.error(f"Telegram API error ({res.status_code}): {res.text}")
+                    logger.error(f"Telegram API rejection ({res.status_code}): {res.text}")
                     return False
         except Exception as e:
             logger.error(f"Failed to deliver Telegram notification: {e}")
@@ -56,68 +57,82 @@ class TelegramService:
         restaurant_currency: str = "TJS"
     ) -> bool:
         """
-        Formats a restaurant-grade dispatch alert for waitstaff and hosts.
+        Formats a restaurant-grade dispatch alert for waitstaff and hosts with strict HTML entity escaping.
         """
-        time_str = "Сейчас"
         type_titles = {
             "call_waiter": "🛎️ ВЫЗОВ ОФИЦИАНТА",
-            "call_sommelier": "🍷 ВЫЗОВ СОМЕЛЬЕ",
+            "call_sommelier": "🍷 ВЫЗОВ СОМЕЛЬЕ (Винная карта)",
             "call_hookah": "💨 ВЫЗОВ КАЛЬЯННОГО МАСТЕРА",
-            "call_admin": "👔 ВЫЗОВ АДМИНИСТРАТОРА / УПРАВЛЯЮЩЕГО",
+            "call_admin": "👔 ВЫЗОВ УПРАВЛЯЮЩЕГО",
             "request_bill_cash": "💵 ЗАПРОС СЧЁТА (НАЛИЧНЫЕ)",
-            "request_bill_card": "💳 ЗАПРОС СЧЁТА (КАРТА)",
-            "order": "🍽️ НОВЫЙ ЗАКАЗ ИЗ МЕНЮ",
-            "repeat_order": "🔁 ДОЗАКАЗ К СТОЛУ (ДОП. БЛЮДА)"
+            "request_bill_card": "💳 ЗАПРОС СЧЁТА (БАНКОВСКАЯ КАРТА)",
+            "order": "🍽️ НОВЫЙ ЗАКАЗ БЛЮД С КУХНИ",
+            "repeat_order": "🔁 ДОЗАКАЗ К СТОЛУ"
         }
         header = type_titles.get(request_type, "🛎️ ВЫЗОВ В ЗАЛЕ")
         if guest_comment and "ДОЗАКАЗ" in guest_comment:
-            header = "🔁 ДОЗАКАЗ К СТОЛУ (ДОП. БЛЮДА)"
+            header = "🔁 ДОЗАКАЗ К СТОЛУ"
+
+        safe_rest_name = html.escape(str(restaurant_name or "Ресторан"))
+        safe_table = html.escape(str(table_number or ""))
 
         lines = [
             f"<b>{header}</b>",
-            f"📍 <b>Стол:</b> <code>№ {table_number}</code>",
-            f"🏛️ <b>Ресторан:</b> {restaurant_name}"
+            f"📍 <b>Стол:</b> <code>№ {safe_table}</code>",
+            f"🏛️ <b>Ресторан:</b> {safe_rest_name}"
         ]
 
         if guest_comment:
-            lines.append(f"💬 <b>Пожелание гостя:</b> <i>«{guest_comment}»</i>")
+            # Safely escape HTML characters (<, >, &, ") entered by guest or system
+            safe_comment = html.escape(guest_comment.strip())
+            lines.append(f"💬 <b>Комментарий гостя:</b> <i>«{safe_comment}»</i>")
 
         if cart_items and len(cart_items) > 0:
-            lines.append("\n📋 <b>Состав заказа:</b>")
+            lines.append("\n📋 <b>Позиции заказа:</b>")
             subtotal = 0.0
-            currency = restaurant_currency or "TJS"
+            currency = html.escape(restaurant_currency or "TJS")
+
             for idx, item in enumerate(cart_items, 1):
-                name = item.get("name") or "Блюдо"
+                raw_name = item.get("name") or "Блюдо"
+                safe_name = html.escape(str(raw_name))
                 qty = item.get("quantity", 1)
                 item_price = float(item.get("total_price") or item.get("price") or 0.0)
                 subtotal += item_price * qty
-                currency = item.get("currency", currency)
 
-                # Format modifiers (e.g. Steak Doneness, Sauces, Additions)
+                # Format and escape modifiers
                 mods = item.get("chosen_options") or item.get("selected_modifiers") or item.get("modifiers") or []
                 mod_texts = []
                 for m in mods:
                     if isinstance(m, dict):
-                        grp = m.get("group") or m.get("modifier_name") or ""
-                        opt = m.get("name") or m.get("option_name") or ""
+                        raw_grp = m.get("group") or m.get("modifier_name") or ""
+                        raw_opt = m.get("name") or m.get("option_name") or ""
                         extra = m.get("price") or m.get("extra_price") or 0
                         extra_str = f" (+{extra})" if extra and float(extra) > 0 else ""
-                        if grp:
-                            mod_texts.append(f"<b>{grp}:</b> {opt}{extra_str}")
-                        elif opt:
-                            mod_texts.append(f"{opt}{extra_str}")
+                        safe_grp = html.escape(str(raw_grp))
+                        safe_opt = html.escape(str(raw_opt))
+                        if safe_grp:
+                            mod_texts.append(f"<b>{safe_grp}:</b> {safe_opt}{extra_str}")
+                        elif safe_opt:
+                            mod_texts.append(f"{safe_opt}{extra_str}")
                     elif isinstance(m, str):
-                        mod_texts.append(m)
+                        mod_texts.append(html.escape(m))
 
                 mod_str = f"\n     └ <i>{', '.join(mod_texts)}</i>" if mod_texts else ""
-                lines.append(f"  {idx}. <b>{name}</b> x{qty} — {item_price * qty:.1f} {currency}{mod_str}")
+                lines.append(f"  {idx}. <b>{safe_name}</b> x{qty} — {item_price * qty:.1f} {currency}{mod_str}")
 
             service_charge = subtotal * (service_charge_percent / 100.0)
             total = subtotal + service_charge
 
-            lines.append(f"\n💵 <b>Блюда:</b> {subtotal:.1f} {currency}")
+            lines.append(f"\n💵 <b>Сумма блюд:</b> {subtotal:.1f} {currency}")
             lines.append(f"🏷️ <b>Обслуживание ({service_charge_percent:.0f}%):</b> {service_charge:.1f} {currency}")
             lines.append(f"💰 <b>ИТОГО К ОПЛАТЕ:</b> <b>{total:.1f} {currency}</b>")
 
+        # Interactive staff acknowledgment inline button
+        inline_keyboard = {
+            "inline_keyboard": [
+                [{"text": "✅ Взял в работу (Иду к столу)", "callback_data": f"ack_{safe_table}"}]
+            ]
+        }
+
         text = "\n".join(lines)
-        return await cls.send_message(bot_token, chat_id, text)
+        return await cls.send_message(bot_token, chat_id, text, reply_markup=inline_keyboard)

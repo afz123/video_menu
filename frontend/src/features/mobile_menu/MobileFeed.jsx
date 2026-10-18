@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { MobileHeader } from './MobileHeader';
 import { DishSlide } from './DishSlide';
 import { SmartServiceBar } from './SmartServiceBar';
@@ -9,13 +9,19 @@ import { useVideoPreload } from '../../hooks/useVideoPreload';
 import { WifiOff } from 'lucide-react';
 
 export const MobileFeed = ({ restaurantData }) => {
-  const categories = restaurantData.categories || [];
+  const restaurantSlug = restaurantData?.restaurant?.slug || 'asr-royale';
+  const categories = restaurantData?.categories || [];
   const [activeCategoryId, setActiveCategoryId] = useState(() => categories[0]?.id || 1);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [isGlobalSoundOn, setIsGlobalSoundOn] = useState(false);
   const containerRef = useRef(null);
   const { t } = useLanguage();
 
-  const tableStorageKey = `guest_table_${restaurantData.restaurant?.slug || restaurantSlug || 'menu'}`;
+  const toggleGlobalSound = () => {
+    setIsGlobalSoundOn((prev) => !prev);
+  };
+
+  const tableStorageKey = `guest_table_${restaurantSlug}`;
 
   // Parse table parameter from URL (?table=12) with persistence in sessionStorage per tenant
   const [tableNumber, setTableNumber] = useState(() => {
@@ -71,15 +77,18 @@ export const MobileFeed = ({ restaurantData }) => {
   const nextVideo = dishes[currentSlideIndex + 1]?.media?.video_mobile;
   useVideoPreload([nextVideo]);
 
-  const handleScroll = () => {
+  // Accurate active slide calculation via container clientHeight (fixes iOS Safari floating URL bar bug)
+  const handleScroll = useCallback(() => {
     if (!containerRef.current || isProgrammaticScrollRef.current) return;
-    const scrollTop = containerRef.current.scrollTop;
-    const height = window.innerHeight;
-    const index = Math.round(scrollTop / height);
+    const container = containerRef.current;
+    const height = container.clientHeight;
+    if (height === 0) return;
+
+    const index = Math.round(container.scrollTop / height);
     if (index !== currentSlideIndex && index >= 0 && index < dishes.length) {
       setCurrentSlideIndex(index);
     }
-  };
+  }, [currentSlideIndex, dishes.length]);
 
   const handleSelectCategory = (catId) => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
@@ -188,7 +197,40 @@ export const MobileFeed = ({ restaurantData }) => {
     setCartItems([]);
   };
 
-  const restaurantSlug = restaurantData.restaurant?.slug || 'asr-royale';
+  const handleAddPairingToCart = (pairing, parentDish) => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate(16); } catch (_) {}
+    }
+    let title = pairing.name || pairing.text || 'Винная рекомендация';
+    let price = Number(pairing.price) || 0;
+    if (!price && typeof pairing.text === 'string') {
+      const match = pairing.text.match(/\((\d+)\s*([A-Za-zА-Яа-я]+)?\)/);
+      if (match) {
+        price = parseInt(match[1], 10);
+      }
+    }
+    if (!price) price = 120;
+    title = title.replace(/^(Идеально сочетается с:\s*|Рекомендация:\s*)/i, '');
+
+    const pairingDish = {
+      id: `pairing_${parentDish?.id || 'upsell'}_${Date.now()}`,
+      name: { ru: title, en: title, tj: title },
+      price: price,
+      currency: parentDish?.currency || 'TJS',
+      media: {}
+    };
+
+    setCartItems((prev) => [
+      ...prev,
+      {
+        dish: pairingDish,
+        totalPrice: price,
+        quantity: 1,
+        chosenOptions: [{ modifierName: 'Рекомендация сомелье к', optionName: t(parentDish?.name || 'блюду') }],
+        comment: ''
+      }
+    ]);
+  };
 
   return (
     <div
@@ -257,8 +299,11 @@ export const MobileFeed = ({ restaurantData }) => {
               <DishSlide
                 dish={dish}
                 isCurrent={idx === currentSlideIndex}
+                isSoundEnabled={isGlobalSoundOn}
+                onToggleSound={toggleGlobalSound}
                 categoryName={t(activeCategory.name)}
                 onAddToCart={handleInitiateAddToCart}
+                onAddPairingToCart={handleAddPairingToCart}
                 onDetailsToggle={setIsDetailExpanded}
               />
             </section>

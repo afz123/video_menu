@@ -6,6 +6,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Video Menu Luxury Platform"
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     API_V1_STR: str = "/api/v1"
     
     # Database config (Postgres in Docker by default on port 5435 or standard 5432)

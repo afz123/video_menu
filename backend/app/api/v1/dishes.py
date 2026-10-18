@@ -82,10 +82,13 @@ async def create_dish(
 ):
     check_restaurant_access(current_admin, data.restaurant_id)
 
-    # Verify category
+    # Verify category strictly belongs to the same restaurant
     cat = await db.get(Category, data.category_id)
-    if not cat:
-        raise HTTPException(status_code=400, detail="Указанная категория не найдена")
+    if not cat or cat.restaurant_id != data.restaurant_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Категория не найдена или принадлежит другому заведению"
+        )
 
     dish_dict = data.model_dump()
     dish = Dish(**dish_dict)
@@ -112,6 +115,14 @@ async def update_dish(
         raise HTTPException(status_code=404, detail="Блюдо не найдено")
 
     check_restaurant_access(current_admin, dish.restaurant_id)
+
+    if data.category_id is not None:
+        cat = await db.get(Category, data.category_id)
+        if not cat or cat.restaurant_id != dish.restaurant_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Категория не найдена или принадлежит другому заведению"
+            )
 
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():

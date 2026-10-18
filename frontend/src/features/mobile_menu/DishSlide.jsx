@@ -4,7 +4,16 @@ import { GlassCard } from '../../components/ui/GlassCard';
 import { useLanguage } from '../../context/LanguageContext';
 import { Info, Sparkles, AlertCircle, ChevronUp, ChevronDown, Plus, Wine } from 'lucide-react';
 
-export const DishSlide = ({ dish, isCurrent, categoryName, onAddToCart, onDetailsToggle }) => {
+export const DishSlide = ({ 
+  dish, 
+  isCurrent, 
+  isSoundEnabled, 
+  onToggleSound, 
+  categoryName, 
+  onAddToCart, 
+  onAddPairingToCart, 
+  onDetailsToggle 
+}) => {
   const { t } = useLanguage();
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
@@ -48,6 +57,8 @@ export const DishSlide = ({ dish, isCurrent, categoryName, onAddToCart, onDetail
         poster={dish.media?.poster}
         videoSrc={dish.media?.video_mobile}
         isCurrent={isCurrent}
+        isSoundEnabled={isSoundEnabled}
+        onToggleSound={onToggleSound}
         enableSoundToggle={true}
       />
 
@@ -207,24 +218,55 @@ export const DishSlide = ({ dish, isCurrent, categoryName, onAddToCart, onDetail
             </p>
           )}
 
-          {/* Sommelier Pairing Suggestion */}
+          {/* Sommelier Pairing Suggestion (Interactive 1-Click Upsell) */}
           {pairings.length > 0 && pairings[0]?.text && (
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'space-between',
                 gap: '8px',
-                backgroundColor: 'rgba(212, 175, 55, 0.08)',
-                border: '1px solid rgba(212, 175, 55, 0.22)',
-                borderRadius: '10px',
-                padding: '6px 10px',
-                marginBottom: '10px',
-                fontSize: '12px',
-                color: 'var(--accent-gold)'
+                backgroundColor: 'rgba(212, 175, 55, 0.12)',
+                border: '1px solid rgba(212, 175, 55, 0.35)',
+                borderRadius: '12px',
+                padding: '8px 12px',
+                marginBottom: '10px'
               }}
             >
-              <Wine size={14} style={{ flexShrink: 0 }} />
-              <span style={{ lineHeight: '1.3' }}>{pairings[0].text}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--accent-gold)', overflow: 'hidden' }}>
+                <Wine size={16} style={{ flexShrink: 0 }} />
+                <span style={{ lineHeight: '1.3', fontWeight: '500' }}>{pairings[0].text}</span>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onAddPairingToCart) {
+                    onAddPairingToCart(pairings[0], dish);
+                  }
+                }}
+                style={{
+                  background: 'var(--accent-gold-gradient)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#09090b',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  padding: '5px 10px',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                  transition: 'transform 0.15s ease'
+                }}
+                onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
+                onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                <Plus size={12} strokeWidth={3} />
+                <span>В заказ</span>
+              </button>
             </div>
           )}
 

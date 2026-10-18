@@ -75,11 +75,14 @@ async def test_get_restaurant_full_menu(client):
 @pytest.mark.asyncio
 async def test_smart_table_service_requests(client, admin_headers):
     """Test guest waiter call, bill request, and admin resolution."""
-    # 1. Guest calls waiter from Table 14
+    import time
+    tbl = f"T_{int(time.time() * 1000) % 100000}"
+
+    # 1. Guest calls waiter from unique table
     call_res = await client.post(
         "/api/v1/restaurants/asr-royale/service-requests",
         json={
-            "table_number": "14",
+            "table_number": tbl,
             "request_type": "call_waiter",
             "guest_comment": "Пожалуйста, принесите дополнительное меню десертов"
         }
@@ -87,14 +90,14 @@ async def test_smart_table_service_requests(client, admin_headers):
     assert call_res.status_code == 200
     req_data = call_res.json()
     req_id = req_data["id"]
-    assert req_data["table_number"] == "14"
+    assert req_data["table_number"] == tbl
     assert req_data["status"] == "PENDING"
 
-    # 2. Guest requests bill with card from Table 14
+    # 2. Guest requests bill with card from same table (different request_type)
     bill_res = await client.post(
         "/api/v1/restaurants/asr-royale/service-requests",
         json={
-            "table_number": "14",
+            "table_number": tbl,
             "request_type": "request_bill_card",
             "guest_comment": "Оплата картой"
         }
@@ -118,6 +121,28 @@ async def test_smart_table_service_requests(client, admin_headers):
     )
     assert update_res.status_code == 200
     assert update_res.json()["status"] == "COMPLETED"
+
+
+@pytest.mark.asyncio
+async def test_waiter_call_rate_limiting(client):
+    """Test 45-second debounce protection against waiter call spam."""
+    import time
+    spam_table = f"SPAM_{int(time.time() * 1000) % 100000}"
+
+    # First waiter call succeeds
+    res1 = await client.post(
+        "/api/v1/restaurants/asr-royale/service-requests",
+        json={"table_number": spam_table, "request_type": "call_waiter"}
+    )
+    assert res1.status_code == 200
+
+    # Immediate second call from same table and same request_type triggers 429
+    res2 = await client.post(
+        "/api/v1/restaurants/asr-royale/service-requests",
+        json={"table_number": spam_table, "request_type": "call_waiter"}
+    )
+    assert res2.status_code == 429
+    assert "уже уведомлен" in res2.json()["detail"]
 
 
 @pytest.mark.asyncio
