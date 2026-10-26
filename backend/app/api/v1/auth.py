@@ -17,6 +17,8 @@ from app.core.security import (
     get_current_admin,
     hash_password,
     verify_password,
+    hash_password_async,
+    verify_password_async,
     AdminSession
 )
 
@@ -90,7 +92,7 @@ async def admin_login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
         res = await db.execute(select(Restaurant).where(Restaurant.slug == data.slug.strip()))
         rest = res.scalar_one_or_none()
         if rest and rest.admin_password_hash:
-            if verify_password(pwd, rest.admin_password_hash):
+            if await verify_password_async(pwd, rest.admin_password_hash):
                 token = create_admin_token(
                     role="manager",
                     restaurant_id=rest.id,
@@ -133,10 +135,10 @@ async def change_admin_password(
         rest = await db.get(Restaurant, current_admin.restaurant_id)
         if not rest:
             raise HTTPException(status_code=404, detail="Заведение не найдено")
-        if not rest.admin_password_hash or not verify_password(curr, rest.admin_password_hash):
+        if not rest.admin_password_hash or not (await verify_password_async(curr, rest.admin_password_hash)):
             raise HTTPException(status_code=400, detail="Текущий пароль филиала указан неверно")
 
-        rest.admin_password_hash = hash_password(new_p)
+        rest.admin_password_hash = await hash_password_async(new_p)
         await db.commit()
         return {
             "status": "success",
@@ -149,7 +151,7 @@ async def change_admin_password(
         target_rest = res.scalar_one_or_none()
         if not target_rest:
             raise HTTPException(status_code=404, detail="Указанное заведение не найдено")
-        target_rest.admin_password_hash = hash_password(new_p)
+        target_rest.admin_password_hash = await hash_password_async(new_p)
         await db.commit()
         return {
             "status": "success",

@@ -4,16 +4,21 @@ import { DishSlide } from './DishSlide';
 import { SmartServiceBar } from './SmartServiceBar';
 import { ModifierModal } from './ModifierModal';
 import { CartDrawer } from './CartDrawer';
+import { BookingModal } from '../kiosk/BookingModal';
 import { useLanguage } from '../../context/LanguageContext';
+import { useUI } from '../../context/UIConfigContext';
 import { useVideoPreload } from '../../hooks/useVideoPreload';
 import { WifiOff } from 'lucide-react';
 
 export const MobileFeed = ({ restaurantData }) => {
+  const ui = useUI();
+  const card = ui?.dish_card || {};
   const restaurantSlug = restaurantData?.restaurant?.slug || 'asr-royale';
   const categories = restaurantData?.categories || [];
   const [activeCategoryId, setActiveCategoryId] = useState(() => categories[0]?.id || 1);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [isGlobalSoundOn, setIsGlobalSoundOn] = useState(false);
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
   const containerRef = useRef(null);
   const { t } = useLanguage();
 
@@ -22,6 +27,21 @@ export const MobileFeed = ({ restaurantData }) => {
   };
 
   const tableStorageKey = `guest_table_${restaurantSlug}`;
+  const tableSignStorageKey = `guest_table_sign_${restaurantSlug}`;
+  const guestSessionKey = `guest_session_${restaurantSlug}`;
+
+  // Unique guest session UUID per browsing tab
+  const [guestSessionId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      let sid = sessionStorage.getItem(guestSessionKey);
+      if (!sid) {
+        sid = 'gs_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
+        sessionStorage.setItem(guestSessionKey, sid);
+      }
+      return sid;
+    }
+    return 'gs_default';
+  });
 
   // Parse table parameter from URL (?table=12) with persistence in sessionStorage per tenant
   const [tableNumber, setTableNumber] = useState(() => {
@@ -32,7 +52,21 @@ export const MobileFeed = ({ restaurantData }) => {
         sessionStorage.setItem(tableStorageKey, urlTable);
         return urlTable;
       }
-      return sessionStorage.getItem(tableStorageKey) || '';
+      return sessionStorage.getItem(tableStorageKey) || restaurantData.restaurant?.table_number || '';
+    }
+    return '';
+  });
+
+  // Parse cryptographic table signature from QR URL (?sign=... or ?token=...)
+  const [tableSignature, setTableSignature] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlSign = params.get('sign') || params.get('token');
+      if (urlSign) {
+        sessionStorage.setItem(tableSignStorageKey, urlSign);
+        return urlSign;
+      }
+      return sessionStorage.getItem(tableSignStorageKey) || restaurantData.restaurant?.table_signature || '';
     }
     return '';
   });
@@ -277,6 +311,7 @@ export const MobileFeed = ({ restaurantData }) => {
         badgeFilter={badgeFilter}
         onSelectBadgeFilter={handleSelectBadgeFilter}
         tableNumber={tableNumber}
+        onOpenBooking={() => setIsBookingOpen(true)}
         onChangeTable={() => {
           const newTbl = window.prompt('Укажите номер вашего стола (например: 12 или VIP-1):', tableNumber || '');
           if (newTbl && newTbl.trim()) {
@@ -332,7 +367,7 @@ export const MobileFeed = ({ restaurantData }) => {
       )}
 
       {/* Slide counter pill & dots indicator on the right */}
-      {dishes.length > 1 && (
+      {card.show_slide_counter !== false && dishes.length > 1 && (
         <div
           style={{
             position: 'fixed',
@@ -390,9 +425,12 @@ export const MobileFeed = ({ restaurantData }) => {
       <SmartServiceBar
         restaurantSlug={restaurantSlug}
         tableNumber={tableNumber}
+        tableSignature={tableSignature}
+        guestSessionId={guestSessionId}
         cartCount={cartItems.reduce((acc, i) => acc + (i.quantity || 1), 0)}
         hidden={isDetailExpanded}
         callTypesEnabled={restaurantData.restaurant?.call_types_enabled || ['waiter', 'bill', 'sommelier', 'hookah', 'admin']}
+        availableTables={restaurantData.restaurant?.available_tables || []}
         onOpenCart={() => setIsCartOpen(true)}
         onSetTableNumber={(tbl) => {
           setTableNumber(tbl);
@@ -414,6 +452,8 @@ export const MobileFeed = ({ restaurantData }) => {
         <CartDrawer
           cartItems={cartItems}
           tableNumber={tableNumber}
+          tableSignature={tableSignature}
+          guestSessionId={guestSessionId}
           restaurantSlug={restaurantSlug}
           currency={restaurantData.restaurant?.currency || 'TJS'}
           serviceChargePercent={restaurantData.restaurant?.service_charge_percent ?? 10}
@@ -424,6 +464,15 @@ export const MobileFeed = ({ restaurantData }) => {
             setTableNumber(tbl);
             sessionStorage.setItem(tableStorageKey, tbl);
           }}
+        />
+      )}
+
+      {/* Online Table Booking Modal */}
+      {isBookingOpen && (
+        <BookingModal
+          restaurantSlug={restaurantSlug}
+          restaurantName={restaurantData.restaurant?.name || 'ASR Maison Royale'}
+          onClose={() => setIsBookingOpen(false)}
         />
       )}
     </div>

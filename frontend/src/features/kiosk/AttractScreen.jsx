@@ -1,8 +1,11 @@
 import React from 'react';
 import { Sparkles, QrCode } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { useUI } from '../../context/UIConfigContext';
 
 export const AttractScreen = ({ restaurant, onExplore, onOpenBooking, qrUrl }) => {
+  const ui = useUI();
+  const kioskUI = ui?.kiosk || {};
   const theme = restaurant.theme || {};
   const kiosk = theme.kiosk_settings || {};
   const attractVideo = kiosk.attract_video_url || '/static/videos/attract_royale_kiosk.mp4';
@@ -87,7 +90,7 @@ export const AttractScreen = ({ restaurant, onExplore, onOpenBooking, qrUrl }) =
         </div>
 
         {/* Floating Mini QR on attract screen */}
-        {qrUrl && (
+        {qrUrl && kioskUI.show_mini_qr !== false && (
           <div
             style={{
               display: 'flex',
@@ -174,31 +177,33 @@ export const AttractScreen = ({ restaurant, onExplore, onOpenBooking, qrUrl }) =
             <span>{subheadline}</span>
           </div>
 
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (onOpenBooking) onOpenBooking();
-            }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '10px',
-              backgroundColor: 'rgba(18, 18, 24, 0.88)',
-              border: '2px solid var(--accent-gold)',
-              color: 'var(--accent-gold)',
-              padding: '18px 36px',
-              borderRadius: '40px',
-              fontSize: '20px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              backdropFilter: 'blur(10px)',
-              boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <span>📅 Забронировать стол</span>
-          </button>
+          {kioskUI.show_booking_btn !== false && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenBooking) onOpenBooking();
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '10px',
+                backgroundColor: 'rgba(18, 18, 24, 0.88)',
+                border: '2px solid var(--accent-gold)',
+                color: 'var(--accent-gold)',
+                padding: '18px 36px',
+                borderRadius: '40px',
+                fontSize: '20px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                backdropFilter: 'blur(10px)',
+                boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <span>📅 Забронировать стол</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

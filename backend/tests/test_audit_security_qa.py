@@ -335,3 +335,88 @@ async def test_historic_old_slug_exact_search_no_false_positive(client, admin_he
     res_sub = await client.get(f"/api/v1/restaurants/lounge-bar-{uid}")
     assert res_sub.status_code == 404
 
+
+@pytest.mark.asyncio
+async def test_table_hmac_digital_signatures(client):
+    """
+    Test P0 1.3: Table HMAC signature generation and verification.
+    """
+    from app.core.security import generate_table_signature, verify_table_signature
+
+    # 1. Test signature generation and verification helper
+    sig = generate_table_signature(1, "14")
+    assert len(sig) == 16
+    assert verify_table_signature(1, "14", sig) is True
+    assert verify_table_signature(1, "14", "wrong_token") is False
+    assert verify_table_signature(1, "15", sig) is False
+    assert verify_table_signature(2, "14", sig) is False
+
+    # 2. Test table-signature endpoint
+    res = await client.get("/api/v1/restaurants/asr-royale/table-signature?table=14")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["table_number"] == "14"
+    assert "signature" in data
+    assert f"?table=14&sign={data['signature']}" in data["signed_url"]
+
+    # 3. Test batch table-signatures endpoint
+    res_batch = await client.get("/api/v1/restaurants/asr-royale/table-signatures?count=5")
+    assert res_batch.status_code == 200
+    batch_data = res_batch.json()
+    assert len(batch_data) == 5
+    assert batch_data[0]["table_number"] == "1"
+
+
+@pytest.mark.asyncio
+async def test_async_password_hashing_event_loop_safety():
+    """
+    Test P0 1.1: Asynchronous password hashing and verification does not block Event Loop.
+    """
+    from app.core.security import hash_password_async, verify_password_async
+
+    pwd = "luxury_secret_pass_2026"
+    pwd_hash = await hash_password_async(pwd)
+    assert "$" in pwd_hash
+    assert await verify_password_async(pwd, pwd_hash) is True
+    assert await verify_password_async("wrong_pass", pwd_hash) is False
+
+
+@pytest.mark.asyncio
+async def test_service_request_finance_and_courses(client):
+    """
+    Test ServiceRequest financial breakdown (subtotal, service charge, tip) and courses tracking.
+    """
+    menu_res = await client.get("/api/v1/restaurants/asr-royale/full-menu")
+    assert menu_res.status_code == 200
+    dish = menu_res.json()["categories"][0]["dishes"][0]
+    dish_id = dish["id"]
+    price = float(dish["price"])
+
+    order_payload = {
+        "table_number": "14",
+        "table_token": "valid_mock_token",
+        "guest_session_id": "test_session_uuid_123",
+        "request_type": "order",
+        "guest_comment": "Тест курсов подачи",
+        "cart_items": [
+            {
+                "dish_id": dish_id,
+                "name": dish["name"].get("ru", "Блюдо"),
+                "quantity": 2,
+                "price": price,
+                "course": "Курс 1 (Закуски)"
+            }
+        ],
+        "tip_amount": 25.0,
+        "nps_score": 5
+    }
+
+    res = await client.post("/api/v1/restaurants/asr-royale/service-requests", json=order_payload)
+    assert res.status_code == 200
+    data = res.json()
+    expected_subtotal = price * 2
+    assert data["subtotal_amount"] == expected_subtotal
+    assert data["total_amount"] >= expected_subtotal
+    assert data["guest_session_id"] == "test_session_uuid_123"
+    assert data["nps_score"] == 5
+

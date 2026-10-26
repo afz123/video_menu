@@ -50,6 +50,9 @@ export const menuService = {
   updateTheme: (slug, themeConfig) => 
     api.put(`/restaurants/${slug}/theme`, themeConfig),
 
+  updateUIConfig: (slug, uiConfig) =>
+    api.put(`/restaurants/${slug}/ui-config`, uiConfig),
+
   // Categories
   getCategories: (restaurantId) => 
     api.get(`/categories?restaurant_id=${restaurantId}`),
@@ -93,9 +96,43 @@ export const menuService = {
   updateServiceRequestStatus: (slug, reqId, status) => 
     api.patch(`/restaurants/${slug}/service-requests/${reqId}/status`, { status }),
   testTelegram: (slug) => api.post(`/restaurants/${slug}/test-telegram`),
+  getTableSignature: (slug, table) => 
+    api.get(`/restaurants/${slug}/table-signature?table=${encodeURIComponent(table)}`),
+  getTableSignatures: (slug, count = 50, tables = '') => 
+    api.get(`/restaurants/${slug}/table-signatures?count=${count}${tables ? `&tables=${encodeURIComponent(tables)}` : ''}`),
+  getEngineConfig: (slug) => 
+    api.get(`/restaurants/${slug}/engine-config`),
 
   // Translation Service
   translateTexts: (data) => api.post('/translate', data),
+
+  // Table Reservations Engine
+  getReservationSlots: (slug, date, guests = 2, zoneId = null) => {
+    let url = `/reservations/slots?restaurant_slug=${encodeURIComponent(slug)}&date=${encodeURIComponent(date)}&guests=${guests}`;
+    if (zoneId) url += `&zone_id=${zoneId}`;
+    return api.get(url);
+  },
+  getReservationZones: (slug) =>
+    api.get(`/reservations/zones?restaurant_slug=${encodeURIComponent(slug)}`),
+  createReservation: (data) =>
+    api.post('/reservations', data),
+  getAdminReservations: (slug, date = null, status = null) => {
+    let url = `/reservations/admin/list?restaurant_slug=${encodeURIComponent(slug)}`;
+    if (date) url += `&date=${encodeURIComponent(date)}`;
+    if (status && status !== 'ALL') url += `&status=${encodeURIComponent(status)}`;
+    return api.get(url);
+  },
+  updateReservationStatus: (reservationId, status, tableId = null, adminNotes = null) =>
+    api.patch(`/reservations/${reservationId}/status`, { status, table_id: tableId, admin_notes: adminNotes }),
+
+  // Table & Zone Floor Management
+  createZone: (slug, data) => api.post('/reservations/admin/zones', { restaurant_slug: slug, ...data }),
+  updateZone: (zoneId, data) => api.put(`/reservations/admin/zones/${zoneId}`, data),
+  deleteZone: (zoneId) => api.delete(`/reservations/admin/zones/${zoneId}`),
+  createTable: (slug, data) => api.post('/reservations/admin/tables', { restaurant_slug: slug, ...data }),
+  updateTable: (tableId, data) => api.put(`/reservations/admin/tables/${tableId}`, data),
+  deleteTable: (tableId) => api.delete(`/reservations/admin/tables/${tableId}`),
+
 
   // Admin Auth
   loginAdmin: (password, slug = 'asr-royale') => api.post('/auth/login', { password, slug }),
@@ -103,3 +140,4 @@ export const menuService = {
   changeAdminPassword: (data) => api.post('/auth/change-password', data),
   logoutAdmin: (token) => api.post('/auth/logout', { token })
 };
+

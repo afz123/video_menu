@@ -1,15 +1,20 @@
 import React from 'react';
 import { useLanguage } from '../../context/LanguageContext';
-import { X, Check, Utensils, Layers } from 'lucide-react';
+import { useUI } from '../../context/UIConfigContext';
+import { X, Check, Utensils, Layers, Calendar } from 'lucide-react';
 
 export const CategoryDrawer = ({
   isOpen,
   onClose,
   categories,
   activeCategoryId,
-  onSelectCategory
+  onSelectCategory,
+  onOpenBooking
 }) => {
   const { t } = useLanguage();
+  const ui = useUI();
+  const header = ui?.header || {};
+
 
   if (!isOpen) return null;
 
@@ -192,7 +197,40 @@ export const CategoryDrawer = ({
             );
           })}
         </div>
+
+        {/* Table Reservation Button */}
+        {header.show_table_booking_btn !== false && onOpenBooking && (
+          <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenBooking();
+              }}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                background: 'var(--accent-gold-gradient)',
+                border: 'none',
+                borderRadius: '14px',
+                padding: '13px 16px',
+                color: '#000',
+                fontSize: '14px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                boxShadow: '0 4px 16px rgba(212, 175, 55, 0.3)'
+              }}
+            >
+              <Calendar size={16} />
+              <span>Забронировать стол онлайн</span>
+            </button>
+          </div>
+        )}
       </div>
+
     </div>
   );
 };

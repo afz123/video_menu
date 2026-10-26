@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { VideoPlayer } from '../../components/video/VideoPlayer';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { useLanguage } from '../../context/LanguageContext';
+import { useUI } from '../../context/UIConfigContext';
 import { Info, Sparkles, AlertCircle, ChevronUp, ChevronDown, Plus, Wine } from 'lucide-react';
 
 export const DishSlide = ({ 
@@ -15,9 +16,12 @@ export const DishSlide = ({
   onDetailsToggle 
 }) => {
   const { t } = useLanguage();
+  const ui = useUI();
+  const card = ui?.dish_card || {};
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   const toggleDetails = () => {
+    if (!card.show_details_toggle) return;
     const next = !isDetailsOpen;
     setIsDetailsOpen(next);
     if (onDetailsToggle) onDetailsToggle(next);
@@ -59,11 +63,11 @@ export const DishSlide = ({
         isCurrent={isCurrent}
         isSoundEnabled={isSoundEnabled}
         onToggleSound={onToggleSound}
-        enableSoundToggle={true}
+        enableSoundToggle={card.show_sound_toggle !== false}
       />
 
       {/* 2. Top/Middle Badges Ribbon */}
-      {badges.length > 0 && (
+      {card.show_badges && badges.length > 0 && (
         <div
           style={{
             position: 'absolute',
@@ -128,9 +132,9 @@ export const DishSlide = ({
         }}
       >
         <GlassCard
-          onClick={toggleDetails}
+          onClick={card.show_details_toggle !== false ? toggleDetails : undefined}
           style={{
-            cursor: 'pointer',
+            cursor: card.show_details_toggle !== false ? 'pointer' : 'default',
             padding: '16px 18px',
             backgroundColor: 'rgba(15, 15, 20, 0.82)',
             border: '1px solid rgba(212, 175, 55, 0.3)',
@@ -148,7 +152,7 @@ export const DishSlide = ({
             }}
           >
             <div>
-              {dish.is_featured && (
+              {dish.is_featured && card.show_badges && (
                 <div
                   style={{
                     display: 'inline-flex',
@@ -181,28 +185,30 @@ export const DishSlide = ({
               </h2>
             </div>
 
-            <div
-              style={{
-                textAlign: 'right',
-                flexShrink: 0
-              }}
-            >
+            {card.show_price && (
               <div
                 style={{
-                  fontSize: '22px',
-                  fontWeight: '700',
-                  color: 'var(--accent-gold)',
-                  fontFamily: 'var(--font-sans)',
-                  letterSpacing: '0.02em'
+                  textAlign: 'right',
+                  flexShrink: 0
                 }}
               >
-                {dish.price} <span style={{ fontSize: '15px' }}>{dish.currency}</span>
+                <div
+                  style={{
+                    fontSize: '22px',
+                    fontWeight: '700',
+                    color: 'var(--accent-gold)',
+                    fontFamily: 'var(--font-sans)',
+                    letterSpacing: '0.02em'
+                  }}
+                >
+                  {dish.price} <span style={{ fontSize: '15px' }}>{dish.currency}</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Short description preview */}
-          {shortDesc && (
+          {card.show_short_description && shortDesc && (
             <p
               className={isDetailsOpen ? '' : 'line-clamp-2'}
               style={{
@@ -219,7 +225,7 @@ export const DishSlide = ({
           )}
 
           {/* Sommelier Pairing Suggestion (Interactive 1-Click Upsell) */}
-          {pairings.length > 0 && pairings[0]?.text && (
+          {card.show_sommelier_pairing && pairings.length > 0 && pairings[0]?.text && (
             <div
               style={{
                 display: 'flex',
@@ -237,36 +243,38 @@ export const DishSlide = ({
                 <Wine size={16} style={{ flexShrink: 0 }} />
                 <span style={{ lineHeight: '1.3', fontWeight: '500' }}>{pairings[0].text}</span>
               </div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onAddPairingToCart) {
-                    onAddPairingToCart(pairings[0], dish);
-                  }
-                }}
-                style={{
-                  background: 'var(--accent-gold-gradient)',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#09090b',
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  padding: '5px 10px',
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '3px',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                  transition: 'transform 0.15s ease'
-                }}
-                onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
-                onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-              >
-                <Plus size={12} strokeWidth={3} />
-                <span>В заказ</span>
-              </button>
+              {card.show_add_to_cart_btn && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onAddPairingToCart) {
+                      onAddPairingToCart(pairings[0], dish);
+                    }
+                  }}
+                  style={{
+                    background: 'var(--accent-gold-gradient)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#09090b',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    padding: '5px 10px',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                    transition: 'transform 0.15s ease'
+                  }}
+                  onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
+                  onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  <Plus size={12} strokeWidth={3} />
+                  <span>В заказ</span>
+                </button>
+              )}
             </div>
           )}
 
@@ -285,7 +293,7 @@ export const DishSlide = ({
               }}
             >
               {/* Ingredients */}
-              {ingredients && (
+              {card.show_ingredients && ingredients && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                   <span style={{ color: 'var(--accent-gold)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     🌿 Состав и ингредиенты:
@@ -297,7 +305,7 @@ export const DishSlide = ({
               )}
 
               {/* Serving details */}
-              {serving && (
+              {card.show_serving_details && serving && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                   <span style={{ color: 'var(--accent-gold)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     🍽️ Особенности подачи:
@@ -309,7 +317,7 @@ export const DishSlide = ({
               )}
 
               {/* Calories */}
-              {dish.calories && (
+              {card.show_calories && dish.calories && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
                   <span>Энергетическая ценность:</span>
                   <span style={{ color: 'var(--text-main)', fontWeight: '600' }}>{dish.calories}</span>
@@ -317,7 +325,7 @@ export const DishSlide = ({
               )}
 
               {/* Allergens */}
-              {dish.allergens && dish.allergens.length > 0 && (
+              {card.show_allergens && dish.allergens && dish.allergens.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b' }}>
                   <AlertCircle size={14} />
                   <span>Аллергены: {dish.allergens.join(', ')}</span>
@@ -339,48 +347,56 @@ export const DishSlide = ({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span>{dish.weight || '300 г'}</span>
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '3px',
-                  color: 'var(--accent-gold)',
-                  fontSize: '11px',
-                  cursor: 'pointer'
-                }}
-              >
-                <span>{isDetailsOpen ? 'Скрыть' : 'Подробнее'}</span>
-                {isDetailsOpen ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
-              </span>
+              {card.show_weight && <span>{dish.weight || '300 г'}</span>}
+              {card.show_details_toggle && (
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleDetails();
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    color: 'var(--accent-gold)',
+                    fontSize: '11px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <span>{isDetailsOpen ? 'Скрыть' : 'Подробнее'}</span>
+                  {isDetailsOpen ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
+                </span>
+              )}
             </div>
 
             {/* Quick Add to Cart button */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onAddToCart) onAddToCart(dish);
-              }}
-              style={{
-                backgroundColor: 'var(--accent-gold)',
-                border: 'none',
-                borderRadius: '10px',
-                padding: '7px 14px',
-                color: '#09090b',
-                fontWeight: '700',
-                fontSize: '12px',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                boxShadow: '0 2px 10px rgba(212, 175, 55, 0.35)',
-                transition: 'transform 0.15s ease'
-              }}
-            >
-              <Plus size={14} strokeWidth={3} />
-              <span>{hasModifiers ? 'Настроить & В заказ' : 'В заказ'}</span>
-            </button>
+            {card.show_add_to_cart_btn && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onAddToCart) onAddToCart(dish);
+                }}
+                style={{
+                  backgroundColor: 'var(--accent-gold)',
+                  border: 'none',
+                  borderRadius: '10px',
+                  padding: '7px 14px',
+                  color: '#09090b',
+                  fontWeight: '700',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  boxShadow: '0 2px 10px rgba(212, 175, 55, 0.35)',
+                  transition: 'transform 0.15s ease'
+                }}
+              >
+                <Plus size={14} strokeWidth={3} />
+                <span>{hasModifiers ? 'Настроить & В заказ' : 'В заказ'}</span>
+              </button>
+            )}
           </div>
         </GlassCard>
       </div>

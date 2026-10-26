@@ -79,6 +79,7 @@ export const KioskContainer = ({ restaurantData }) => {
         <InteractiveMenu
           restaurantData={restaurantData}
           onOpenQrBridge={() => setIsQrBridgeOpen(true)}
+          onOpenBooking={() => setIsBookingOpen(true)}
           onActivity={resetTimer}
         />
       )}

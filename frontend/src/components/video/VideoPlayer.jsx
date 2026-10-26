@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 
 let globalAudioUnlocked = false;
@@ -48,12 +48,13 @@ export const VideoPlayer = ({
     videoRef.current.muted = effectiveMuted;
   }, [effectiveMuted]);
 
-  // Hardware lifecycle for video element: aggressively release decoded video memory buffers on inactive slides to prevent WebKit OOM crash on iOS Safari
+  // Hardware lifecycle for video element: prevent WebKit OOM crash on iOS Safari
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    let isSubscribed = true;
+    let isCancelled = false;
+    let playPromise = null;
 
     if (isCurrent && videoSrc) {
       if (video.src !== videoSrc) {
@@ -63,39 +64,55 @@ export const VideoPlayer = ({
       video.muted = effectiveMuted;
       video.currentTime = 0;
 
-      const playPromise = video.play();
+      playPromise = video.play();
       if (playPromise !== undefined) {
         playPromise
           .then(() => {
-            if (isSubscribed) setIsVideoLoaded(true);
+            if (!isCancelled) {
+              setIsVideoLoaded(true);
+            }
           })
-          .catch(() => {
-            // If autoplay with sound is blocked by mobile browser policy, fall back to muted
-            if (isSubscribed && video) {
-              video.muted = true;
-              video.play().catch(() => {});
+          .catch((err) => {
+            if (!isCancelled) {
+              if (err.name === 'NotAllowedError') {
+                // Autoplay with sound blocked by mobile browser policy -> fall back to muted
+                video.muted = true;
+                if (!effectiveMuted && onToggleSound) {
+                  onToggleSound(); // Synchronize UI speaker state
+                }
+              }
+              if (err.name !== 'AbortError') {
+                video.muted = true;
+                video.play().then(() => {
+                  if (!isCancelled) setIsVideoLoaded(true);
+                }).catch(() => {});
+              }
             }
           });
       }
     } else {
-      video.pause();
-      setIsVideoLoaded(false);
-      // Aggressive video buffer purge for inactive slides
-      if (video.src) {
-        video.removeAttribute('src');
-        video.load();
+      if (playPromise) {
+        playPromise
+          .then(() => {
+            if (video) {
+              video.pause();
+              video.currentTime = 0;
+            }
+          })
+          .catch(() => {});
+      } else {
+        video.pause();
       }
+      setIsVideoLoaded(false);
     }
 
     return () => {
-      isSubscribed = false;
+      isCancelled = true;
       if (video) {
         video.pause();
-        video.removeAttribute('src');
-        video.load();
       }
     };
-  }, [isCurrent, videoSrc, effectiveMuted]);
+  }, [isCurrent, videoSrc, effectiveMuted, onToggleSound]);
 
   // Handle visibility changes (browser tab minimized/restored)
   useEffect(() => {
@@ -105,23 +122,28 @@ export const VideoPlayer = ({
       if (document.hidden) {
         video.pause();
       } else if (isCurrent && video.src) {
-        video.play().catch(() => {});
+        video.play().catch((err) => {
+          if (err.name === 'NotAllowedError') {
+            video.muted = true;
+            video.play().catch(() => {});
+          }
+        });
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [isCurrent]);
 
-  // Synchronous audio unmuting directly inside physical user gesture tick (bypasses WebKit iOS Safari autoplay block)
-  const handleToggleAudio = (e) => {
+  // Synchronous audio unmuting directly inside physical user gesture tick
+  const handleToggleAudio = useCallback((e) => {
     e.stopPropagation();
     unlockAudioContext();
     
     const video = videoRef.current;
     if (video) {
-      const willBeMuted = !effectiveMuted;
-      video.muted = willBeMuted;
-      if (!willBeMuted) {
+      const nextMuted = !video.muted;
+      video.muted = nextMuted;
+      if (!nextMuted) {
         video.play().catch(() => {
           video.muted = true;
         });
@@ -131,9 +153,9 @@ export const VideoPlayer = ({
     if (onToggleSound) {
       onToggleSound();
     } else {
-      setLocalMuted(!localMuted);
+      setLocalMuted((prev) => !prev);
     }
-  };
+  }, [onToggleSound]);
 
   return (
     <div
@@ -223,9 +245,9 @@ export const VideoPlayer = ({
             top: 'calc(16px + env(safe-area-inset-top))',
             left: '16px',
             zIndex: 30,
-            background: 'rgba(15, 15, 20, 0.7)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
+            background: 'rgba(15, 15, 20, 0.75)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
             border: '1px solid var(--glass-border)',
             borderRadius: '50%',
             width: '42px',

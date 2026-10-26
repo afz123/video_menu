@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { GoldButton } from '../../components/ui/GoldButton';
+import { menuService } from '../../services/menuService';
 import { 
   QrCode, 
   Printer, 
@@ -13,14 +14,28 @@ import {
   Trash2, 
   Info, 
   Smartphone,
-  UtensilsCrossed
+  UtensilsCrossed,
+  ShieldCheck
 } from 'lucide-react';
 
-export const TableQrGenerator = ({ restaurant }) => {
+export const TableQrGenerator = ({ restaurant, availableTables = [] }) => {
+  const dynamicTables = useMemo(() => {
+    if (availableTables && availableTables.length > 0) return availableTables;
+    if (restaurant?.available_tables && restaurant.available_tables.length > 0) return restaurant.available_tables;
+    return [];
+  }, [availableTables, restaurant]);
+
   const [tableCount, setTableCount] = useState(15);
-  const [mode, setMode] = useState('range'); // 'range' | 'custom'
+  const [mode, setMode] = useState(() => (dynamicTables.length > 0 ? 'active' : 'range')); // 'active' | 'range' | 'custom'
   const [customTablesStr, setCustomTablesStr] = useState('1, 2, 3, 4, 5, 6, 7, 8, 9, 10, VIP-1, VIP-2, Терраса-1, Терраса-2');
   const [copiedTable, setCopiedTable] = useState(null);
+  const [signaturesMap, setSignaturesMap] = useState({});
+
+  useEffect(() => {
+    if (dynamicTables.length > 0 && mode !== 'custom') {
+      setMode('active');
+    }
+  }, [dynamicTables.length]);
 
   const slug = restaurant?.slug || 'menu';
   const restaurantName = restaurant?.name || 'ASR Maison Royale';
@@ -48,6 +63,9 @@ export const TableQrGenerator = ({ restaurant }) => {
 
   // Compute table list
   const tables = useMemo(() => {
+    if (mode === 'active') {
+      return dynamicTables.length > 0 ? dynamicTables : ['1', '2', '3'];
+    }
     if (mode === 'range') {
       const count = Math.max(1, Math.min(100, parseInt(tableCount, 10) || 1));
       return Array.from({ length: count }, (_, i) => String(i + 1));
@@ -57,10 +75,33 @@ export const TableQrGenerator = ({ restaurant }) => {
         .map((t) => t.trim())
         .filter(Boolean);
     }
-  }, [mode, tableCount, customTablesStr]);
+  }, [mode, dynamicTables, tableCount, customTablesStr]);
+
+  // Fetch HMAC digital signatures from backend for anti-spoofing
+  useEffect(() => {
+    let isSubscribed = true;
+    const tablesParam = mode === 'custom' ? tables.join(',') : '';
+    menuService.getTableSignatures(slug, tables.length, tablesParam)
+      .then((res) => {
+        if (!isSubscribed || !Array.isArray(res)) return;
+        const map = {};
+        res.forEach((item) => {
+          map[item.table_number] = item.signature;
+        });
+        setSignaturesMap(map);
+      })
+      .catch(() => {});
+    return () => { isSubscribed = false; };
+  }, [slug, mode, tables]);
+
+  const getTableUrl = (tableNum) => {
+    const sig = signaturesMap[tableNum];
+    const signParam = sig ? `&sign=${encodeURIComponent(sig)}` : '';
+    return `${baseUrl}?table=${encodeURIComponent(tableNum)}${signParam}`;
+  };
 
   const handleCopy = (tableNum) => {
-    const url = `${baseUrl}?table=${encodeURIComponent(tableNum)}`;
+    const url = getTableUrl(tableNum);
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url);
       setCopiedTable(tableNum);
@@ -149,12 +190,31 @@ export const TableQrGenerator = ({ restaurant }) => {
               <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Режим генерации:
               </label>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {dynamicTables.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setMode('active')}
+                    style={{
+                      flex: '1 1 auto',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      border: mode === 'active' ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
+                      background: mode === 'active' ? 'rgba(212, 175, 55, 0.18)' : 'rgba(255, 255, 255, 0.04)',
+                      color: mode === 'active' ? 'var(--accent-gold)' : '#fff',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ✨ Столы из базы ({dynamicTables.length})
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setMode('range')}
                   style={{
-                    flex: 1,
+                    flex: '1 1 auto',
                     padding: '10px 14px',
                     borderRadius: '10px',
                     border: mode === 'range' ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
@@ -171,7 +231,7 @@ export const TableQrGenerator = ({ restaurant }) => {
                   type="button"
                   onClick={() => setMode('custom')}
                   style={{
-                    flex: 1,
+                    flex: '1 1 auto',
                     padding: '10px 14px',
                     borderRadius: '10px',
                     border: mode === 'custom' ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
@@ -338,7 +398,7 @@ export const TableQrGenerator = ({ restaurant }) => {
         }}
       >
         {tables.map((tableNum) => {
-          const tableUrl = `${baseUrl}?table=${encodeURIComponent(tableNum)}`;
+          const tableUrl = getTableUrl(tableNum);
           const isCopied = copiedTable === tableNum;
 
           return (

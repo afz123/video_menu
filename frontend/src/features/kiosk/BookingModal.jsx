@@ -1,45 +1,112 @@
-import React, { useState } from 'react';
-import { GlassCard } from '../../components/ui/GlassCard';
-import { GoldButton } from '../../components/ui/GoldButton';
+import React, { useState, useEffect } from 'react';
 import { menuService } from '../../services/menuService';
-import { X, Calendar, User, Phone, Users, Clock, CheckCircle } from 'lucide-react';
+import { 
+  X, Calendar, Clock, User, Phone, Users, CheckCircle, 
+  Sparkles, MessageSquare, MapPin, ChevronRight, AlertCircle, RefreshCw
+} from 'lucide-react';
 
 export const BookingModal = ({ restaurantSlug, restaurantName, onClose }) => {
+  const [step, setStep] = useState(1); // 1: Параметры и слоты, 2: Контакты, 3: Успех
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [guestsCount, setGuestsCount] = useState(2);
+  const [zones, setZones] = useState([]);
+  const [selectedZoneId, setSelectedZoneId] = useState('');
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [selectedTime, setSelectedTime] = useState('');
+  const [selectedSlotEnd, setSelectedSlotEnd] = useState('');
+  const [suggestedTableId, setSuggestedTableId] = useState(null);
+  
+  // Контакты
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('+992 ');
-  const [confirmedPhone, setConfirmedPhone] = useState('');
-  const [guestsCount, setGuestsCount] = useState('2');
-  const [time, setTime] = useState('19:30');
-  const [date, setDate] = useState('Сегодня');
+  const [wishes, setWishes] = useState('');
+  const [bookingResult, setBookingResult] = useState(null);
+
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  // Загрузка слотов при смене даты, персон или зала
+  useEffect(() => {
+    let isCancelled = false;
+
+    const fetchSlots = async () => {
+      setIsLoadingSlots(true);
+      setErrorMsg('');
+      try {
+        const data = await menuService.getReservationSlots(
+          restaurantSlug,
+          date,
+          guestsCount,
+          selectedZoneId ? Number(selectedZoneId) : null
+        );
+        if (isCancelled) return;
+
+        if (data && data.zones) {
+          setZones(data.zones);
+        }
+        const slots = data?.slots || [];
+        setAvailableSlots(slots);
+        
+        // Автовыбор первого свободного времени
+        const firstFree = slots.find((s) => s.is_available);
+        if (firstFree) {
+          setSelectedTime(firstFree.time);
+          setSelectedSlotEnd(firstFree.end_time);
+          setSuggestedTableId(firstFree.suggested_table_id);
+        } else {
+          setSelectedTime('');
+          setSelectedSlotEnd('');
+          setSuggestedTableId(null);
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          console.error('Failed to load reservation slots:', err);
+          setErrorMsg('Не удалось загрузить расписание столов. Пожалуйста, попробуйте другую дату.');
+        }
+      } finally {
+        if (!isCancelled) setIsLoadingSlots(false);
+      }
+    };
+
+    fetchSlots();
+    return () => {
+      isCancelled = true;
+    };
+  }, [restaurantSlug, date, guestsCount, selectedZoneId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim() || phone.trim().length < 8) {
-      alert('Пожалуйста, укажите имя и контактный номер телефона');
+    if (!name.trim() || phone.replace(/\D/g, '').length < 7) {
+      alert('Пожалуйста, укажите имя и корректный контактный номер телефона');
       return;
     }
 
     setIsSubmitting(true);
-    const guestPhone = phone.trim();
+    setErrorMsg('');
     try {
-      await menuService.createServiceRequest(restaurantSlug, {
-        table_number: 'КИОСК-УЛИЦА',
-        request_type: 'call_waiter',
-        guest_comment: `📅 БРОНЬ СТОЛА С УЛИЧНОГО КИОСКА:\nГость: ${name.trim()}\nТелефон: ${guestPhone}\nДата/Время: ${date} в ${time}\nПерсон: ${guestsCount}`
+      const source = window.location.pathname.includes('kiosk') ? 'KIOSK_STREET' : 'MOBILE_QR';
+      const result = await menuService.createReservation({
+        restaurant_slug: restaurantSlug,
+        reservation_date: date,
+        start_time: selectedTime,
+        guests_count: guestsCount,
+        zone_id: selectedZoneId ? Number(selectedZoneId) : undefined,
+        table_id: suggestedTableId || undefined,
+        guest_name: name.trim(),
+        guest_phone: phone.trim(),
+        guest_wishes: wishes.trim() || undefined,
+        source
       });
-      setConfirmedPhone(guestPhone);
-      setIsSuccess(true);
-      // Immediately clear sensitive input fields for kiosk security
-      setName('');
-      setPhone('+992 ');
-      setGuestsCount('2');
-      setTimeout(() => {
-        onClose();
-      }, 3500);
+
+      if (result && result.status === 'success') {
+        setBookingResult(result);
+        setStep(3); // Экран подтверждения
+      } else {
+        setErrorMsg(result?.message || 'Не удалось забронировать стол');
+      }
     } catch (err) {
-      alert('Ошибка при отправке заявки: ' + err.message);
+      setErrorMsg(err.message || 'Ошибка соединения с сервером');
     } finally {
       setIsSubmitting(false);
     }
@@ -52,13 +119,13 @@ export const BookingModal = ({ restaurantSlug, restaurantName, onClose }) => {
         position: 'fixed',
         inset: 0,
         zIndex: 120,
-        backgroundColor: 'rgba(9, 9, 11, 0.88)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
+        backgroundColor: 'rgba(5, 5, 8, 0.88)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '30px',
+        padding: '16px',
         animation: 'fadeIn 0.25s ease'
       }}
     >
@@ -67,247 +134,440 @@ export const BookingModal = ({ restaurantSlug, restaurantName, onClose }) => {
         style={{
           width: '100%',
           maxWidth: '560px',
-          backgroundColor: '#121217',
-          border: '2px solid var(--accent-gold)',
-          borderRadius: '28px',
-          padding: '36px 32px',
+          maxHeight: '92vh',
+          overflowY: 'auto',
+          backgroundColor: '#111116',
+          border: '1px solid var(--accent-gold)',
+          borderRadius: '24px',
+          padding: '28px 24px',
           color: '#fff',
-          boxShadow: '0 24px 70px rgba(0, 0, 0, 0.9), 0 0 40px rgba(212, 175, 55, 0.25)',
+          boxShadow: '0 24px 70px rgba(0, 0, 0, 0.95), 0 0 40px rgba(212, 175, 55, 0.2)',
           position: 'relative'
         }}
       >
         <button
+          type="button"
           onClick={onClose}
           style={{
             position: 'absolute',
-            top: '20px',
-            right: '20px',
+            top: '18px',
+            right: '18px',
             background: 'rgba(255, 255, 255, 0.08)',
             border: 'none',
             borderRadius: '50%',
-            width: '40px',
-            height: '40px',
+            width: '36px',
+            height: '36px',
             color: '#fff',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            transition: 'background 0.2s'
           }}
         >
-          <X size={20} />
+          <X size={18} />
         </button>
 
-        {isSuccess ? (
-          <div style={{ textAlign: 'center', padding: '30px 10px' }}>
+        {/* ШАГ 3: УСПЕШНОЕ БРОНИРОВАНИЕ */}
+        {step === 3 && bookingResult ? (
+          <div style={{ textAlign: 'center', padding: '16px 4px' }}>
             <div
               style={{
-                width: '72px',
-                height: '72px',
+                width: '74px',
+                height: '74px',
                 borderRadius: '50%',
-                backgroundColor: 'rgba(212, 175, 55, 0.15)',
+                backgroundColor: 'rgba(212, 175, 55, 0.16)',
+                border: '2px solid var(--accent-gold)',
                 color: 'var(--accent-gold)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                margin: '0 auto 20px'
+                margin: '0 auto 18px',
+                boxShadow: '0 0 30px rgba(212, 175, 55, 0.3)'
               }}
             >
               <CheckCircle size={44} />
             </div>
-            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '32px', color: '#fff', margin: '0 0 12px' }}>
-              Стол предварительно забронирован!
-            </h3>
-            <p style={{ fontSize: '16px', color: 'var(--text-muted)', lineHeight: '1.5', maxWidth: '420px', margin: '0 auto 20px' }}>
-              Хостес заведения <b>{restaurantName}</b> уже получила вашу заявку и свяжется с вами по номеру <b style={{ color: 'var(--accent-gold)' }}>{confirmedPhone}</b> для подтверждения.
+
+            <span style={{ fontSize: '12px', color: 'var(--accent-gold)', fontWeight: '700', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+              Бронь подтверждена
+            </span>
+            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '30px', color: '#fff', margin: '6px 0 10px' }}>
+              Ждём вас в гости!
+            </h2>
+
+            <div
+              style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid rgba(212, 175, 55, 0.35)',
+                borderRadius: '18px',
+                padding: '20px',
+                margin: '18px 0',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}
+            >
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Номер вашей брони
+              </div>
+              <div style={{ fontSize: '28px', fontWeight: '800', color: 'var(--accent-gold)', letterSpacing: '0.08em' }}>
+                {bookingResult.booking_code}
+              </div>
+              <div style={{ fontSize: '14px', color: '#fff', marginTop: '4px', fontWeight: '600' }}>
+                📅 {date} • {bookingResult.start_time} — {bookingResult.end_time}
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                👥 {guestsCount} персоны {bookingResult.table_number ? `• Стол №${bookingResult.table_number}` : ''} {bookingResult.zone_name ? `(${bookingResult.zone_name})` : ''}
+              </div>
+            </div>
+
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.6', margin: '0 auto 24px', maxWidth: '420px' }}>
+              Хостес заведения <b>{restaurantName}</b> уже зарезервировала для вас стол.
+              По правилам сервиса, стол удерживается в течение <b>15 минут</b> от указанного времени.
             </p>
+
             <button
               type="button"
               onClick={onClose}
               style={{
+                width: '100%',
                 background: 'var(--accent-gold-gradient)',
                 border: 'none',
-                borderRadius: '12px',
-                padding: '12px 28px',
+                borderRadius: '14px',
+                padding: '14px',
                 color: '#000',
                 fontWeight: '700',
-                fontSize: '14px',
-                cursor: 'pointer'
+                fontSize: '15px',
+                cursor: 'pointer',
+                boxShadow: '0 8px 24px rgba(212, 175, 55, 0.35)'
               }}
             >
-              Закрыть окно
+              Готово
             </button>
           </div>
-        ) : (
-          <form
-            onSubmit={handleSubmit}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '20px',
-              pointerEvents: isSubmitting ? 'none' : 'auto',
-              opacity: isSubmitting ? 0.6 : 1,
-              transition: 'opacity 0.2s ease'
-            }}
-          >
-            <div>
-              <span style={{ fontSize: '12px', color: 'var(--accent-gold)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-                Предварительное бронирование
+        ) : step === 1 ? (
+          /* ШАГ 1: ВЫБОР ДАТЫ, ПЕРСОН, ЗАЛА И ВРЕМЕНИ */
+          <div>
+            <div style={{ marginBottom: '20px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--accent-gold)', fontWeight: '700', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+                Онлайн-бронирование
               </span>
-              <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '32px', color: '#fff', margin: '4px 0 6px' }}>
-                Забронировать стол
+              <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '28px', color: '#fff', margin: '4px 0 2px' }}>
+                Выберите дату и время
               </h2>
-              <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: 0 }}>
-                Оставьте заявку уличного киоска — менеджер забронирует лучший столик
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
+                {restaurantName} • Защита от накладок и моментальное бронирование
               </p>
             </div>
 
-            {/* Name */}
-            <div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '600' }}>
-                <User size={15} color="var(--accent-gold)" />
-                <span>Ваше имя:</span>
+            {errorMsg && (
+              <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#fca5a5', padding: '10px 14px', borderRadius: '12px', fontSize: '12px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertCircle size={16} />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            {/* 1. Количество персон */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '600' }}>
+                <span>Количество гостей:</span>
+                <span style={{ color: 'var(--accent-gold)' }}>
+                  {guestsCount <= 2 ? '⏱️ Сеанс 1.5 ч.' : guestsCount <= 5 ? '⏱️ Сеанс 2 ч.' : '⏱️ Сеанс 3 ч.'}
+                </span>
               </label>
-              <input
-                type="text"
-                required
-                placeholder="Имя Фамилия"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                style={{
-                  width: '100%',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  borderRadius: '14px',
-                  padding: '14px 16px',
-                  color: '#fff',
-                  fontSize: '16px',
-                  outline: 'none'
-                }}
-              />
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {[1, 2, 3, 4, 5, 6, 8, 10].map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => setGuestsCount(num)}
+                    style={{
+                      flex: '1 0 18%',
+                      minWidth: '40px',
+                      padding: '10px 0',
+                      borderRadius: '12px',
+                      border: guestsCount === num ? '1px solid var(--accent-gold)' : '1px solid rgba(255,255,255,0.1)',
+                      background: guestsCount === num ? 'var(--accent-gold-gradient)' : 'rgba(255,255,255,0.04)',
+                      color: guestsCount === num ? '#000' : '#fff',
+                      fontWeight: '700',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Phone */}
-            <div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '600' }}>
-                <Phone size={15} color="var(--accent-gold)" />
-                <span>Номер телефона для связи:</span>
-              </label>
-              <input
-                type="tel"
-                required
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                style={{
-                  width: '100%',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  borderRadius: '14px',
-                  padding: '14px 16px',
-                  color: 'var(--accent-gold)',
-                  fontSize: '18px',
-                  fontWeight: '700',
-                  outline: 'none'
-                }}
-              />
-            </div>
-
-            {/* Date, Time & Guests Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+            {/* 2. Дата и Зона */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                  Дата:
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '600' }}>
+                  Дата визита:
                 </label>
-                <select
+                <input
+                  type="date"
                   value={date}
+                  min={new Date().toISOString().split('T')[0]}
                   onChange={(e) => setDate(e.target.value)}
                   style={{
                     width: '100%',
-                    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
                     border: '1px solid rgba(255, 255, 255, 0.15)',
                     borderRadius: '12px',
-                    padding: '12px',
+                    padding: '10px 12px',
                     color: '#fff',
                     fontSize: '14px',
                     outline: 'none'
                   }}
-                >
-                  <option value="Сегодня" style={{ background: '#121217' }}>Сегодня</option>
-                  <option value="Завтра" style={{ background: '#121217' }}>Завтра</option>
-                  <option value="Пятница" style={{ background: '#121217' }}>Пятница</option>
-                  <option value="Суббота" style={{ background: '#121217' }}>Суббота</option>
-                </select>
+                />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                  Время:
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '600' }}>
+                  Предпочитаемый зал:
                 </label>
                 <select
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
+                  value={selectedZoneId}
+                  onChange={(e) => setSelectedZoneId(e.target.value)}
                   style={{
                     width: '100%',
-                    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
                     border: '1px solid rgba(255, 255, 255, 0.15)',
                     borderRadius: '12px',
-                    padding: '12px',
+                    padding: '10px 12px',
                     color: '#fff',
-                    fontSize: '14px',
+                    fontSize: '13px',
                     outline: 'none'
                   }}
                 >
-                  <option value="18:00" style={{ background: '#121217' }}>18:00</option>
-                  <option value="19:00" style={{ background: '#121217' }}>19:00</option>
-                  <option value="19:30" style={{ background: '#121217' }}>19:30</option>
-                  <option value="20:00" style={{ background: '#121217' }}>20:00</option>
-                  <option value="21:00" style={{ background: '#121217' }}>21:00</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                  Гостей:
-                </label>
-                <select
-                  value={guestsCount}
-                  onChange={(e) => setGuestsCount(e.target.value)}
-                  style={{
-                    width: '100%',
-                    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    borderRadius: '12px',
-                    padding: '12px',
-                    color: '#fff',
-                    fontSize: '14px',
-                    outline: 'none'
-                  }}
-                >
-                  <option value="1-2 персоны" style={{ background: '#121217' }}>1-2 персоны</option>
-                  <option value="3-4 персоны" style={{ background: '#121217' }}>3-4 персоны</option>
-                  <option value="5-8 персон" style={{ background: '#121217' }}>5-8 персон</option>
-                  <option value="VIP-зал (банкет)" style={{ background: '#121217' }}>VIP-зал</option>
+                  <option value="" style={{ background: '#111116' }}>Любой зал (автоподбор)</option>
+                  {zones.map((z) => (
+                    <option key={z.id} value={z.id} style={{ background: '#111116' }}>
+                      {z.name}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
 
+            {/* 3. Сетка времени */}
+            <div style={{ marginBottom: '22px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                  Свободные слоты времени:
+                </label>
+                {isLoadingSlots && (
+                  <span style={{ fontSize: '11px', color: 'var(--accent-gold)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <RefreshCw size={12} className="animate-spin" />
+                    <span>Проверка столов...</span>
+                  </span>
+                )}
+              </div>
+
+              {availableSlots.length === 0 && !isLoadingSlots ? (
+                <div style={{ textAlign: 'center', padding: '24px 10px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>
+                    На эту дату или размер компании нет свободных столов.
+                  </p>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', maxHeight: '170px', overflowY: 'auto', paddingRight: '4px' }}>
+                  {availableSlots.map((slot) => (
+                    <button
+                      key={slot.time}
+                      type="button"
+                      disabled={!slot.is_available}
+                      onClick={() => {
+                        setSelectedTime(slot.time);
+                        setSelectedSlotEnd(slot.end_time);
+                        setSuggestedTableId(slot.suggested_table_id);
+                      }}
+                      style={{
+                        padding: '10px 4px',
+                        borderRadius: '10px',
+                        border: selectedTime === slot.time
+                          ? '1px solid var(--accent-gold)'
+                          : '1px solid rgba(255,255,255,0.06)',
+                        background: selectedTime === slot.time
+                          ? 'var(--accent-gold)'
+                          : slot.is_available
+                          ? 'rgba(255,255,255,0.04)'
+                          : 'rgba(255,255,255,0.01)',
+                        color: selectedTime === slot.time
+                          ? '#000'
+                          : slot.is_available
+                          ? '#fff'
+                          : 'rgba(255,255,255,0.2)',
+                        cursor: slot.is_available ? 'pointer' : 'not-allowed',
+                        fontWeight: '700',
+                        fontSize: '13px',
+                        textDecoration: slot.is_available ? 'none' : 'line-through',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {slot.time}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <button
-              type="submit"
-              disabled={isSubmitting}
+              type="button"
+              disabled={!selectedTime}
+              onClick={() => setStep(2)}
               style={{
-                marginTop: '10px',
-                background: 'var(--accent-gold-gradient)',
+                width: '100%',
+                background: selectedTime ? 'var(--accent-gold-gradient)' : 'rgba(255,255,255,0.08)',
                 border: 'none',
-                borderRadius: '16px',
-                padding: '16px',
-                color: '#09090b',
+                borderRadius: '14px',
+                padding: '14px',
+                color: selectedTime ? '#000' : 'rgba(255,255,255,0.3)',
                 fontWeight: '700',
-                fontSize: '16px',
-                cursor: 'pointer',
-                boxShadow: '0 8px 24px rgba(212, 175, 55, 0.4)'
+                fontSize: '15px',
+                cursor: selectedTime ? 'pointer' : 'not-allowed',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: selectedTime ? '0 8px 24px rgba(212, 175, 55, 0.35)' : 'none'
               }}
             >
-              {isSubmitting ? 'Отправка заявки...' : 'Забронировать стол'}
+              <span>Продолжить ({selectedTime ? `${selectedTime} • ${guestsCount} чел.` : 'выберите время'})</span>
+              <ChevronRight size={18} />
             </button>
+          </div>
+        ) : (
+          /* ШАГ 2: КОНТАКТЫ ГОСТЯ */
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: '18px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--accent-gold)', fontWeight: '700', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+                Шаг 2 из 2
+              </span>
+              <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '28px', color: '#fff', margin: '4px 0 2px' }}>
+                Контакты для бронирования
+              </h2>
+              <div style={{ fontSize: '13px', color: 'var(--accent-gold)', marginTop: '4px', fontWeight: '600' }}>
+                📅 {date} в {selectedTime} • {guestsCount} чел.
+              </div>
+            </div>
+
+            {errorMsg && (
+              <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#fca5a5', padding: '10px 14px', borderRadius: '12px', fontSize: '12px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertCircle size={16} />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '20px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '600' }}>
+                  Ваше имя: *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Имя Фамилия"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  style={{
+                    width: '100%',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '12px',
+                    padding: '12px 14px',
+                    color: '#fff',
+                    fontSize: '15px',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '600' }}>
+                  Номер телефона: *
+                </label>
+                <input
+                  type="tel"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  style={{
+                    width: '100%',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '12px',
+                    padding: '12px 14px',
+                    color: 'var(--accent-gold)',
+                    fontSize: '16px',
+                    fontWeight: '700',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '600' }}>
+                  Особые пожелания (столик у камина, годовщина, детский стул...):
+                </label>
+                <input
+                  type="text"
+                  placeholder="Например: тихий угол у окна, годовщина свадьбы"
+                  value={wishes}
+                  onChange={(e) => setWishes(e.target.value)}
+                  style={{
+                    width: '100%',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '12px',
+                    padding: '12px 14px',
+                    color: '#fff',
+                    fontSize: '14px',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: 'none',
+                  borderRadius: '14px',
+                  padding: '14px 20px',
+                  color: '#fff',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Назад
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                style={{
+                  flex: 1,
+                  background: 'var(--accent-gold-gradient)',
+                  border: 'none',
+                  borderRadius: '14px',
+                  padding: '14px',
+                  color: '#000',
+                  fontWeight: '700',
+                  fontSize: '15px',
+                  cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 8px 24px rgba(212, 175, 55, 0.35)'
+                }}
+              >
+                {isSubmitting ? 'Бронирование...' : 'Забронировать стол'}
+              </button>
+            </div>
           </form>
         )}
       </div>

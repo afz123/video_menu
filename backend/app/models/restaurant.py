@@ -77,3 +77,24 @@ class Restaurant(Base):
         cascade="all, delete-orphan",
         order_by=lambda: desc(ServiceRequest.created_at)
     )
+    zones = relationship(
+        "TableZone",
+        back_populates="restaurant",
+        cascade="all, delete-orphan",
+        order_by="TableZone.display_order"
+    )
+    dining_tables = relationship(
+        "DiningTable",
+        back_populates="restaurant",
+        cascade="all, delete-orphan"
+    )
+    reservations = relationship(
+        "TableReservation",
+        back_populates="restaurant",
+        cascade="all, delete-orphan"
+    )
+
+    @property
+    def ui_config(self):
+        from app.core.config import DEFAULT_UI_CONFIG
+        return (self.theme_config or {}).get("ui_config", DEFAULT_UI_CONFIG)

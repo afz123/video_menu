@@ -1,12 +1,21 @@
-import React, { useState, useEffect } from 'react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { useLanguage } from '../../context/LanguageContext';
+import { useUI } from '../../context/UIConfigContext';
 import { menuService } from '../../services/menuService';
-import { X, Trash2, Plus, Minus, Send, CheckCircle2, QrCode, Sparkles, RefreshCw } from 'lucide-react';
+import { X, Trash2, Plus, Minus, Send, CheckCircle2, QrCode, Sparkles, RefreshCw, Users, Heart } from 'lucide-react';
+
+const COURSES_OPTIONS = [
+  { id: 'Курс 1 (Закуски)', label: '🥗 Курс 1' },
+  { id: 'Курс 2 (Горячее)', label: '🥩 Курс 2' },
+  { id: 'Курс 3 (Десерт)', label: '🍰 Курс 3' },
+  { id: 'По готовности кухни', label: '⚡ По готовности' }
+];
 
 export const CartDrawer = ({
   cartItems = [],
   tableNumber = '',
+  tableSignature = '',
+  guestSessionId = '',
   restaurantSlug = '',
   currency = 'TJS',
   serviceChargePercent = 10,
@@ -16,12 +25,19 @@ export const CartDrawer = ({
   onSetTableNumber
 }) => {
   const { t } = useLanguage();
+  const ui = useUI();
+  const cartUI = ui?.cart || {};
   const [table, setTable] = useState(tableNumber || '');
   const [isEditingTable, setIsEditingTable] = useState(false);
   const isTableFromQr = Boolean(table);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSentSuccess, setOrderSentSuccess] = useState(false);
   const [showWaiterScreen, setShowWaiterScreen] = useState(false);
+
+  // F&B Split-Bill & Tip Tiers
+  const [splitCount, setSplitCount] = useState(1);
+  const [tipPercent, setTipPercent] = useState(10); // 10% standard tip
+  const [, forceUpdate] = useState(0);
 
   // Sync if tableNumber changes
   useEffect(() => {
@@ -37,8 +53,18 @@ export const CartDrawer = ({
   const subtotal = cartItems.reduce((acc, item) => {
     return acc + (Number(item.totalPrice) || 0) * (item.quantity || 1);
   }, 0);
-  const serviceCharge = subtotal * (Number(serviceChargePercent) / 100);
-  const grandTotal = subtotal + serviceCharge;
+  const serviceCharge = cartUI.show_service_charge !== false ? subtotal * (Number(serviceChargePercent) / 100) : 0;
+  const tipAmount = tipPercent > 0 ? (subtotal * tipPercent / 100) : 0;
+  const grandTotal = subtotal + serviceCharge + tipAmount;
+  const splitAmount = grandTotal / Math.max(1, splitCount);
+
+  const handleCycleCourse = (idx) => {
+    const current = cartItems[idx]?.course || 'По готовности кухни';
+    const currentIdx = COURSES_OPTIONS.findIndex((c) => c.id === current);
+    const nextIdx = (currentIdx + 1) % COURSES_OPTIONS.length;
+    cartItems[idx].course = COURSES_OPTIONS[nextIdx].id;
+    forceUpdate((n) => n + 1);
+  };
 
   const handleSendOrder = async () => {
     if (!table.trim()) {
@@ -56,8 +82,12 @@ export const CartDrawer = ({
 
       await menuService.createServiceRequest(restaurantSlug, {
         table_number: table.trim(),
-        request_type: 'order',
+        table_token: tableSignature || undefined,
+        guest_session_id: guestSessionId || undefined,
+        request_type: isRepeatOrder ? 'repeat_order' : 'order',
         guest_comment: orderComment,
+        tip_percent: tipPercent,
+        tip_amount: tipAmount,
         cart_items: cartItems.map((item) => ({
           dish_id: item.dish.id,
           id: item.dish.id,
@@ -65,6 +95,7 @@ export const CartDrawer = ({
           quantity: item.quantity || 1,
           price: item.totalPrice,
           currency: item.dish.currency,
+          course: item.course || 'По готовности кухни',
           chosen_options: item.chosenOptions || [],
           comment: item.comment || ''
         }))
@@ -124,7 +155,7 @@ export const CartDrawer = ({
             Выбранные позиции
           </h2>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '60vh', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '55vh', overflowY: 'auto' }}>
             {cartItems.map((item, idx) => (
               <div
                 key={idx}
@@ -139,8 +170,11 @@ export const CartDrawer = ({
                   <span>{item.quantity}x {t(item.dish.name)}</span>
                   <span style={{ color: 'var(--accent-gold)' }}>{(item.totalPrice * item.quantity).toFixed(0)} {activeCurrency}</span>
                 </div>
+                <div style={{ display: 'inline-block', marginTop: '6px', backgroundColor: 'rgba(212, 175, 55, 0.15)', border: '1px solid var(--accent-gold)', borderRadius: '6px', padding: '2px 8px', fontSize: '11px', color: 'var(--accent-gold)', fontWeight: '600' }}>
+                  ⏱️ {item.course || 'По готовности кухни'}
+                </div>
                 {item.chosenOptions?.length > 0 && (
-                  <div style={{ fontSize: '13px', color: 'var(--accent-gold)', marginTop: '4px' }}>
+                  <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.75)', marginTop: '4px' }}>
                     {item.chosenOptions.map((o) => o.name).join(' • ')}
                   </div>
                 )}
@@ -165,6 +199,12 @@ export const CartDrawer = ({
               <span>+{serviceCharge.toFixed(1)} {activeCurrency}</span>
             </div>
           )}
+          {tipAmount > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#4ade80' }}>
+              <span>Чаевые ({tipPercent}%):</span>
+              <span>+{tipAmount.toFixed(1)} {activeCurrency}</span>
+            </div>
+          )}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 0 12px', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: '8px' }}>
             <span style={{ fontSize: '16px', fontWeight: '700', color: '#fff' }}>Итого к оплате:</span>
             <span style={{ fontSize: '28px', fontWeight: '800', color: 'var(--accent-gold)' }}>
@@ -178,14 +218,14 @@ export const CartDrawer = ({
               backgroundColor: 'var(--accent-gold)',
               border: 'none',
               borderRadius: '14px',
-              padding: '14px',
-              color: '#000',
+              padding: '16px',
+              color: '#09090b',
               fontWeight: '700',
               fontSize: '16px',
               cursor: 'pointer'
             }}
           >
-            Вернуться в меню
+            Закрыть экран
           </button>
         </div>
       </div>
@@ -198,9 +238,9 @@ export const CartDrawer = ({
         position: 'fixed',
         inset: 0,
         zIndex: 100,
-        backgroundColor: 'rgba(0, 0, 0, 0.82)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'center'
@@ -208,53 +248,56 @@ export const CartDrawer = ({
       onClick={onClose}
     >
       <div
-        onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
           maxWidth: '520px',
-          maxHeight: '88vh',
-          backgroundColor: '#121217',
+          backgroundColor: '#0c0c10',
           borderTopLeftRadius: '24px',
           borderTopRightRadius: '24px',
-          border: '1px solid rgba(212, 175, 55, 0.3)',
-          borderBottom: 'none',
-          padding: '22px 20px',
+          borderTop: '1px solid var(--glass-border)',
+          borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+          padding: '20px 20px calc(24px + env(safe-area-inset-bottom))',
+          boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.9)',
+          animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+          maxHeight: '92vh',
           display: 'flex',
-          flexDirection: 'column',
-          boxShadow: '0 -10px 40px rgba(0,0,0,0.85)',
-          overflowY: 'auto',
-          pointerEvents: isSubmitting ? 'none' : 'auto',
-          opacity: isSubmitting ? 0.6 : 1,
-          transition: 'opacity 0.2s ease'
+          flexDirection: 'column'
         }}
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
+        {/* Drawer Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '20px' }}>🛒</span>
-            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', color: '#fff', margin: 0 }}>
-              {isRepeatOrder ? 'Дозаказ к столу' : 'Мой заказ'}
-            </h3>
+            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '24px', color: '#fff', margin: 0 }}>
+              {isRepeatOrder ? 'Дозаказ к столу' : 'Ваш заказ'}
+            </h2>
             {isRepeatOrder && (
-              <span style={{ background: 'rgba(212, 175, 55, 0.25)', border: '1px solid var(--accent-gold)', color: 'var(--accent-gold)', fontSize: '11px', fontWeight: '800', padding: '2px 8px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                <RefreshCw size={11} /> ДОЗАКАЗ
-              </span>
-            )}
-            {cartItems.length > 0 && !isRepeatOrder && (
-              <span style={{ background: 'rgba(212, 175, 55, 0.2)', color: 'var(--accent-gold)', fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '12px' }}>
-                {cartItems.length} поз.
+              <span
+                style={{
+                  background: 'rgba(212, 175, 55, 0.2)',
+                  color: 'var(--accent-gold)',
+                  border: '1px solid var(--accent-gold)',
+                  borderRadius: '6px',
+                  padding: '2px 6px',
+                  fontSize: '10px',
+                  fontWeight: '700',
+                  letterSpacing: '0.04em'
+                }}
+              >
+                ДОЗАКАЗ
               </span>
             )}
           </div>
           <button
             onClick={onClose}
             style={{
-              background: 'rgba(255, 255, 255, 0.08)',
+              background: 'rgba(255, 255, 255, 0.06)',
               border: 'none',
               borderRadius: '50%',
               width: '32px',
               height: '32px',
-              color: '#fff',
+              color: 'var(--text-muted)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -265,55 +308,61 @@ export const CartDrawer = ({
           </button>
         </div>
 
+        {/* Content Body */}
         {orderSentSuccess ? (
-          <div style={{ textAlign: 'center', padding: '28px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
-            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
-              <CheckCircle2 size={32} />
+          <div style={{ textAlign: 'center', padding: '36px 16px' }}>
+            <div
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                background: 'rgba(212, 175, 55, 0.15)',
+                border: '1px solid var(--accent-gold)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px auto',
+                color: 'var(--accent-gold)'
+              }}
+            >
+              <CheckCircle2 size={36} />
             </div>
-            <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', color: '#fff', margin: 0 }}>
-              Заказ отправлен!
-            </h4>
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '320px', lineHeight: '1.4', margin: 0 }}>
-              Официант уже спешит к столу <strong style={{ color: 'var(--accent-gold)' }}>№{table}</strong> для подтверждения и передачи на кухню.
+            <h3 style={{ fontSize: '20px', color: '#fff', marginBottom: '8px' }}>
+              {isRepeatOrder ? 'Дозаказ отправлен на кухню!' : 'Заказ отправлен!'}
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5', marginBottom: '20px' }}>
+              Официант уже спешит к столу <strong style={{ color: 'var(--accent-gold)' }}>№{table}</strong> для подтверждения и передачи в цех.
             </p>
 
-            {/* Live Status Tracker for Guest Peace of Mind */}
-            <div style={{
-              width: '100%',
-              maxWidth: '340px',
-              backgroundColor: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid rgba(212, 175, 55, 0.2)',
-              borderRadius: '14px',
-              padding: '14px 16px',
-              textAlign: 'left',
-              marginTop: '4px'
-            }}>
-              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--accent-gold)', fontWeight: '700', marginBottom: '10px' }}>
-                Статус обслуживания
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: '#fff' }}>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981' }} />
-                  <span>Заказ принят системой</span>
-                  <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#10b981', fontWeight: '700' }}>✓</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: 'var(--accent-gold)' }}>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-gold)', animation: 'pulseGlow 1.5s infinite' }} />
-                  <span>Уведомление в Telegram смене</span>
-                  <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--accent-gold)' }}>Сейчас</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: 'rgba(255, 255, 255, 0.4)' }}>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)' }} />
-                  <span>Приготовление блюд</span>
-                  <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'rgba(255, 255, 255, 0.4)' }}>Ожидает</span>
+            {/* Live Status Tracker */}
+            {cartUI.show_live_status_tracker !== false && (
+              <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(212, 175, 55, 0.25)', borderRadius: '16px', padding: '16px 14px', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
+                  {/* Progress Line */}
+                  <div style={{ position: 'absolute', top: '14px', left: '24px', right: '24px', height: '2px', background: 'rgba(255,255,255,0.1)', zIndex: 1 }}>
+                    <div style={{ width: '50%', height: '100%', background: 'var(--accent-gold)' }} />
+                  </div>
+                  {/* Step 1 */}
+                  <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--accent-gold)', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '800' }}>✓</div>
+                    <span style={{ fontSize: '11px', color: '#fff', fontWeight: '600' }}>Принят</span>
+                  </div>
+                  {/* Step 2 */}
+                  <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(212, 175, 55, 0.25)', border: '2px solid var(--accent-gold)', color: 'var(--accent-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px' }}>👨‍🍳</div>
+                    <span style={{ fontSize: '11px', color: 'var(--accent-gold)', fontWeight: '700' }}>Готовится</span>
+                  </div>
+                  {/* Step 3 */}
+                  <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.08)', color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>🍽️</div>
+                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>Подача</span>
+                  </div>
                 </div>
               </div>
-            </div>
-
+            )}
             <button
               onClick={onClose}
               style={{
-                marginTop: '10px',
                 background: 'var(--accent-gold-gradient)',
                 border: 'none',
                 borderRadius: '12px',
@@ -429,8 +478,8 @@ export const CartDrawer = ({
               </div>
             )}
 
-            {/* Cart Items List */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '45vh', overflowY: 'auto', marginBottom: '16px' }}>
+            {/* Cart Items List with 1-Tap Course Switcher */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '36vh', overflowY: 'auto', marginBottom: '14px' }}>
               {cartItems.map((item, idx) => (
                 <div
                   key={idx}
@@ -449,12 +498,35 @@ export const CartDrawer = ({
                     <div style={{ fontSize: '14px', fontWeight: '600', color: '#fff' }}>
                       {t(item.dish.name)}
                     </div>
+                    {/* Course Badge with quick cycle */}
+                    <button
+                      type="button"
+                      onClick={() => handleCycleCourse(idx)}
+                      title="Нажмите, чтобы переключить курс подачи"
+                      style={{
+                        marginTop: '4px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        background: 'rgba(212, 175, 55, 0.12)',
+                        border: '1px solid rgba(212, 175, 55, 0.3)',
+                        borderRadius: '6px',
+                        padding: '2px 8px',
+                        color: 'var(--accent-gold)',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <span>⏱️ {item.course || 'По готовности'}</span>
+                      <span style={{ fontSize: '9px', opacity: 0.7 }}>⇄</span>
+                    </button>
                     {item.chosenOptions?.length > 0 && (
-                      <div style={{ fontSize: '12px', color: 'var(--accent-gold)', marginTop: '2px' }}>
+                      <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.6)', marginTop: '3px' }}>
                         {item.chosenOptions.map((o) => o.name).join(' • ')}
                       </div>
                     )}
-                    <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.7)', marginTop: '4px', fontWeight: '700' }}>
+                    <div style={{ fontSize: '13px', color: 'var(--accent-gold)', marginTop: '4px', fontWeight: '700' }}>
                       {item.totalPrice} {item.dish.currency}
                     </div>
                   </div>
@@ -503,9 +575,82 @@ export const CartDrawer = ({
               ))}
             </div>
 
+            {/* Split-Bill & Tip Tiers Section */}
+            <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.02)', borderRadius: '12px', padding: '10px 12px', marginBottom: '12px', border: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {/* Split-Bill Toggle */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#fff' }}>
+                  <Users size={14} color="var(--accent-gold)" />
+                  <span>Разделить чек:</span>
+                </div>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {[1, 2, 3, 4, 5, 6].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setSplitCount(num)}
+                      style={{
+                        background: splitCount === num ? 'var(--accent-gold-gradient)' : 'rgba(255, 255, 255, 0.06)',
+                        color: splitCount === num ? '#09090b' : 'rgba(255, 255, 255, 0.8)',
+                        border: 'none',
+                        borderRadius: '6px',
+                        width: '26px',
+                        height: '26px',
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {splitCount > 1 && (
+                <div style={{ fontSize: '11px', color: 'var(--accent-gold)', textAlign: 'right' }}>
+                  По {splitAmount.toFixed(0)} {activeCurrency} на каждого гостя (из {splitCount})
+                </div>
+              )}
+
+              {/* Tip Tiers */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#fff' }}>
+                  <Heart size={14} color="#f43f5e" />
+                  <span>Чаевые:</span>
+                </div>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {[
+                    { pct: 0, label: '0%' },
+                    { pct: 10, label: '10%' },
+                    { pct: 15, label: '15%' },
+                    { pct: 20, label: '20%' }
+                  ].map((tTier) => (
+                    <button
+                      key={tTier.pct}
+                      type="button"
+                      onClick={() => setTipPercent(tTier.pct)}
+                      style={{
+                        background: tipPercent === tTier.pct ? 'rgba(244, 63, 94, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+                        color: tipPercent === tTier.pct ? '#fda4af' : 'rgba(255, 255, 255, 0.8)',
+                        border: tipPercent === tTier.pct ? '1px solid #f43f5e' : '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '6px',
+                        padding: '3px 8px',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {tTier.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             {/* Footer Summary & Dual Actions */}
-            <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: 'var(--text-muted)' }}>
+            <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
                 <span>Блюда:</span>
                 <span>{subtotal.toFixed(0)} {activeCurrency}</span>
               </div>
@@ -515,6 +660,12 @@ export const CartDrawer = ({
                   <span>+{serviceCharge.toFixed(1)} {activeCurrency}</span>
                 </div>
               )}
+              {tipAmount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#4ade80' }}>
+                  <span>Чаевые ({tipPercent}%):</span>
+                  <span>+{tipAmount.toFixed(1)} {activeCurrency}</span>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '2px 0 6px' }}>
                 <span style={{ fontSize: '14px', fontWeight: '600', color: '#fff' }}>Итого к оплате:</span>
                 <span style={{ fontSize: '24px', fontWeight: '800', color: 'var(--accent-gold)' }}>
@@ -522,47 +673,59 @@ export const CartDrawer = ({
                 </span>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowWaiterScreen(true)}
+              {(cartUI.show_waiter_screen_btn !== false || cartUI.allow_self_ordering !== false) && (
+                <div
                   style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    borderRadius: '12px',
-                    padding: '12px',
-                    color: '#fff',
-                    fontWeight: '600',
-                    fontSize: '13px',
-                    cursor: 'pointer'
+                    display: 'grid',
+                    gridTemplateColumns: (cartUI.show_waiter_screen_btn !== false && cartUI.allow_self_ordering !== false) ? '1fr 1fr' : '1fr',
+                    gap: '10px'
                   }}
                 >
-                  Показать официанту
-                </button>
+                  {cartUI.show_waiter_screen_btn !== false && (
+                    <button
+                      type="button"
+                      onClick={() => setShowWaiterScreen(true)}
+                      style={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        borderRadius: '12px',
+                        padding: '12px',
+                        color: '#fff',
+                        fontWeight: '600',
+                        fontSize: '13px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Показать официанту
+                    </button>
+                  )}
 
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={handleSendOrder}
-                  style={{
-                    background: 'var(--accent-gold-gradient)',
-                    border: 'none',
-                    borderRadius: '12px',
-                    padding: '12px',
-                    color: '#09090b',
-                    fontWeight: '700',
-                    fontSize: '13px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px'
-                  }}
-                >
-                  <Send size={15} />
-                  <span>{isSubmitting ? 'Отправка...' : 'Отправить заказ'}</span>
-                </button>
-              </div>
+                  {cartUI.allow_self_ordering !== false && (
+                    <button
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={handleSendOrder}
+                      style={{
+                        background: 'var(--accent-gold-gradient)',
+                        border: 'none',
+                        borderRadius: '12px',
+                        padding: '12px',
+                        color: '#09090b',
+                        fontWeight: '700',
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <Send size={15} />
+                      <span>{isSubmitting ? 'Отправка...' : 'Отправить заказ'}</span>
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </>
         )}

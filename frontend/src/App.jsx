@@ -4,6 +4,7 @@ import { KioskContainer } from './features/kiosk/KioskContainer';
 import { DashboardLayout } from './features/admin/DashboardLayout';
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
+import { UIConfigProvider } from './context/UIConfigContext';
 import { menuService } from './services/menuService';
 
 export default function App() {
@@ -133,7 +134,9 @@ export default function App() {
   if (routeType === 'admin') {
     return (
       <ThemeProvider>
-        <DashboardLayout />
+        <UIConfigProvider>
+          <DashboardLayout />
+        </UIConfigProvider>
       </ThemeProvider>
     );
   }
@@ -142,16 +145,18 @@ export default function App() {
 
   return (
     <ThemeProvider initialTheme={restaurant.theme}>
-      <LanguageProvider
-        supportedLocales={restaurant.supported_locales || ['ru', 'en', 'tj']}
-        defaultLocale={restaurant.default_locale || 'ru'}
-      >
-        {routeType === 'kiosk' ? (
-          <KioskContainer restaurantData={{ ...restaurant, categories: restaurantData?.categories }} />
-        ) : (
-          <MobileFeed restaurantData={restaurantData} />
-        )}
-      </LanguageProvider>
+      <UIConfigProvider customConfig={restaurant.ui_config || restaurant.theme?.ui_config}>
+        <LanguageProvider
+          supportedLocales={restaurant.supported_locales || ['ru', 'en', 'tj']}
+          defaultLocale={restaurant.default_locale || 'ru'}
+        >
+          {routeType === 'kiosk' ? (
+            <KioskContainer restaurantData={{ ...restaurant, categories: restaurantData?.categories }} />
+          ) : (
+            <MobileFeed restaurantData={restaurantData} />
+          )}
+        </LanguageProvider>
+      </UIConfigProvider>
     </ThemeProvider>
   );
 }

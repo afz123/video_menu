@@ -10,6 +10,7 @@ from app.models.category import Category
 from app.models.dish import Dish
 from app.models.media import MediaAsset
 from app.models.service_request import ServiceRequest
+from app.models.reservation import TableZone, DiningTable, TableReservation
 from app.services.video_transcoder import get_ffmpeg_path
 
 logger = logging.getLogger("video_menu.seeder")
@@ -94,7 +95,65 @@ SAMPLE_MODIFIERS_LAMB = [
     }
 ]
 
+async def ensure_reservation_tables_seeded(db, restaurant: Restaurant):
+    """Creates default zones and tables for restaurant if none exist."""
+    z_res = await db.execute(select(TableZone).where(TableZone.restaurant_id == restaurant.id))
+    existing_zones = z_res.scalars().all()
+    if existing_zones:
+        return
+
+    main_hall = TableZone(
+        restaurant_id=restaurant.id,
+        name="Основной зал",
+        description="Элегантная атмосфера, живой рояль и панорамный камин",
+        display_order=1,
+        is_active=True
+    )
+    terrace = TableZone(
+        restaurant_id=restaurant.id,
+        name="Панорамная терраса",
+        description="Открытый вид на вечерний город с подогревом и пледами",
+        display_order=2,
+        is_active=True
+    )
+    vip_room = TableZone(
+        restaurant_id=restaurant.id,
+        name="VIP-комната",
+        description="Приватное пространство для деловых встреч и закрытых ужинов",
+        display_order=3,
+        is_active=True
+    )
+    db.add_all([main_hall, terrace, vip_room])
+    await db.flush()
+
+    tables = [
+        # Основной зал: столы 1-9
+        DiningTable(restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="1", min_capacity=1, max_capacity=2, pos_x=80, pos_y=120, shape="round"),
+        DiningTable(restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="2", min_capacity=1, max_capacity=2, pos_x=160, pos_y=120, shape="round"),
+        DiningTable(restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="3", min_capacity=1, max_capacity=2, pos_x=240, pos_y=120, shape="round"),
+        DiningTable(restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="4", min_capacity=2, max_capacity=4, pos_x=80, pos_y=240, shape="square"),
+        DiningTable(restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="5", min_capacity=2, max_capacity=4, pos_x=160, pos_y=240, shape="square"),
+        DiningTable(restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="6", min_capacity=2, max_capacity=4, pos_x=240, pos_y=240, shape="square"),
+        DiningTable(restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="7", min_capacity=3, max_capacity=6, pos_x=80, pos_y=360, shape="rectangle"),
+        DiningTable(restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="8", min_capacity=3, max_capacity=6, pos_x=200, pos_y=360, shape="rectangle"),
+        DiningTable(restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="9", min_capacity=4, max_capacity=8, pos_x=320, pos_y=360, shape="rectangle"),
+
+        # Терраса: T-1 to T-4
+        DiningTable(restaurant_id=restaurant.id, zone_id=terrace.id, table_number="T-1", min_capacity=1, max_capacity=2, pos_x=100, pos_y=100, shape="round"),
+        DiningTable(restaurant_id=restaurant.id, zone_id=terrace.id, table_number="T-2", min_capacity=2, max_capacity=4, pos_x=200, pos_y=100, shape="square"),
+        DiningTable(restaurant_id=restaurant.id, zone_id=terrace.id, table_number="T-3", min_capacity=2, max_capacity=4, pos_x=300, pos_y=100, shape="square"),
+        DiningTable(restaurant_id=restaurant.id, zone_id=terrace.id, table_number="T-4", min_capacity=4, max_capacity=8, pos_x=150, pos_y=220, shape="rectangle"),
+
+        # VIP: VIP-1, VIP-2
+        DiningTable(restaurant_id=restaurant.id, zone_id=vip_room.id, table_number="VIP-1", min_capacity=4, max_capacity=10, pos_x=120, pos_y=150, shape="rectangle"),
+        DiningTable(restaurant_id=restaurant.id, zone_id=vip_room.id, table_number="VIP-2", min_capacity=6, max_capacity=16, pos_x=300, pos_y=150, shape="rectangle"),
+    ]
+    db.add_all(tables)
+    await db.commit()
+    logger.info("Default zones and dining tables seeded successfully for %s", restaurant.name)
+
 async def seed_database():
+
     engine = await init_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -116,7 +175,15 @@ async def seed_database():
                 "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS admin_password_hash VARCHAR(256);",
                 "ALTER TABLE categories ADD COLUMN IF NOT EXISTS schedule_start VARCHAR(8);",
                 "ALTER TABLE categories ADD COLUMN IF NOT EXISTS schedule_end VARCHAR(8);",
-                "ALTER TABLE categories ADD COLUMN IF NOT EXISTS daypart VARCHAR(32) DEFAULT 'all';"
+                "ALTER TABLE categories ADD COLUMN IF NOT EXISTS daypart VARCHAR(32) DEFAULT 'all';",
+                "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS guest_session_id VARCHAR(64);",
+                "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS table_signature VARCHAR(64);",
+                "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS subtotal_amount FLOAT DEFAULT 0.0;",
+                "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS service_charge_amount FLOAT DEFAULT 0.0;",
+                "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS total_amount FLOAT DEFAULT 0.0;",
+                "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS currency VARCHAR(8) DEFAULT 'TJS';",
+                "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS nps_score INTEGER;",
+                "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS acknowledged_by VARCHAR(64);"
             ]
             for stmt in stmts:
                 try:
@@ -157,6 +224,30 @@ async def seed_database():
             except Exception: pass
             try:
                 await conn.execute(text("ALTER TABLE restaurants ADD COLUMN telegram_enabled BOOLEAN DEFAULT 0;"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE service_requests ADD COLUMN guest_session_id VARCHAR(64);"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE service_requests ADD COLUMN table_signature VARCHAR(64);"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE service_requests ADD COLUMN subtotal_amount FLOAT DEFAULT 0.0;"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE service_requests ADD COLUMN service_charge_amount FLOAT DEFAULT 0.0;"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE service_requests ADD COLUMN total_amount FLOAT DEFAULT 0.0;"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE service_requests ADD COLUMN currency VARCHAR(8) DEFAULT 'TJS';"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE service_requests ADD COLUMN nps_score INTEGER;"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE service_requests ADD COLUMN acknowledged_by VARCHAR(64);"))
             except Exception: pass
             try:
                 await conn.execute(text("ALTER TABLE categories ADD COLUMN schedule_start VARCHAR(8);"))
@@ -212,6 +303,7 @@ async def seed_database():
             if updated:
                 await db.commit()
                 logger.info("Enriched existing dishes with modifiers, badges, and pairings.")
+            await ensure_reservation_tables_seeded(db, existing_rest)
             return
 
         logger.info("Seeding database with demo luxury restaurant...")
@@ -492,4 +584,5 @@ async def seed_database():
             order_idx += 1
 
         await db.commit()
+        await ensure_reservation_tables_seeded(db, restaurant)
         logger.info("Database seeding completed successfully!")

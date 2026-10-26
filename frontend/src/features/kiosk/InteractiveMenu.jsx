@@ -4,14 +4,18 @@ import { GoldButton } from '../../components/ui/GoldButton';
 import { LanguagePicker } from '../../components/ui/LanguagePicker';
 import { VideoPlayer } from '../../components/video/VideoPlayer';
 import { useLanguage } from '../../context/LanguageContext';
-import { QrCode, Sparkles, X, ChevronRight, Clock, AlertCircle } from 'lucide-react';
+import { useUI } from '../../context/UIConfigContext';
+import { QrCode, Sparkles, X, ChevronRight, Clock, AlertCircle, Calendar } from 'lucide-react';
 
 export const InteractiveMenu = ({
   restaurantData,
   onOpenQrBridge,
+  onOpenBooking,
   onActivity
 }) => {
   const { t } = useLanguage();
+  const ui = useUI();
+  const kioskUI = ui?.kiosk || {};
   const categories = restaurantData.categories || [];
   const [activeCategoryId, setActiveCategoryId] = useState(() => categories[0]?.id || 1);
   const [selectedDish, setSelectedDish] = useState(null);
@@ -70,19 +74,33 @@ export const InteractiveMenu = ({
           </h1>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          {/* Table Booking button */}
+          {kioskUI.show_booking_btn !== false && onOpenBooking && (
+            <GoldButton
+              variant="outline"
+              size="md"
+              icon={Calendar}
+              onClick={onOpenBooking}
+            >
+              Забронировать стол
+            </GoldButton>
+          )}
+
           {/* Language selector */}
           <LanguagePicker variant="inline" />
 
           {/* QR Bridge button */}
-          <GoldButton
-            variant="primary"
-            size="md"
-            icon={QrCode}
-            onClick={onOpenQrBridge}
-          >
-            Забрать меню на телефон
-          </GoldButton>
+          {kioskUI.show_qr_bridge_btn !== false && (
+            <GoldButton
+              variant="primary"
+              size="md"
+              icon={QrCode}
+              onClick={onOpenQrBridge}
+            >
+              Забрать меню на телефон
+            </GoldButton>
+          )}
         </div>
       </header>
 
@@ -149,13 +167,15 @@ export const InteractiveMenu = ({
             <GlassCard
               key={dish.id}
               onClick={() => {
-                setSelectedDish(dish);
+                if (kioskUI.show_details_modal !== false) {
+                  setSelectedDish(dish);
+                }
                 if (onActivity) onActivity();
               }}
               style={{
                 height: '480px',
                 padding: 0,
-                cursor: 'pointer',
+                cursor: kioskUI.show_details_modal !== false ? 'pointer' : 'default',
                 display: 'flex',
                 flexDirection: 'column',
                 borderRadius: '24px',
@@ -312,7 +332,7 @@ export const InteractiveMenu = ({
       </main>
 
       {/* 4. Full-Screen Cinematic Dish Detail Modal */}
-      {selectedDish && (
+      {selectedDish && kioskUI.show_details_modal !== false && (
         <div
           onClick={() => setSelectedDish(null)}
           style={{
@@ -372,7 +392,7 @@ export const InteractiveMenu = ({
                 poster={selectedDish.media?.poster}
                 videoSrc={selectedDish.media?.video_kiosk || selectedDish.media?.video_mobile}
                 isCurrent={true}
-                enableSoundToggle={true}
+                enableSoundToggle={kioskUI.allow_sound_in_modal !== false}
               />
             </div>
 

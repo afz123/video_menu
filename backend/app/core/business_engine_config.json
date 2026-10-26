@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "concept_type": "steakhouse_fine_dining",
+  "currency_settings": {
+    "code": "TJS",
+    "symbol": "смн",
+    "symbol_position": "after",
+    "decimal_places": 0,
+    "thousands_separator": " "
+  },
+  "service_charge": {
+    "enabled": true,
+    "default_percent": 10.0,
+    "mandatory": true,
+    "tax_inclusive": true
+  },
+  "dayparting": [
+    {
+      "id": "breakfast",
+      "label": { "ru": "Завтраки", "en": "Breakfast", "tj": "Наҳорӣ" },
+      "start_time": "08:00",
+      "end_time": "12:00",
+      "active_categories": [1, 2]
+    },
+    {
+      "id": "main_dining",
+      "label": { "ru": "Основное меню", "en": "Main Dining", "tj": "Менюи асосӣ" },
+      "start_time": "12:00",
+      "end_time": "23:59",
+      "active_categories": [3, 4, 5, 6]
+    },
+    {
+      "id": "night_lounge",
+      "label": { "ru": "Ночной бар & Кальяны", "en": "Night Lounge", "tj": "Бари шабона" },
+      "start_time": "23:00",
+      "end_time": "04:00",
+      "active_categories": [7, 8]
+    }
+  ],
+  "staff_dispatch_matrix": [
+    {
+      "id": "call_waiter",
+      "title": { "ru": "Официант", "en": "Waiter", "tj": "Пешхидмат" },
+      "icon": "bell",
+      "target_role": "waitstaff",
+      "cooldown_seconds": 90,
+      "quick_presets": ["Приборы", "Вода со льдом", "Салфетки"]
+    },
+    {
+      "id": "call_sommelier",
+      "title": { "ru": "Сомелье", "en": "Sommelier", "tj": "Сомелье" },
+      "icon": "wine",
+      "target_role": "sommelier",
+      "cooldown_seconds": 180,
+      "quick_presets": ["Винная карта", "Пейринг к мясу"]
+    },
+    {
+      "id": "call_hookah",
+      "title": { "ru": "Кальянщик", "en": "Hookah Master", "tj": "Устои калян" },
+      "icon": "flame",
+      "target_role": "hookah_lounge",
+      "cooldown_seconds": 120,
+      "quick_presets": ["Замена углей", "Обновить чашу"]
+    },
+    {
+      "id": "call_manager",
+      "title": { "ru": "Управляющий", "en": "Manager", "tj": "Мудир" },
+      "icon": "briefcase",
+      "target_role": "general_manager",
+      "cooldown_seconds": 300,
+      "quick_presets": ["Особый вопрос", "Банкет"]
+    }
+  ],
+  "dietary_filters_registry": [
+    { "id": "halal", "label": { "ru": "Халяль", "en": "Halal", "tj": "Ҳалол" }, "icon": "crescent", "color": "#10b981" },
+    { "id": "vegan", "label": { "ru": "Веган", "en": "Vegan", "tj": "Веган" }, "icon": "leaf", "color": "#22c55e" },
+    { "id": "spicy", "label": { "ru": "Острое", "en": "Spicy", "tj": "Тунд" }, "icon": "pepper", "color": "#ef4444" },
+    { "id": "dry_aged", "label": { "ru": "Выдержка 45д", "en": "Dry-Aged", "tj": "Гӯшти расида" }, "icon": "flame", "color": "#d4af37" }
+  ],
+  "card_display_rules": {
+    "show_calories": true,
+    "show_weight": true,
+    "show_cooking_time": true,
+    "allow_guest_order_notes": true,
+    "course_selection_enabled": true
+  }
+}

@@ -8,6 +8,8 @@ import { ThemeCustomizer } from './ThemeCustomizer';
 import { RestaurantSettings } from './RestaurantSettings';
 import { AdminLogin } from './AdminLogin';
 import { TableQrGenerator } from './TableQrGenerator';
+import { UIConfigManager } from './UIConfigManager';
+import { ReservationManager } from './ReservationManager';
 import { menuService } from '../../services/menuService';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -32,8 +34,11 @@ import {
   CheckCheck,
   Clock,
   Receipt,
-  ShoppingBag
+  ShoppingBag,
+  Sliders,
+  Calendar
 } from 'lucide-react';
+
 
 export const DashboardLayout = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(() =>
@@ -50,14 +55,22 @@ export const DashboardLayout = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
 
-  // Smart Table Service Requests
+  // Smart Table Service Requests & Reservations
   const [serviceRequests, setServiceRequests] = useState([]);
   const [serviceFilter, setServiceFilter] = useState('ALL'); // 'ALL' | 'PENDING' | 'COMPLETED'
+  const [pendingReservationsCount, setPendingReservationsCount] = useState(0);
 
   const loadServiceRequests = async () => {
     try {
       const data = await menuService.getServiceRequests(selectedSlug);
       setServiceRequests(data || []);
+    } catch (_) {}
+  };
+
+  const loadPendingReservationsCount = async () => {
+    try {
+      const data = await menuService.getAdminReservations(selectedSlug, null, 'PENDING');
+      setPendingReservationsCount(Array.isArray(data) ? data.length : 0);
     } catch (_) {}
   };
 
@@ -67,6 +80,7 @@ export const DashboardLayout = () => {
       const res = await menuService.getFullMenu(selectedSlug, true); // true = include unavailable items for admin
       setMenuData(res);
       await loadServiceRequests();
+      await loadPendingReservationsCount();
     } catch (err) {
       console.error('Failed to load menu:', err);
     } finally {
@@ -91,8 +105,11 @@ export const DashboardLayout = () => {
 
   useEffect(() => {
     loadMenu();
-    // Poll service requests every 6 seconds
-    const interval = setInterval(loadServiceRequests, 6000);
+    // Poll service requests & pending reservations every 6 seconds
+    const interval = setInterval(() => {
+      loadServiceRequests();
+      loadPendingReservationsCount();
+    }, 6000);
     return () => clearInterval(interval);
   }, [selectedSlug]);
 
@@ -360,7 +377,9 @@ export const DashboardLayout = () => {
       >
         {[
           { id: 'dishes', label: 'Позиции меню & Стоп-лист', icon: Utensils, count: allDishes.length },
+          { id: 'reservations', label: 'Бронирование столов', icon: Calendar, count: pendingReservationsCount, highlight: pendingReservationsCount > 0 },
           { id: 'service_requests', label: 'Вызовы & Заказы', icon: Bell, count: pendingRequestsCount, highlight: pendingRequestsCount > 0 },
+          { id: 'ui_config', label: 'Конструктор UI', icon: Sliders },
           { id: 'categories', label: 'Управление разделами', icon: Layers, count: categories.length },
           { id: 'settings', label: 'Настройки заведения', icon: Building2 },
           { id: 'theme', label: 'Стиль & Kiosk Display', icon: Palette },
@@ -393,12 +412,21 @@ export const DashboardLayout = () => {
               {tab.count !== undefined && (
                 <span
                   style={{
-                    backgroundColor: isActive ? 'var(--accent-gold)' : 'rgba(255, 255, 255, 0.08)',
-                    color: isActive ? '#09090b' : 'var(--text-muted)',
+                    backgroundColor: tab.highlight
+                      ? '#ef4444'
+                      : isActive
+                      ? 'var(--accent-gold)'
+                      : 'rgba(255, 255, 255, 0.08)',
+                    color: tab.highlight
+                      ? '#fff'
+                      : isActive
+                      ? '#09090b'
+                      : 'var(--text-muted)',
                     borderRadius: '10px',
                     padding: '2px 8px',
                     fontSize: '11px',
-                    fontWeight: '700'
+                    fontWeight: '700',
+                    boxShadow: tab.highlight ? '0 0 10px rgba(239, 68, 68, 0.4)' : 'none'
                   }}
                 >
                   {tab.count}
@@ -700,11 +728,23 @@ export const DashboardLayout = () => {
         />
       )}
 
+      {/* TAB: UI CONFIG MANAGER */}
+      {activeTab === 'ui_config' && (
+        <UIConfigManager
+          restaurantSlug={selectedSlug}
+          initialConfig={restaurant?.ui_config || restaurant?.theme?.ui_config}
+          onSaved={loadMenu}
+        />
+      )}
+
       {/* TAB 3: PREVIEW & QR */}
       {activeTab === 'preview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
           {/* Table Specific QR Code Generator with Print Support */}
-          <TableQrGenerator restaurant={currentRestaurant} />
+          <TableQrGenerator 
+            restaurant={restaurant} 
+            availableTables={restaurant?.available_tables || []} 
+          />
 
           {/* Additional Displays & General Links */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px' }} className="no-print">
@@ -853,13 +893,23 @@ export const DashboardLayout = () => {
                         </td>
                         <td style={{ padding: '16px 20px' }}>
                           {req.cart_items && req.cart_items.length > 0 ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                               {req.cart_items.map((item, iIdx) => (
-                                <div key={iIdx} style={{ fontSize: '13px', color: '#fff' }}>
+                                <div key={iIdx} style={{ fontSize: '13px', color: '#fff', lineHeight: '1.4' }}>
                                   <b>{item.quantity}x</b> {item.name} ({item.price} {item.currency})
+                                  {item.course && item.course !== 'По готовности кухни' && (
+                                    <span style={{ backgroundColor: 'rgba(212, 175, 55, 0.15)', color: 'var(--accent-gold)', padding: '1px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', marginLeft: '6px' }}>
+                                      {item.course}
+                                    </span>
+                                  )}
                                   {item.chosen_options?.length > 0 && (
-                                    <span style={{ color: 'var(--accent-gold)', marginLeft: '6px', fontSize: '12px' }}>
+                                    <span style={{ color: '#fbbf24', marginLeft: '6px', fontSize: '12px' }}>
                                       [{item.chosen_options.map((o) => o.name).join(', ')}]
+                                    </span>
+                                  )}
+                                  {item.comment && (
+                                    <span style={{ color: '#94a3b8', fontSize: '12px', marginLeft: '6px', fontStyle: 'italic' }}>
+                                      ({item.comment})
                                     </span>
                                   )}
                                 </div>
@@ -917,6 +967,11 @@ export const DashboardLayout = () => {
             )}
           </GlassCard>
         </div>
+      )}
+
+      {/* TAB: TABLE RESERVATIONS (DISPATCHER & MANAGEMENT) */}
+      {activeTab === 'reservations' && (
+        <ReservationManager restaurantSlug={selectedSlug} />
       )}
 
       {/* Dish Form Modal */}

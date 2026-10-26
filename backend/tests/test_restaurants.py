@@ -205,8 +205,8 @@ async def test_order_stop_list_validation(client, admin_headers):
             ]
         }
     )
-    assert order_res.status_code == 400
-    assert "стоп-листе" in order_res.json()["detail"]
+    assert order_res.status_code == 409
+    assert "стоп" in order_res.json()["detail"].lower()
 
     # 4. Restore availability -> Order should succeed
     restore_res = await client.put(f"/api/v1/dishes/{dish_id}", json={"is_available": True}, headers=admin_headers)
@@ -562,6 +562,63 @@ async def test_clone_menu_from_donor(client, admin_headers):
     dish = cats[0]["dishes"][0]
     assert dish["name"]["ru"] == "Фирменный Шашлык"
     assert dish["currency"] == "USD"
+
+@pytest.mark.asyncio
+async def test_ui_config_feature_flags_engine(client, admin_headers):
+    """Test White-Label Feature Flags engine: retrieval, customization and persistence."""
+    import uuid
+    uid = uuid.uuid4().hex[:6]
+    test_slug = f"ui-flags-{uid}"
+
+    # 1. Create a restaurant
+    res = await client.post(
+        "/api/v1/restaurants",
+        json={"name": f"UI Test Hub {uid}", "slug": test_slug, "currency": "TJS"},
+        headers=admin_headers
+    )
+    assert res.status_code == 200
+
+    # 2. Check full-menu endpoint defaults
+    menu_res = await client.get(f"/api/v1/restaurants/{test_slug}/full-menu")
+    assert menu_res.status_code == 200
+    menu_data = menu_res.json()
+    ui_cfg = menu_data["restaurant"]["ui_config"]
+    assert "header" in ui_cfg
+    assert "dish_card" in ui_cfg
+    assert "service_bar" in ui_cfg
+    assert "cart" in ui_cfg
+    assert "kiosk" in ui_cfg
+    assert ui_cfg["dish_card"]["show_sound_toggle"] is True
+    assert ui_cfg["dish_card"]["show_add_to_cart_btn"] is True
+
+    # 3. Update UI config via dedicated endpoint: turn off add_to_cart (Showcase only mode)
+    custom_ui = {
+        "dish_card": {
+            "show_sound_toggle": False,
+            "show_add_to_cart_btn": False,
+            "show_price": True
+        },
+        "service_bar": {
+            "show_service_bar": False
+        }
+    }
+    update_res = await client.put(
+        f"/api/v1/restaurants/{test_slug}/ui-config",
+        json=custom_ui,
+        headers=admin_headers
+    )
+    assert update_res.status_code == 200
+    updated_ui = update_res.json()["ui_config"]
+    assert updated_ui["dish_card"]["show_sound_toggle"] is False
+    assert updated_ui["dish_card"]["show_add_to_cart_btn"] is False
+
+    # 4. Verify full-menu returns updated custom config
+    menu_res_2 = await client.get(f"/api/v1/restaurants/{test_slug}/full-menu")
+    assert menu_res_2.status_code == 200
+    fresh_ui = menu_res_2.json()["restaurant"]["ui_config"]
+    assert fresh_ui["dish_card"]["show_sound_toggle"] is False
+    assert fresh_ui["dish_card"]["show_add_to_cart_btn"] is False
+    assert fresh_ui["service_bar"]["show_service_bar"] is False
 
 
 

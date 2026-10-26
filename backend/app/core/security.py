@@ -2,6 +2,8 @@ import json
 import os
 import secrets
 import hashlib
+import hmac
+import asyncio
 import logging
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -24,7 +26,7 @@ security_bearer = HTTPBearer(auto_error=False)
 
 
 def hash_password(password: str, salt: Optional[str] = None) -> str:
-    """Cryptographically secure PBKDF2-HMAC-SHA256 password hashing."""
+    """Cryptographically secure PBKDF2-HMAC-SHA256 password hashing (synchronous)."""
     if not salt:
         salt = secrets.token_hex(16)
     hashed = hashlib.pbkdf2_hmac(
@@ -33,8 +35,21 @@ def hash_password(password: str, salt: Optional[str] = None) -> str:
     return f"{salt}${hashed}"
 
 
+async def hash_password_async(password: str, salt: Optional[str] = None) -> str:
+    """Async PBKDF2-HMAC-SHA256 password hashing via thread pool to prevent Event Loop stalls."""
+    def _compute():
+        nonlocal salt
+        if not salt:
+            salt = secrets.token_hex(16)
+        hashed = hashlib.pbkdf2_hmac(
+            "sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000
+        ).hex()
+        return f"{salt}${hashed}"
+    return await asyncio.to_thread(_compute)
+
+
 def verify_password(password: str, password_hash: Optional[str]) -> bool:
-    """Verifies a plain password against a stored PBKDF2 hash."""
+    """Verifies a plain password against a stored PBKDF2 hash (synchronous)."""
     if not password_hash or "$" not in password_hash:
         return False
     try:
@@ -45,6 +60,41 @@ def verify_password(password: str, password_hash: Optional[str]) -> bool:
         return secrets.compare_digest(hashed, test_hash)
     except Exception:
         return False
+
+
+async def verify_password_async(password: str, password_hash: Optional[str]) -> bool:
+    """Async PBKDF2 password verification via thread pool to prevent Event Loop freezing."""
+    if not password_hash or "$" not in password_hash:
+        return False
+    def _compute():
+        try:
+            salt, hashed = password_hash.split("$", 1)
+            test_hash = hashlib.pbkdf2_hmac(
+                "sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000
+            ).hex()
+            return secrets.compare_digest(hashed, test_hash)
+        except Exception:
+            return False
+    return await asyncio.to_thread(_compute)
+
+
+def generate_table_signature(restaurant_id: int, table: str) -> str:
+    """Generates an HMAC-SHA256 16-char hex signature for QR table verification."""
+    secret = settings.QR_SECRET_KEY
+    normalized_table = str(table).strip()
+    return hmac.new(
+        secret.encode("utf-8"),
+        f"{restaurant_id}:{normalized_table}".encode("utf-8"),
+        hashlib.sha256
+    ).hexdigest()[:16]
+
+
+def verify_table_signature(restaurant_id: int, table: str, token: Optional[str]) -> bool:
+    """Verifies HMAC digital signature of table number to prevent tampering/spoofing."""
+    if not token or not str(token).strip():
+        return False
+    expected = generate_table_signature(restaurant_id, str(table).strip())
+    return hmac.compare_digest(expected, str(token).strip())
 
 
 class AdminSession(str):

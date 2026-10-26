@@ -1,16 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, CreditCard, ShoppingBag, CheckCircle, X, ChevronRight } from 'lucide-react';
+import { useUI } from '../../context/UIConfigContext';
 import { menuService } from '../../services/menuService';
 
 export const SmartServiceBar = ({
   restaurantSlug,
   tableNumber,
+  tableSignature = '',
+  guestSessionId = '',
   cartCount = 0,
   hidden = false,
   callTypesEnabled = ['waiter', 'bill', 'sommelier', 'hookah', 'admin'],
+  availableTables = [],
   onOpenCart,
   onSetTableNumber
 }) => {
+  const ui = useUI();
+  const bar = ui?.service_bar || {};
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState('WAITER'); // 'WAITER' | 'BILL'
   const [specialistType, setSpecialistType] = useState('waiter'); // 'waiter' | 'sommelier' | 'hookah' | 'admin'
@@ -75,8 +81,11 @@ export const SmartServiceBar = ({
 
       await menuService.createServiceRequest(restaurantSlug, {
         table_number: table.trim(),
+        table_token: tableSignature || undefined,
+        guest_session_id: guestSessionId || undefined,
         request_type: reqType,
-        guest_comment: comment
+        guest_comment: comment,
+        nps_score: modalType === 'BILL' ? npsRating : undefined
       });
 
       setIsModalOpen(false);
@@ -100,6 +109,9 @@ export const SmartServiceBar = ({
       setIsSubmitting(false);
     }
   };
+
+  // If entire service bar is disabled in UI config — render nothing
+  if (bar.show_service_bar === false) return null;
 
   return (
     <>
@@ -148,59 +160,63 @@ export const SmartServiceBar = ({
         }}
       >
         {/* Call Waiter button */}
-        <button
-          onClick={() => handleOpenAction('WAITER')}
-          style={{
-            flex: cartCount > 0 ? '0 0 auto' : '1',
-            backgroundColor: 'rgba(15, 15, 20, 0.85)',
-            border: '1px solid rgba(212, 175, 55, 0.35)',
-            borderRadius: '14px',
-            padding: '10px 14px',
-            color: '#fff',
-            fontSize: '12px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.6)'
-          }}
-        >
-          <Bell size={15} color="var(--accent-gold)" />
-          <span>{cartCount > 0 ? 'Официант' : 'Позвать официанта'}</span>
-        </button>
+        {bar.show_call_waiter_btn !== false && (
+          <button
+            onClick={() => handleOpenAction('WAITER')}
+            style={{
+              flex: cartCount > 0 ? '0 0 auto' : '1',
+              backgroundColor: 'rgba(15, 15, 20, 0.85)',
+              border: '1px solid rgba(212, 175, 55, 0.35)',
+              borderRadius: '14px',
+              padding: '10px 14px',
+              color: '#fff',
+              fontSize: '12px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.6)'
+            }}
+          >
+            <Bell size={15} color="var(--accent-gold)" />
+            <span>{cartCount > 0 ? 'Официант' : 'Позвать официанта'}</span>
+          </button>
+        )}
 
         {/* Request Bill button */}
-        <button
-          onClick={() => handleOpenAction('BILL')}
-          style={{
-            flex: cartCount > 0 ? '0 0 auto' : '1',
-            backgroundColor: 'rgba(15, 15, 20, 0.85)',
-            border: '1px solid rgba(212, 175, 55, 0.35)',
-            borderRadius: '14px',
-            padding: '10px 14px',
-            color: '#fff',
-            fontSize: '12px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.6)'
-          }}
-        >
-          <CreditCard size={15} color="var(--accent-gold)" />
-          <span>Счёт</span>
-        </button>
+        {bar.show_request_bill_btn !== false && (
+          <button
+            onClick={() => handleOpenAction('BILL')}
+            style={{
+              flex: cartCount > 0 ? '0 0 auto' : '1',
+              backgroundColor: 'rgba(15, 15, 20, 0.85)',
+              border: '1px solid rgba(212, 175, 55, 0.35)',
+              borderRadius: '14px',
+              padding: '10px 14px',
+              color: '#fff',
+              fontSize: '12px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.6)'
+            }}
+          >
+            <CreditCard size={15} color="var(--accent-gold)" />
+            <span>Счёт</span>
+          </button>
+        )}
 
         {/* Floating Cart Button (shows if items in cart) */}
-        {cartCount > 0 && (
+        {bar.show_cart_btn !== false && cartCount > 0 && (
           <button
             onClick={onOpenCart}
             style={{
@@ -371,7 +387,10 @@ export const SmartServiceBar = ({
                 </div>
                 {/* Quick table pick buttons */}
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '12', '15', 'VIP-1', 'VIP-2'].map((num) => (
+                  {(availableTables && availableTables.length > 0
+                    ? availableTables
+                    : ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '12', '15', 'VIP-1', 'VIP-2']
+                  ).map((num) => (
                     <button
                       key={num}
                       type="button"
@@ -405,12 +424,12 @@ export const SmartServiceBar = ({
                 </label>
                 {(() => {
                   const ALL_SPECIALISTS = [
-                    { id: 'waiter', label: 'Официант', icon: '🛎️' },
-                    { id: 'sommelier', label: 'Сомелье', icon: '🍷' },
-                    { id: 'hookah', label: 'Кальянщик', icon: '💨' },
-                    { id: 'admin', label: 'Управляющий', icon: '👔' }
+                    { id: 'waiter', label: 'Официант', icon: '🛎️', enabled: true },
+                    { id: 'sommelier', label: 'Сомелье', icon: '🍷', enabled: bar.allow_call_sommelier !== false },
+                    { id: 'hookah', label: 'Кальянщик', icon: '💨', enabled: bar.allow_call_hookah !== false },
+                    { id: 'admin', label: 'Управляющий', icon: '👔', enabled: bar.allow_call_admin !== false }
                   ];
-                  const specialists = ALL_SPECIALISTS.filter((s) => callTypesEnabled.includes(s.id));
+                  const specialists = ALL_SPECIALISTS.filter((s) => s.enabled && callTypesEnabled.includes(s.id));
                   const displaySpecialists = specialists.length > 0 ? specialists : [ALL_SPECIALISTS[0]];
                   return (
                     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(displaySpecialists.length, 4)}, 1fr)`, gap: '8px' }}>
@@ -492,99 +511,105 @@ export const SmartServiceBar = ({
                 </div>
 
                 {/* 1-Tap NPS Rating */}
-                <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: '14px', padding: '12px 14px', border: '1px solid rgba(212, 175, 55, 0.15)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>
-                      Оцените ваш визит сегодня:
-                    </span>
-                    <span style={{ fontSize: '11px', color: npsRating >= 4 ? 'var(--accent-gold)' : '#f87171', fontWeight: '700' }}>
-                      {npsRating === 5 ? 'Превосходно! ✨' : npsRating === 4 ? 'Хорошо 👍' : 'Есть замечания ⚠️'}
-                    </span>
+                {bar.show_nps_rating !== false && (
+                  <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: '14px', padding: '12px 14px', border: '1px solid rgba(212, 175, 55, 0.15)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                        Оцените ваш визит сегодня:
+                      </span>
+                      <span style={{ fontSize: '11px', color: npsRating >= 4 ? 'var(--accent-gold)' : '#f87171', fontWeight: '700' }}>
+                        {npsRating === 5 ? 'Превосходно! ✨' : npsRating === 4 ? 'Хорошо 👍' : 'Есть замечания ⚠️'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px' }}>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setNpsRating(star)}
+                          style={{
+                            flex: 1,
+                            padding: '8px 0',
+                            borderRadius: '10px',
+                            border: star <= npsRating ? '1px solid var(--accent-gold)' : '1px solid rgba(255,255,255,0.08)',
+                            backgroundColor: star <= npsRating ? 'rgba(212, 175, 55, 0.2)' : 'rgba(255,255,255,0.02)',
+                            color: star <= npsRating ? 'var(--accent-gold)' : 'rgba(255,255,255,0.3)',
+                            fontSize: '18px',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          ★
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px' }}>
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button
-                        key={star}
-                        type="button"
-                        onClick={() => setNpsRating(star)}
-                        style={{
-                          flex: 1,
-                          padding: '8px 0',
-                          borderRadius: '10px',
-                          border: star <= npsRating ? '1px solid var(--accent-gold)' : '1px solid rgba(255,255,255,0.08)',
-                          backgroundColor: star <= npsRating ? 'rgba(212, 175, 55, 0.2)' : 'rgba(255,255,255,0.02)',
-                          color: star <= npsRating ? 'var(--accent-gold)' : 'rgba(255,255,255,0.3)',
-                          fontSize: '18px',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        ★
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                )}
               </div>
             )}
 
-            {/* Optional note */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <label style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  {modalType === 'WAITER' ? 'Быстрые просьбы к официанту:' : 'Комментарий к счёту:'}
-                </label>
-              </div>
-
-              {modalType === 'WAITER' && (
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
-                  {['🧊 Лёд и вода', '🥢 Приборы и салфетки', '🍋 Лимон к чаю', '🧂 Соль / перец', '🥫 Дополнительный соус'].map((req) => {
-                    const isSelected = guestNote.includes(req);
-                    return (
-                      <button
-                        key={req}
-                        type="button"
-                        onClick={() => {
-                          if (isSelected) {
-                            setGuestNote((prev) => prev.replace(req, '').replace(/,\s*,/g, ',').replace(/^,\s*|,\s*$/g, '').trim());
-                          } else {
-                            setGuestNote((prev) => prev ? `${prev}, ${req}` : req);
-                          }
-                        }}
-                        style={{
-                          background: isSelected ? 'rgba(212, 175, 55, 0.22)' : 'rgba(255, 255, 255, 0.05)',
-                          border: isSelected ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
-                          color: isSelected ? 'var(--accent-gold)' : 'var(--text-muted)',
-                          borderRadius: '14px',
-                          padding: '4px 10px',
-                          fontSize: '11px',
-                          fontWeight: '600',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {isSelected ? `✓ ${req}` : `+ ${req}`}
-                      </button>
-                    );
-                  })}
+            {/* Optional note / quick requests */}
+            {(bar.show_quick_requests !== false || bar.show_comment_input !== false) && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    {modalType === 'WAITER' ? 'Быстрые просьбы к официанту:' : 'Комментарий к счёту:'}
+                  </label>
                 </div>
-              )}
 
-              <input
-                type="text"
-                placeholder={modalType === 'WAITER' ? 'Своя просьба / принести бокалы...' : 'Нужен раздельный чек / по безналу...'}
-                value={guestNote}
-                onChange={(e) => setGuestNote(e.target.value)}
-                style={{
-                  width: '100%',
-                  backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '12px',
-                  padding: '10px 14px',
-                  color: '#fff',
-                  fontSize: '13px',
-                  outline: 'none'
-                }}
-              />
-            </div>
+                {bar.show_quick_requests !== false && modalType === 'WAITER' && (
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                    {['🧊 Лёд и вода', '🥢 Приборы и салфетки', '🍋 Лимон к чаю', '🧂 Соль / перец', '🥫 Дополнительный соус'].map((req) => {
+                      const isSelected = guestNote.includes(req);
+                      return (
+                        <button
+                          key={req}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              setGuestNote((prev) => prev.replace(req, '').replace(/,\s*,/g, ',').replace(/^,\s*|,\s*$/g, '').trim());
+                            } else {
+                              setGuestNote((prev) => prev ? `${prev}, ${req}` : req);
+                            }
+                          }}
+                          style={{
+                            background: isSelected ? 'rgba(212, 175, 55, 0.22)' : 'rgba(255, 255, 255, 0.05)',
+                            border: isSelected ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
+                            color: isSelected ? 'var(--accent-gold)' : 'var(--text-muted)',
+                            borderRadius: '14px',
+                            padding: '4px 10px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {isSelected ? `✓ ${req}` : `+ ${req}`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {bar.show_comment_input !== false && (
+                  <input
+                    type="text"
+                    placeholder={modalType === 'WAITER' ? 'Своя просьба / принести бокалы...' : 'Нужен раздельный чек / по безналу...'}
+                    value={guestNote}
+                    onChange={(e) => setGuestNote(e.target.value)}
+                    style={{
+                      width: '100%',
+                      backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '12px',
+                      padding: '10px 14px',
+                      color: '#fff',
+                      fontSize: '13px',
+                      outline: 'none'
+                    }}
+                  />
+                )}
+              </div>
+            )}
 
             {/* Submit button */}
             <button

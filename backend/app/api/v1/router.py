@@ -6,6 +6,7 @@ from app.api.v1.media import router as media_router
 from app.api.v1.kiosk import router as kiosk_router
 from app.api.v1.translate import router as translate_router
 from app.api.v1.auth import router as auth_router
+from app.api.v1.reservations import router as reservations_router
 
 api_router = APIRouter()
 api_router.include_router(restaurants_router)
@@ -15,3 +16,4 @@ api_router.include_router(media_router)
 api_router.include_router(kiosk_router)
 api_router.include_router(translate_router)
 api_router.include_router(auth_router)
+api_router.include_router(reservations_router)

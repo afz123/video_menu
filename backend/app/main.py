@@ -58,8 +58,8 @@ class VideoStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
         response.headers["Accept-Ranges"] = "bytes"
-        if not response.headers.get("Cache-Control"):
-            response.headers["Cache-Control"] = "public, max-age=86400"
+        response.headers["Cache-Control"] = "public, max-age=604800, immutable"
+        response.headers["Access-Control-Allow-Origin"] = "*"
         return response
 
 # Mount video and asset storage with iOS Safari streaming support (HTTP 206 / Accept-Ranges)

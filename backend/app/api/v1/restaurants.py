@@ -8,8 +8,18 @@ from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger("video_menu.restaurants")
 
+from app.core.config import settings, DEFAULT_UI_CONFIG
+from sqlalchemy.orm.attributes import flag_modified
 from app.core.database import get_db
-from app.core.security import get_current_admin, check_restaurant_access, hash_password
+from app.core.security import (
+    get_current_admin,
+    check_restaurant_access,
+    hash_password,
+    hash_password_async,
+    generate_table_signature,
+    verify_table_signature
+)
+from app.core.business_engine import resolve_restaurant_engine_config
 from app.models.restaurant import Restaurant
 from app.models.category import Category
 from app.models.dish import Dish
@@ -85,9 +95,15 @@ async def create_restaurant(
         raise HTTPException(status_code=400, detail="Ресторан с таким slug уже существует")
 
     rest_dict = data.model_dump(exclude={"admin_password"})
+    ui_cfg = rest_dict.pop("ui_config", None)
+    if ui_cfg:
+        theme = rest_dict.get("theme_config") or {}
+        theme["ui_config"] = ui_cfg
+        rest_dict["theme_config"] = theme
+
     restaurant = Restaurant(**rest_dict)
     if data.admin_password:
-        restaurant.admin_password_hash = hash_password(data.admin_password.strip())
+        restaurant.admin_password_hash = await hash_password_async(data.admin_password.strip())
 
     db.add(restaurant)
     await db.commit()
@@ -131,7 +147,14 @@ async def update_restaurant(
     if "admin_password" in update_dict:
         raw_pwd = update_dict.pop("admin_password")
         if raw_pwd and raw_pwd.strip():
-            restaurant.admin_password_hash = hash_password(raw_pwd.strip())
+            restaurant.admin_password_hash = await hash_password_async(raw_pwd.strip())
+
+    if "ui_config" in update_dict:
+        ui_cfg = update_dict.pop("ui_config")
+        current_theme = dict(restaurant.theme_config or {})
+        current_theme["ui_config"] = ui_cfg
+        restaurant.theme_config = current_theme
+        flag_modified(restaurant, "theme_config")
 
     for key, value in update_dict.items():
         setattr(restaurant, key, value)
@@ -154,23 +177,50 @@ async def update_restaurant_theme(
     check_restaurant_access(current_admin, restaurant.id)
     
     restaurant.theme_config = theme_config
+    flag_modified(restaurant, "theme_config")
     await db.commit()
     return {"status": "success", "theme_config": restaurant.theme_config}
+
+@router.put("/{slug}/ui-config")
+async def update_restaurant_ui_config(
+    slug: str,
+    ui_config: Dict[str, Any] = Body(...),
+    current_admin: str = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    restaurant = await find_restaurant_by_slug(slug, db)
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Ресторан не найден")
+
+    check_restaurant_access(current_admin, restaurant.id)
+    
+    current_theme = dict(restaurant.theme_config or {})
+    current_theme["ui_config"] = ui_config
+    restaurant.theme_config = current_theme
+    flag_modified(restaurant, "theme_config")
+    await db.commit()
+    await db.refresh(restaurant)
+    return {
+        "status": "success",
+        "ui_config": (restaurant.theme_config or {}).get("ui_config", DEFAULT_UI_CONFIG)
+    }
 
 @router.get("/{slug}/full-menu")
 async def get_restaurant_full_menu(
     slug: str,
     include_unavailable: bool = False,
+    table: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """
     Optimized single-query tree endpoint delivering the complete localized menu.
-    Includes badges, modifiers, pairings, and dayparting schedules.
+    Includes badges, modifiers, pairings, dayparting schedules, and white-label business engine.
     """
     options = [
         selectinload(Restaurant.categories)
         .selectinload(Category.dishes)
-        .selectinload(Dish.media)
+        .selectinload(Dish.media),
+        selectinload(Restaurant.dining_tables)
     ]
     restaurant = await find_restaurant_by_slug(slug, db, options=options)
     if not restaurant:
@@ -228,6 +278,14 @@ async def get_restaurant_full_menu(
             "dishes": dishes_list
         })
 
+    # White-Label engine config resolution
+    engine_config = resolve_restaurant_engine_config(restaurant.theme_config)
+
+    # Generate HMAC table signature if table query parameter is provided
+    table_sig = None
+    if table and table.strip():
+        table_sig = generate_table_signature(restaurant.id, table.strip())
+
     return {
         "restaurant": {
             "id": restaurant.id,
@@ -241,11 +299,77 @@ async def get_restaurant_full_menu(
             "service_charge_percent": restaurant.service_charge_percent if restaurant.service_charge_percent is not None else 10.0,
             "telegram_enabled": bool(restaurant.telegram_enabled),
             "theme": restaurant.theme_config or {},
+            "ui_config": (restaurant.theme_config or {}).get("ui_config", DEFAULT_UI_CONFIG),
+            "engine_config": engine_config,
             "supported_locales": restaurant.supported_locales or ["ru", "en", "tj"],
-            "default_locale": restaurant.default_locale or "ru"
+            "default_locale": restaurant.default_locale or "ru",
+            "table_number": table.strip() if table else None,
+            "table_signature": table_sig,
+            "available_tables": [t.table_number for t in getattr(restaurant, "dining_tables", []) if t.is_active]
         },
         "categories": categories_data
     }
+
+# -------------------------------------------------------------
+# Table Cryptographic Verification & White-Label Config
+# -------------------------------------------------------------
+
+@router.get("/{slug}/table-signature")
+async def get_table_signature(
+    slug: str,
+    table: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Generates an HMAC-SHA256 signature for a specific table."""
+    restaurant = await find_restaurant_by_slug(slug, db)
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Ресторан не найден")
+    sig = generate_table_signature(restaurant.id, table.strip())
+    return {
+        "restaurant_id": restaurant.id,
+        "table_number": table.strip(),
+        "signature": sig,
+        "signed_url": f"/menu/{slug}?table={table.strip()}&sign={sig}"
+    }
+
+@router.get("/{slug}/table-signatures")
+async def get_table_signatures(
+    slug: str,
+    count: Optional[int] = 50,
+    tables: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """Batch-generates HMAC signatures for QR code generators and physical tent printing."""
+    restaurant = await find_restaurant_by_slug(slug, db)
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Ресторан не найден")
+
+    table_list = []
+    if tables:
+        table_list = [t.strip() for t in tables.split(",") if t.strip()]
+    else:
+        table_list = [str(i) for i in range(1, max(1, min(100, count or 50)) + 1)]
+
+    results = []
+    for t in table_list:
+        sig = generate_table_signature(restaurant.id, t)
+        results.append({
+            "table_number": t,
+            "signature": sig,
+            "signed_url": f"/menu/{slug}?table={t}&sign={sig}"
+        })
+    return results
+
+@router.get("/{slug}/engine-config")
+async def get_restaurant_engine_config(
+    slug: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Returns resolved White-Label configuration for dynamic UI rendering."""
+    restaurant = await find_restaurant_by_slug(slug, db)
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Ресторан не найден")
+    return resolve_restaurant_engine_config(restaurant.theme_config)
 
 # -------------------------------------------------------------
 # Smart Table Service (Call Waiter, Request Bill, Guest Orders)
@@ -262,6 +386,16 @@ async def create_service_request(
     if not restaurant:
         raise HTTPException(status_code=404, detail="Ресторан не найден")
 
+    normalized_table = data.table_number.strip()
+
+    # Anti-spoofing table signature verification
+    if data.table_token:
+        is_valid_sig = verify_table_signature(restaurant.id, normalized_table, data.table_token)
+        if not is_valid_sig and getattr(settings, "ENFORCE_TABLE_SIGNATURE", False):
+            raise HTTPException(status_code=403, detail="Недействительная цифровая подпись стола")
+    elif getattr(settings, "ENFORCE_TABLE_SIGNATURE", False):
+        raise HTTPException(status_code=403, detail="Отсутствует обязательная цифровая подпись стола")
+
     # Anti-spam rate-limit / debounce for waiter calls (45s window)
     if data.request_type != "order":
         from datetime import datetime, timedelta
@@ -269,7 +403,7 @@ async def create_service_request(
         recent_req = await db.execute(
             select(ServiceRequest).where(
                 ServiceRequest.restaurant_id == restaurant.id,
-                ServiceRequest.table_number == data.table_number.strip(),
+                ServiceRequest.table_number == normalized_table,
                 ServiceRequest.request_type == data.request_type,
                 ServiceRequest.status == "PENDING",
                 ServiceRequest.created_at >= cutoff
@@ -281,8 +415,8 @@ async def create_service_request(
                 detail="Официант уже уведомлен о вашем вызове и направляется к вашему столу!"
             )
 
-    # Stop-list validation for orders
-    if data.request_type == "order" and data.cart_items:
+    # Stop-list validation with row-level locking (P0: 1.2 Race Condition fix)
+    if data.request_type in ("order", "repeat_order") and data.cart_items:
         dish_ids = [
             int(item.get("dish_id") or item.get("id"))
             for item in data.cart_items
@@ -291,33 +425,75 @@ async def create_service_request(
         if dish_ids:
             query = select(Dish).where(
                 Dish.restaurant_id == restaurant.id,
-                Dish.id.in_(dish_ids),
-                Dish.is_available == False
+                Dish.id.in_(dish_ids)
             )
+            # Use transactional row-level lock on PostgreSQL
+            bind = db.bind
+            if bind and "postgresql" in bind.dialect.name:
+                query = query.with_for_update()
+
             res = await db.execute(query)
-            unavailable = res.scalars().all()
-            if unavailable:
-                names = [d.name_translations.get("ru") or str(d.id) for d in unavailable]
+            locked_dishes = {d.id: d for d in res.scalars().all()}
+            stopped_names = [
+                d.name_translations.get("ru", str(d.id))
+                for d_id, d in locked_dishes.items()
+                if not d.is_available
+            ]
+            if stopped_names:
                 raise HTTPException(
-                    status_code=400,
-                    detail=f"Следующие позиции временно недоступны (в стоп-листе): {', '.join(names)}. Пожалуйста, обновите заказ."
+                    status_code=409,
+                    detail=f"Позиция только что встала на стоп: {', '.join(stopped_names)}. Пожалуйста, обновите выбор."
                 )
+
+    # Compute financial breakdown
+    subtotal = 0.0
+    if data.cart_items:
+        for it in data.cart_items:
+            qty = int(it.get("quantity", 1))
+            price = float(it.get("total_price") or it.get("price") or 0.0)
+            subtotal += price * qty
+
+    svc_percent = float(restaurant.service_charge_percent if restaurant.service_charge_percent is not None else 10.0)
+    svc_charge = subtotal * (svc_percent / 100.0)
+    tip_amt = float(data.tip_amount or 0.0)
+    if not tip_amt and data.tip_percent and subtotal > 0:
+        tip_amt = subtotal * (float(data.tip_percent) / 100.0)
+    grand_total = subtotal + svc_charge + tip_amt
 
     req = ServiceRequest(
         restaurant_id=restaurant.id,
-        table_number=data.table_number.strip(),
+        table_number=normalized_table,
         request_type=data.request_type,
+        guest_session_id=data.guest_session_id,
+        table_signature=data.table_token,
         guest_comment=data.guest_comment,
         cart_items=data.cart_items or [],
+        subtotal_amount=round(subtotal, 2),
+        service_charge_amount=round(svc_charge, 2),
+        total_amount=round(grand_total, 2),
+        currency=restaurant.currency or "TJS",
+        nps_score=data.nps_score,
         status="PENDING"
     )
     db.add(req)
     await db.commit()
     await db.refresh(req)
 
-    # Deliver reliable alert to staff Telegram group via FastAPI BackgroundTasks
+    # Telegram alerts dispatch via FastAPI BackgroundTasks
     if restaurant.telegram_enabled and restaurant.telegram_bot_token and restaurant.telegram_chat_id:
         try:
+            # High-priority alert if low NPS rating (1-3 stars)
+            if data.nps_score is not None and int(data.nps_score) <= 3:
+                background_tasks.add_task(
+                    TelegramService.notify_low_nps_alert,
+                    bot_token=restaurant.telegram_bot_token,
+                    chat_id=restaurant.telegram_chat_id,
+                    restaurant_name=restaurant.name,
+                    table_number=req.table_number,
+                    nps_score=int(data.nps_score),
+                    guest_comment=data.guest_comment
+                )
+
             background_tasks.add_task(
                 TelegramService.notify_service_request,
                 bot_token=restaurant.telegram_bot_token,
@@ -327,8 +503,9 @@ async def create_service_request(
                 request_type=req.request_type,
                 guest_comment=req.guest_comment,
                 cart_items=req.cart_items,
-                service_charge_percent=restaurant.service_charge_percent if restaurant.service_charge_percent is not None else 10.0,
-                restaurant_currency=restaurant.currency or "TJS"
+                service_charge_percent=svc_percent,
+                restaurant_currency=restaurant.currency or "TJS",
+                tip_amount=tip_amt
             )
         except Exception as e:
             logger.error(f"Failed to queue telegram notification: {e}")
@@ -369,6 +546,8 @@ async def update_service_request_status(
     check_restaurant_access(current_admin, req.restaurant_id)
 
     req.status = data.status
+    if data.acknowledged_by:
+        req.acknowledged_by = data.acknowledged_by
     await db.commit()
     await db.refresh(req)
     return req
