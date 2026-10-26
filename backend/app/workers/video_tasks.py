@@ -22,42 +22,45 @@ async def transcode_video_task(asset_id: int, temp_file_path_str: str, is_image:
         is_image = True
 
     async with TRANSCODE_SEMAPHORE:
+        urls = None
+        error_msg = None
+        try:
+            if not temp_path.exists() or temp_path.stat().st_size == 0:
+                raise ValueError("Загруженный файл пуст (0 байт) или повреждён.")
+
+            logger.info(f"Worker started processing asset {asset_id} (is_image={is_image})...")
+            if is_image:
+                urls = await VideoTranscodeService.process_image(
+                    input_path=str(temp_path),
+                    output_dir=settings.VIDEOS_DIR,
+                    asset_id=asset_id
+                )
+            else:
+                urls = await VideoTranscodeService.process_video(
+                    input_path=str(temp_path),
+                    output_dir=settings.VIDEOS_DIR,
+                    asset_id=asset_id
+                )
+        except Exception as e:
+            logger.error(f"Error processing asset {asset_id}: {e}", exc_info=True)
+            error_msg = str(e)
+
+        # DB session is acquired briefly only to commit status and URLs
         session = await get_session()
         async with session as db:
-            try:
-                if not temp_path.exists() or temp_path.stat().st_size == 0:
-                    raise ValueError("Загруженный файл пуст (0 байт) или повреждён.")
-
-                logger.info(f"Worker started processing asset {asset_id} (is_image={is_image})...")
-                if is_image:
-                    urls = await VideoTranscodeService.process_image(
-                        input_path=str(temp_path),
-                        output_dir=settings.VIDEOS_DIR,
-                        asset_id=asset_id
-                    )
-                else:
-                    urls = await VideoTranscodeService.process_video(
-                        input_path=str(temp_path),
-                        output_dir=settings.VIDEOS_DIR,
-                        asset_id=asset_id
-                    )
-                
-                asset = await db.get(MediaAsset, asset_id)
-                if asset:
+            asset = await db.get(MediaAsset, asset_id)
+            if asset:
+                if urls:
                     asset.poster_lqip_url = urls["poster_lqip"]
                     asset.poster_hd_url = urls["poster_hd"]
                     asset.video_mobile_url = urls["video_mobile"]
                     asset.video_kiosk_url = urls["video_kiosk"]
                     asset.file_size_bytes = urls["file_size_bytes"]
                     asset.status = "READY"
-                    await db.commit()
                     logger.info(f"Asset {asset_id} successfully converted and marked READY")
-            except Exception as e:
-                logger.error(f"Error processing asset {asset_id}: {e}", exc_info=True)
-                asset = await db.get(MediaAsset, asset_id)
-                if asset:
+                else:
                     asset.status = "FAILED"
-                    asset.error_message = str(e)
-                    await db.commit()
-            finally:
-                StorageService.cleanup_file(temp_path)
+                    asset.error_message = error_msg
+                await db.commit()
+
+        StorageService.cleanup_file(temp_path)

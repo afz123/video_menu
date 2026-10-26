@@ -43,7 +43,7 @@
       "title": { "ru": "Официант", "en": "Waiter", "tj": "Пешхидмат" },
       "icon": "bell",
       "target_role": "waitstaff",
-      "cooldown_seconds": 90,
+      "cooldown_seconds": 45,
       "quick_presets": ["Приборы", "Вода со льдом", "Салфетки"]
     },
     {
@@ -51,7 +51,7 @@
       "title": { "ru": "Сомелье", "en": "Sommelier", "tj": "Сомелье" },
       "icon": "wine",
       "target_role": "sommelier",
-      "cooldown_seconds": 180,
+      "cooldown_seconds": 120,
       "quick_presets": ["Винная карта", "Пейринг к мясу"]
     },
     {
@@ -59,7 +59,7 @@
       "title": { "ru": "Кальянщик", "en": "Hookah Master", "tj": "Устои калян" },
       "icon": "flame",
       "target_role": "hookah_lounge",
-      "cooldown_seconds": 120,
+      "cooldown_seconds": 90,
       "quick_presets": ["Замена углей", "Обновить чашу"]
     },
     {
@@ -67,7 +67,7 @@
       "title": { "ru": "Управляющий", "en": "Manager", "tj": "Мудир" },
       "icon": "briefcase",
       "target_role": "general_manager",
-      "cooldown_seconds": 300,
+      "cooldown_seconds": 180,
       "quick_presets": ["Особый вопрос", "Банкет"]
     }
   ],
