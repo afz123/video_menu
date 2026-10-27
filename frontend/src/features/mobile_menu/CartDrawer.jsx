@@ -38,13 +38,11 @@ export const CartDrawer = ({
   const [orderSentSuccess, setOrderSentSuccess] = useState(false);
   const [showWaiterScreen, setShowWaiterScreen] = useState(false);
 
-  // F&B Split-Bill & Tip Tiers
   const [splitCount, setSplitCount] = useState(1);
-  const [tipPercent, setTipPercent] = useState(10); // 10% standard tip
+  const [tipPercent, setTipPercent] = useState(10);
   const [isSmartSplitOpen, setIsSmartSplitOpen] = useState(false);
   const [, forceUpdate] = useState(0);
 
-  // Sync if tableNumber changes
   useEffect(() => {
     if (tableNumber) {
       setTable(tableNumber);
@@ -52,14 +50,14 @@ export const CartDrawer = ({
   }, [tableNumber]);
 
   const isRepeatOrder = typeof window !== 'undefined' && Boolean(sessionStorage.getItem('guest_ordered_' + (restaurantSlug || 'menu')));
-
   const activeCurrency = currency || cartItems[0]?.dish?.currency || 'TJS';
 
   const subtotal = cartItems.reduce((acc, item) => {
     return acc + (Number(item.totalPrice) || 0) * (item.quantity || 1);
   }, 0);
+
   const serviceCharge = cartUI.show_service_charge !== false ? subtotal * (Number(serviceChargePercent) / 100) : 0;
-  const tipAmount = tipPercent > 0 ? (subtotal * tipPercent / 100) : 0;
+  const tipAmount = (cartUI.show_tip_tiers !== false && tipPercent > 0) ? (subtotal * tipPercent / 100) : 0;
   const grandTotal = subtotal + serviceCharge + tipAmount;
   const splitAmount = grandTotal / Math.max(1, splitCount);
 
@@ -95,8 +93,8 @@ export const CartDrawer = ({
         guest_session_id: guestSessionId || undefined,
         request_type: isRepeatOrder ? 'repeat_order' : 'order',
         guest_comment: orderComment,
-        tip_percent: tipPercent,
-        tip_amount: tipAmount,
+        tip_percent: cartUI.show_tip_tiers !== false ? tipPercent : undefined,
+        tip_amount: cartUI.show_tip_tiers !== false ? tipAmount : undefined,
         cart_items: cartItems.map((item) => ({
           dish_id: item.dish.id,
           id: item.dish.id,
@@ -104,7 +102,7 @@ export const CartDrawer = ({
           quantity: item.quantity || 1,
           price: item.totalPrice,
           currency: item.dish.currency,
-          course: coursesEnabled ? (item.course || 'По готовности кухни') : undefined,
+          course: item.course || 'По готовности кухни',
           chosen_options: item.chosenOptions || [],
           comment: item.comment || ''
         }))
@@ -123,8 +121,7 @@ export const CartDrawer = ({
     }
   };
 
-  // Full-Screen Waiter Presentation Screen
-  if (showWaiterScreen) {
+  if (showWaiterScreen && cartUI.show_waiter_screen_btn !== false) {
     return (
       <div
         style={{
@@ -204,13 +201,13 @@ export const CartDrawer = ({
             <span>Стоимость блюд:</span>
             <span>{subtotal.toFixed(0)} {activeCurrency}</span>
           </div>
-          {serviceCharge > 0 && (
+          {cartUI.show_service_charge !== false && serviceCharge > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: 'rgba(212, 175, 55, 0.9)' }}>
               <span>Обслуживание ({serviceChargePercent}%):</span>
               <span>+{serviceCharge.toFixed(1)} {activeCurrency}</span>
             </div>
           )}
-          {tipAmount > 0 && (
+          {cartUI.show_tip_tiers !== false && tipAmount > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#4ade80' }}>
               <span>Чаевые ({tipPercent}%):</span>
               <span>+{tipAmount.toFixed(1)} {activeCurrency}</span>
@@ -277,7 +274,6 @@ export const CartDrawer = ({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Drawer Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '24px', color: '#fff', margin: 0 }}>
@@ -319,7 +315,6 @@ export const CartDrawer = ({
           </button>
         </div>
 
-        {/* Content Body */}
         {orderSentSuccess ? (
           <div style={{ textAlign: 'center', padding: '36px 16px' }}>
             <div
@@ -345,25 +340,20 @@ export const CartDrawer = ({
               Официант уже спешит к столу <strong style={{ color: 'var(--accent-gold)' }}>№{table}</strong> для подтверждения и передачи в цех.
             </p>
 
-            {/* Live Status Tracker */}
             {cartUI.show_live_status_tracker !== false && (
               <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(212, 175, 55, 0.25)', borderRadius: '16px', padding: '16px 14px', marginBottom: '24px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
-                  {/* Progress Line */}
                   <div style={{ position: 'absolute', top: '14px', left: '24px', right: '24px', height: '2px', background: 'rgba(255,255,255,0.1)', zIndex: 1 }}>
                     <div style={{ width: '50%', height: '100%', background: 'var(--accent-gold)' }} />
                   </div>
-                  {/* Step 1 */}
                   <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
                     <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--accent-gold)', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '800' }}>✓</div>
                     <span style={{ fontSize: '11px', color: '#fff', fontWeight: '600' }}>Принят</span>
                   </div>
-                  {/* Step 2 */}
                   <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(212, 175, 55, 0.25)', border: '2px solid var(--accent-gold)', color: 'var(--accent-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px' }}>👨‍🍳</div>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(212, 175, 55, 0.25)', border: '2px solid var(--accent-gold)', color: 'var(--accent-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px' }}>👨🍳</div>
                     <span style={{ fontSize: '11px', color: 'var(--accent-gold)', fontWeight: '700' }}>Готовится</span>
                   </div>
-                  {/* Step 3 */}
                   <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
                     <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.08)', color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>🍽️</div>
                     <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>Подача</span>
@@ -394,7 +384,6 @@ export const CartDrawer = ({
           </div>
         ) : (
           <>
-            {/* Table Number Bar with QR Lock Protection */}
             {isTableFromQr && !isEditingTable ? (
               <div
                 style={{
@@ -489,7 +478,6 @@ export const CartDrawer = ({
               </div>
             )}
 
-            {/* Cart Items List with 1-Tap Course Switcher */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '36vh', overflowY: 'auto', marginBottom: '14px' }}>
               {cartItems.map((item, idx) => (
                 <div
@@ -509,7 +497,6 @@ export const CartDrawer = ({
                     <div style={{ fontSize: '14px', fontWeight: '600', color: '#fff' }}>
                       {t(item.dish.name)}
                     </div>
-                    {/* Course Badge with quick cycle */}
                     {coursesEnabled && (
                       <button
                         type="button"
@@ -544,7 +531,6 @@ export const CartDrawer = ({
                     </div>
                   </div>
 
-                  {/* Quantity controls */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <button
                       onClick={() => onUpdateQty(idx, -1)}
@@ -588,10 +574,8 @@ export const CartDrawer = ({
               ))}
             </div>
 
-            {/* Split-Bill & Tip Tiers Section */}
             {((cartUI.show_split_bill !== false) || (cartUI.show_tip_tiers !== false)) && (
               <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.02)', borderRadius: '12px', padding: '10px 12px', marginBottom: '12px', border: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {/* Split-Bill Toggle */}
                 {cartUI.show_split_bill !== false && (
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
@@ -629,7 +613,6 @@ export const CartDrawer = ({
                       </div>
                     )}
 
-                    {/* Кнопка умного попозиционного разделения «Кто что ел + Общий стол» */}
                     {cartUI.show_smart_item_split !== false && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px' }}>
                         <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.6)' }}>Позиционный расчет:</span>
@@ -658,7 +641,6 @@ export const CartDrawer = ({
                   </>
                 )}
 
-                {/* Tip Tiers */}
                 {cartUI.show_tip_tiers !== false && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: cartUI.show_split_bill !== false ? '4px' : '0', borderTop: cartUI.show_split_bill !== false ? '1px solid rgba(255, 255, 255, 0.05)' : 'none' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#fff' }}>
@@ -696,13 +678,12 @@ export const CartDrawer = ({
               </div>
             )}
 
-            {/* Footer Summary & Dual Actions */}
             <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
                 <span>Блюда:</span>
                 <span>{subtotal.toFixed(0)} {activeCurrency}</span>
               </div>
-              {serviceCharge > 0 && (
+              {cartUI.show_service_charge !== false && serviceCharge > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'rgba(212, 175, 55, 0.9)' }}>
                   <span>Обслуживание ({serviceChargePercent}%):</span>
                   <span>+{serviceCharge.toFixed(1)} {activeCurrency}</span>
@@ -779,8 +760,7 @@ export const CartDrawer = ({
         )}
       </div>
 
-      {/* Модальное окно попозиционного разделения счета с общим столом */}
-      {isSmartSplitOpen && (
+      {isSmartSplitOpen && cartUI.show_smart_item_split !== false && (
         <SmartBillSplitModal
           cartItems={cartItems}
           currency={activeCurrency}

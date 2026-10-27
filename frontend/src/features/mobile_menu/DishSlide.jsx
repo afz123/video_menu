@@ -22,7 +22,7 @@ export const DishSlide = ({
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   const toggleDetails = () => {
-    if (!card.show_details_toggle) return;
+    if (card.show_details_toggle === false) return;
     const next = !isDetailsOpen;
     setIsDetailsOpen(next);
     if (onDetailsToggle) onDetailsToggle(next);
@@ -56,7 +56,6 @@ export const DishSlide = ({
         overflow: 'hidden'
       }}
     >
-      {/* 1. Background Video Stream or Static Image (Hardware-safe WebKit Virtualization) */}
       {shouldMountMedia ? (
         <VideoPlayer
           lqip={dish.media?.lqip}
@@ -75,8 +74,7 @@ export const DishSlide = ({
         />
       )}
 
-      {/* 2. Top/Middle Badges Ribbon */}
-      {card.show_badges && badges.length > 0 && (
+      {card.show_badges !== false && badges.length > 0 && (
         <div
           style={{
             position: 'absolute',
@@ -116,7 +114,6 @@ export const DishSlide = ({
         </div>
       )}
 
-      {/* 3. Cinematic Bottom Vignette Gradient */}
       <div
         style={{
           position: 'absolute',
@@ -130,7 +127,6 @@ export const DishSlide = ({
         }}
       />
 
-      {/* 4. Floating Bottom Luxury Card */}
       <div
         style={{
           position: 'absolute',
@@ -150,7 +146,6 @@ export const DishSlide = ({
             boxShadow: '0 12px 36px rgba(0, 0, 0, 0.75)'
           }}
         >
-          {/* Header row: Dish name & Price */}
           <div
             style={{
               display: 'flex',
@@ -161,7 +156,7 @@ export const DishSlide = ({
             }}
           >
             <div>
-              {dish.is_featured && card.show_badges && (
+              {dish.is_featured && card.show_badges !== false && (
                 <div
                   style={{
                     display: 'inline-flex',
@@ -194,7 +189,7 @@ export const DishSlide = ({
               </h2>
             </div>
 
-            {card.show_price && (
+            {card.show_price !== false && (
               <div
                 style={{
                   textAlign: 'right',
@@ -216,8 +211,7 @@ export const DishSlide = ({
             )}
           </div>
 
-          {/* Short description preview */}
-          {card.show_short_description && shortDesc && (
+          {card.show_short_description !== false && shortDesc && (
             <p
               className={isDetailsOpen ? '' : 'line-clamp-2'}
               style={{
@@ -233,8 +227,7 @@ export const DishSlide = ({
             </p>
           )}
 
-          {/* Sommelier Pairing Suggestion (Interactive 1-Click Upsell) */}
-          {card.show_sommelier_pairing && pairings.length > 0 && pairings[0]?.text && (
+          {card.show_sommelier_pairing !== false && pairings.length > 0 && pairings[0]?.text && (
             <div
               style={{
                 display: 'flex',
@@ -252,7 +245,7 @@ export const DishSlide = ({
                 <Wine size={16} style={{ flexShrink: 0 }} />
                 <span style={{ lineHeight: '1.3', fontWeight: '500' }}>{pairings[0].text}</span>
               </div>
-              {card.show_add_to_cart_btn && (
+              {card.show_add_to_cart_btn !== false && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -287,7 +280,6 @@ export const DishSlide = ({
             </div>
           )}
 
-          {/* Expanded extra attributes */}
           {isDetailsOpen && (
             <div
               className="animate-fade-in"
@@ -301,8 +293,7 @@ export const DishSlide = ({
                 fontSize: '13px'
               }}
             >
-              {/* Ingredients */}
-              {card.show_ingredients && ingredients && (
+              {card.show_ingredients !== false && ingredients && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                   <span style={{ color: 'var(--accent-gold)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     🌿 Состав и ингредиенты:
@@ -313,8 +304,7 @@ export const DishSlide = ({
                 </div>
               )}
 
-              {/* Serving details */}
-              {card.show_serving_details && serving && (
+              {card.show_serving_details !== false && serving && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                   <span style={{ color: 'var(--accent-gold)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     🍽️ Особенности подачи:
@@ -325,16 +315,14 @@ export const DishSlide = ({
                 </div>
               )}
 
-              {/* Calories */}
-              {card.show_calories && dish.calories && (
+              {card.show_calories !== false && dish.calories && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
                   <span>Энергетическая ценность:</span>
                   <span style={{ color: 'var(--text-main)', fontWeight: '600' }}>{dish.calories}</span>
                 </div>
               )}
 
-              {/* Allergens */}
-              {card.show_allergens && dish.allergens && dish.allergens.length > 0 && (
+              {card.show_allergens !== false && dish.allergens && dish.allergens.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b' }}>
                   <AlertCircle size={14} />
                   <span>Аллергены: {dish.allergens.join(', ')}</span>
@@ -343,7 +331,6 @@ export const DishSlide = ({
             </div>
           )}
 
-          {/* Footer row: Grams & Detail toggle & Add to Order button */}
           <div
             style={{
               display: 'flex',
@@ -356,8 +343,8 @@ export const DishSlide = ({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {card.show_weight && <span>{dish.weight || '300 г'}</span>}
-              {card.show_details_toggle && (
+              {card.show_weight !== false && <span>{dish.weight || '300 г'}</span>}
+              {card.show_details_toggle !== false && (
                 <span
                   onClick={(e) => {
                     e.stopPropagation();
@@ -378,8 +365,7 @@ export const DishSlide = ({
               )}
             </div>
 
-            {/* Quick Add to Cart button */}
-            {card.show_add_to_cart_btn && (
+            {card.show_add_to_cart_btn !== false && (
               <button
                 type="button"
                 onClick={(e) => {

@@ -114,7 +114,7 @@ export const MobileHeader = ({
           }}
         >
           {/* Left: Open Category Drawer Button */}
-          {header.show_categories_drawer ? (
+          {header.show_categories_drawer !== false ? (
             <button
               onClick={() => setIsCategoryDrawerOpen(true)}
               style={{
@@ -164,7 +164,7 @@ export const MobileHeader = ({
               textAlign: 'center'
             }}
           >
-            {header.show_brand_name && (
+            {header.show_brand_name !== false && (
               <div
                 style={{
                   fontFamily: 'var(--font-serif)',
@@ -179,10 +179,10 @@ export const MobileHeader = ({
                 {restaurantName}
               </div>
             )}
-            {header.show_table_badge && tableNumber && (
+            {header.show_table_badge !== false && tableNumber && (
               <button
                 type="button"
-                onClick={header.show_change_table_btn ? onChangeTable : undefined}
+                onClick={header.show_change_table_btn !== false ? onChangeTable : undefined}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -195,17 +195,17 @@ export const MobileHeader = ({
                   fontSize: '11px',
                   fontWeight: '700',
                   color: 'var(--accent-gold)',
-                  cursor: header.show_change_table_btn && onChangeTable ? 'pointer' : 'default'
+                  cursor: (header.show_change_table_btn !== false && onChangeTable) ? 'pointer' : 'default'
                 }}
               >
                 <span>📍 Стол №{tableNumber}</span>
-                {header.show_change_table_btn && <span style={{ fontSize: '9px', opacity: 0.7 }}>✎</span>}
+                {header.show_change_table_btn !== false && <span style={{ fontSize: '9px', opacity: 0.7 }}>✎</span>}
               </button>
             )}
           </div>
 
           {/* Right: Language Pill */}
-          {header.show_language_picker ? (
+          {header.show_language_picker !== false ? (
             <button
               onClick={() => setIsLanguageDrawerOpen(true)}
               style={{
@@ -235,7 +235,7 @@ export const MobileHeader = ({
         </div>
 
         {/* ROW 2: Horizontal Scrollable Category Pills */}
-        {header.show_category_pills && categories.length > 0 && (
+        {header.show_category_pills !== false && categories.length > 0 && (
           <div
             ref={scrollRef}
             style={{
@@ -306,7 +306,7 @@ export const MobileHeader = ({
         )}
 
         {/* ROW 3: Quick Dietary & Taste Filter Chips */}
-        {header.show_dietary_chips && onSelectBadgeFilter && (
+        {header.show_dietary_chips !== false && onSelectBadgeFilter && (
           <div
             style={{
               display: 'flex',

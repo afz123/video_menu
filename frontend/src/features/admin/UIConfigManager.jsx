@@ -8,24 +8,28 @@ import {
   Check,
   Eye,
   EyeOff,
-  Sparkles,
   Smartphone,
   Tv,
   ShoppingBag,
   Bell,
   Utensils,
+  LayoutGrid,
   Flame,
   ChefHat
 } from 'lucide-react';
 
 export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
   const [config, setConfig] = useState(() => {
-    const base = { ...DEFAULT_UI_CONFIG };
-    if (!initialConfig) return base;
-    Object.keys(DEFAULT_UI_CONFIG).forEach((sec) => {
+    const base = {};
+    const allSections = new Set([
+      ...Object.keys(DEFAULT_UI_CONFIG),
+      ...(initialConfig ? Object.keys(initialConfig) : [])
+    ]);
+
+    allSections.forEach((sec) => {
       base[sec] = {
-        ...DEFAULT_UI_CONFIG[sec],
-        ...(initialConfig[sec] || {})
+        ...(DEFAULT_UI_CONFIG[sec] || {}),
+        ...((initialConfig && initialConfig[sec]) || {})
       };
     });
     return base;
@@ -36,10 +40,15 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
 
   useEffect(() => {
     if (initialConfig) {
-      const base = { ...DEFAULT_UI_CONFIG };
-      Object.keys(DEFAULT_UI_CONFIG).forEach((sec) => {
+      const base = {};
+      const allSections = new Set([
+        ...Object.keys(DEFAULT_UI_CONFIG),
+        ...Object.keys(initialConfig)
+      ]);
+
+      allSections.forEach((sec) => {
         base[sec] = {
-          ...DEFAULT_UI_CONFIG[sec],
+          ...(DEFAULT_UI_CONFIG[sec] || {}),
           ...(initialConfig[sec] || {})
         };
       });
@@ -48,19 +57,23 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
   }, [initialConfig]);
 
   const toggle = (section, key) => {
-    setConfig((prev) => ({
-      ...prev,
-      [section]: {
-        ...(prev[section] || {}),
-        [key]: prev[section]?.[key] === false ? true : false
-      }
-    }));
+    setConfig((prev) => {
+      const currentSection = prev[section] || {};
+      const currentValue = currentSection[key] !== false;
+      return {
+        ...prev,
+        [section]: {
+          ...currentSection,
+          [key]: !currentValue
+        }
+      };
+    });
   };
 
   const setAllInSection = (section, value) => {
     setConfig((prev) => {
       const updatedSection = {};
-      const template = DEFAULT_UI_CONFIG[section] || {};
+      const template = DEFAULT_UI_CONFIG[section] || prev[section] || {};
       Object.keys(template).forEach((k) => {
         updatedSection[k] = value;
       });
@@ -74,7 +87,6 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
       try {
         await menuService.updateUIConfig(restaurantSlug, config);
       } catch (_) {
-        // Fallback to updateRestaurant if ui-config endpoint isn't reached
         await menuService.updateRestaurant(restaurantSlug, {
           ui_config: config
         });
@@ -89,27 +101,21 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
     }
   };
 
-  // Sections and descriptions for the visual configurator
   const SECTIONS = [
     {
-      id: 'dish_card',
-      title: 'Карточка блюда & Видео (Reels)',
-      icon: Utensils,
-      color: 'var(--accent-gold)',
+      id: 'admin_tabs',
+      title: 'Вкладки панели управления (Admin Panel)',
+      icon: LayoutGrid,
+      color: '#ec4899',
       items: [
-        { key: 'show_sound_toggle', label: 'Кнопка звука ASMR (динамик)', desc: 'Позволяет гостю включать звук шипения/готовки блюда' },
-        { key: 'show_price', label: 'Стоимость блюда и валюта', desc: 'Отображение цены позиции' },
-        { key: 'show_add_to_cart_btn', label: 'Кнопка «В заказ / Настроить»', desc: 'Если выключить — меню превращается в презентационный каталог без заказа' },
-        { key: 'show_badges', label: 'Маркетинговые бейджи', desc: 'Плашки «Хит», «Выбор Шефа», «NEW», «Острое» поверх видео' },
-        { key: 'show_short_description', label: 'Краткое описание', desc: 'Текст описания под названием блюда' },
-        { key: 'show_sommelier_pairing', label: 'Блок винного пейринга', desc: 'Рекомендация бокала вина / напитка к блюду (+18% к чеку)' },
-        { key: 'show_weight', label: 'Выход блюда / Граммовка', desc: 'Вес порции (например: 350 г или 400 мл)' },
-        { key: 'show_calories', label: 'Калории (Ккал / БЖУ)', desc: 'Энергетическая ценность блюда' },
-        { key: 'show_allergens', label: 'Предупреждение об аллергенах', desc: 'Орехи, лактоза, глютен и др.' },
-        { key: 'show_ingredients', label: 'Полный состав и ингредиенты', desc: 'Подробный список компонентов в карточке' },
-        { key: 'show_serving_details', label: 'Особенности подачи от шефа', desc: 'Температура, гарнировка, соусы' },
-        { key: 'show_details_toggle', label: 'Кнопка «Подробнее / Скрыть»', desc: 'Разворачивание полного состава по тапу' },
-        { key: 'show_slide_counter', label: 'Счетчик слайдов (1/12)', desc: 'Индикатор номера текущего блюда в категории' },
+        { key: 'show_dishes_tab', label: 'Вкладка «Позиции меню & Стоп-лист»', desc: 'Управление каталогом блюд, ценами и стоп-листом' },
+        { key: 'show_reservations_tab', label: 'Вкладка «Бронирование столов»', desc: 'Журнал броней, шахматка и рассадка' },
+        { key: 'show_service_requests_tab', label: 'Вкладка «Вызовы & Заказы»', desc: 'Монитор запросов гостей в реальном времени' },
+        { key: 'show_ui_config_tab', label: 'Вкладка «Конструктор UI»', desc: 'Переключатели интерфейса и визуальных блоков' },
+        { key: 'show_categories_tab', label: 'Вкладка «Управление разделами»', desc: 'Структура разделов кухни и бара' },
+        { key: 'show_settings_tab', label: 'Вкладка «Настройки заведения»', desc: 'Реквизиты, контакты, Telegram и пароли' },
+        { key: 'show_theme_tab', label: 'Вкладка «Стиль & Kiosk Display»', desc: 'Цветовая палитра и параметры киоска' },
+        { key: 'show_preview_tab', label: 'Вкладка «QR-коды & Ссылки»', desc: 'Генератор и печать QR-кодов столов' }
       ]
     },
     {
@@ -122,10 +128,31 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
         { key: 'show_table_badge', label: 'Бейдж стола «📍 Стол №...»', desc: 'Индикатор стола, за которым сидит гость' },
         { key: 'show_change_table_btn', label: 'Возможность сменить стол', desc: 'Разрешить гостю менять номер стола вручную' },
         { key: 'show_language_picker', label: 'Переключатель языка (RU/EN/TJ)', desc: 'Выбор языка меню гостем' },
-        { key: 'show_categories_drawer', label: 'Кнопка меню «Разделы»', desc: 'Боковое/нижнее меню выбора категории' },
+        { key: 'show_categories_drawer', label: 'Кнопка меню «Разделы»', desc: 'Нижнее меню быстрого выбора категории' },
         { key: 'show_category_pills', label: 'Горизонтальные табы категорий', desc: 'Кнопки быстрого переключения разделов' },
         { key: 'show_dietary_chips', label: 'Быстрые фильтры («Хиты», «Острое»)', desc: 'Чипсы для моментальной фильтрации' },
-        { key: 'show_table_booking_btn', label: 'Кнопка бронирования в меню («Разделы»)', desc: 'Позволяет гостям бронировать стол онлайн прямо из каталога' },
+        { key: 'show_table_booking_btn', label: 'Кнопка бронирования в меню («Разделы»)', desc: 'Позволяет гостям бронировать стол онлайн прямо из каталога' }
+      ]
+    },
+    {
+      id: 'dish_card',
+      title: 'Карточка блюда & Видео (Reels)',
+      icon: Utensils,
+      color: 'var(--accent-gold)',
+      items: [
+        { key: 'show_sound_toggle', label: 'Кнопка звука ASMR (динамик)', desc: 'Позволяет гостю включать звук шипения/готовки блюда' },
+        { key: 'show_slide_counter', label: 'Счетчик слайдов (1/12)', desc: 'Индикатор номера текущего блюда в категории' },
+        { key: 'show_badges', label: 'Маркетинговые бейджи', desc: 'Плашки «Хит», «Выбор Шефа», «NEW», «Острое» поверх видео' },
+        { key: 'show_price', label: 'Стоимость блюда и валюта', desc: 'Отображение цены позиции' },
+        { key: 'show_short_description', label: 'Краткое описание', desc: 'Текст описания под названием блюда' },
+        { key: 'show_sommelier_pairing', label: 'Блок винного пейринга', desc: 'Рекомендация бокала вина / напитка к блюду (+18% к чеку)' },
+        { key: 'show_weight', label: 'Выход блюда / Граммовка', desc: 'Вес порции (например: 350 г или 400 мл)' },
+        { key: 'show_calories', label: 'Калории (Ккал / БЖУ)', desc: 'Энергетическая ценность блюда' },
+        { key: 'show_allergens', label: 'Предупреждение об аллергенах', desc: 'Орехи, лактоза, глютен и др.' },
+        { key: 'show_ingredients', label: 'Полный состав и ингредиенты', desc: 'Подробный список компонентов в карточке' },
+        { key: 'show_serving_details', label: 'Особенности подачи от шефа', desc: 'Температура, гарнировка, соусы' },
+        { key: 'show_details_toggle', label: 'Кнопка «Подробнее / Скрыть»', desc: 'Разворачивание полного состава по тапу' },
+        { key: 'show_add_to_cart_btn', label: 'Кнопка «В заказ / Настроить»', desc: 'Если выключить — меню превращается в презентационный каталог' }
       ]
     },
     {
@@ -143,7 +170,7 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
         { key: 'show_comment_input', label: 'Поле ввода пожелания к вызову', desc: 'Текстовый комментарий официанту' },
         { key: 'allow_call_sommelier', label: 'Вызов сомелье (🍷)', desc: 'Разрешить гостям звать винного консультанта' },
         { key: 'allow_call_hookah', label: 'Вызов кальянного мастера (💨)', desc: 'Разрешить гостям звать кальянщика' },
-        { key: 'allow_call_admin', label: 'Вызов управляющего (👔)', desc: 'Разрешить гостям звать администратора зала' },
+        { key: 'allow_call_admin', label: 'Вызов управляющего (👔)', desc: 'Разрешить гостям звать администратора зала' }
       ]
     },
     {
@@ -152,17 +179,13 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
       icon: ShoppingBag,
       color: '#10b981',
       items: [
-        { key: 'allow_self_ordering', label: 'Кнопка «Отправить заказ на кухню»', desc: 'Прямая отправка чека персоналу' },
+        { key: 'allow_self_ordering', label: 'Кнопка «Отправить заказ на кухню»', desc: 'Прямая отправка заказа в зал/цех' },
         { key: 'show_waiter_screen_btn', label: 'Кнопка «Показать официанту»', desc: 'Полноэкранный режим показа экрана при личном заказе' },
         { key: 'show_service_charge', label: 'Строка «Обслуживание (10%)»', desc: 'Отображение сервисного сбора в чеке' },
-        { key: 'show_live_status_tracker', label: 'Живой трекер статуса заказа', desc: 'Индикатор: Принят -> Передан на кухню' },
+        { key: 'show_live_status_tracker', label: 'Живой трекер статуса заказа', desc: 'Индикатор: Принят -> Готовится -> Подача' },
         { key: 'show_split_bill', label: 'Калькулятор разделения счета (Split-Bill)', desc: 'Разделение суммы между гостями на 1–6 персон' },
-        { 
-          key: 'show_smart_item_split', 
-          label: 'Умный расчет «Кто что ел + Общий стол»', 
-          desc: 'Позволяет компании отметить, кто какие блюда съел, а невыбранные позиции (нарезки, вино, кальян) автоматически делит поровну между всеми.' 
-        },
-        { key: 'show_tip_tiers', label: 'Шкала чаевых официанту (10%, 15%, 20%)', desc: 'Быстрые кнопки чаевых команде зала' },
+        { key: 'show_smart_item_split', label: 'Умный расчет «Кто что ел + Общий стол»', desc: 'Позволяет отметить личные блюда и разделить общие позиции' },
+        { key: 'show_tip_tiers', label: 'Шкала чаевых официанту (10%, 15%, 20%)', desc: 'Быстрые кнопки чаевых команде зала' }
       ]
     },
     {
@@ -176,23 +199,7 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
         { key: 'show_qr_bridge_btn', label: 'Кнопка «Забрать меню на телефон»', desc: 'Большой QR-код передачи каталога на смартфон' },
         { key: 'show_details_modal', label: 'Полноэкранная карточка блюда', desc: 'Открытие видео и состава при тапе на блюдо' },
         { key: 'allow_sound_in_modal', label: 'Звук в карточке киоска', desc: 'Разрешить включение звука на уличном экране' },
-        { key: 'show_floor_plan', label: 'Интерактивная карта залов и столов (Floor Plan)', desc: 'Визуальный выбор стола на 2D-схеме ресторана' },
-      ]
-    },
-    {
-      id: 'admin_tabs',
-      title: 'Вкладки панели управления (Admin Panel)',
-      icon: Sliders,
-      color: '#ec4899',
-      items: [
-        { key: 'show_dishes_tab', label: 'Вкладка «Позиции меню & Стоп-лист»', desc: 'Управление блюдами, ценами и стоп-листом' },
-        { key: 'show_reservations_tab', label: 'Вкладка «Бронирование столов»', desc: 'Журнал броней, шахматка и рассадка' },
-        { key: 'show_service_requests_tab', label: 'Вкладка «Вызовы & Заказы»', desc: 'Монитор запросов гостей в реальном времени' },
-        { key: 'show_ui_config_tab', label: 'Вкладка «Конструктор UI»', desc: 'Рубильники и флаги интерфейса' },
-        { key: 'show_categories_tab', label: 'Вкладка «Управление разделами»', desc: 'Категории кухни и бара' },
-        { key: 'show_settings_tab', label: 'Вкладка «Настройки заведения»', desc: 'Реквизиты, контакты, Telegram и пароли' },
-        { key: 'show_theme_tab', label: 'Вкладка «Стиль & Kiosk Display»', desc: 'Цветовая палитра и параметры киоска' },
-        { key: 'show_preview_tab', label: 'Вкладка «QR-коды & Ссылки»', desc: 'Генератор и печать QR-кодов столов' },
+        { key: 'show_floor_plan', label: 'Интерактивная карта залов и столов (Floor Plan)', desc: 'Визуальный выбор стола на плане ресторана' }
       ]
     },
     {
@@ -245,7 +252,6 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* Top Banner */}
       <GlassCard style={{ padding: '24px 30px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
@@ -257,7 +263,7 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
               Управление элементами интерфейса
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '4px 0 0' }}>
-              Включайте и отключайте любые кнопки, цены, бейджи и звуки. Изменения моментально применяются на телефонах гостей.
+              Включайте и отключайте любые кнопки, цены, бейджи, звуки и вкладки админки. Изменения моментально сохраняются в БД.
             </p>
           </div>
 
@@ -280,7 +286,6 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
         </div>
       </GlassCard>
 
-      {/* Sections Grid */}
       {SECTIONS.map((sec) => {
         const Icon = sec.icon;
         const secConfig = config[sec.id] || {};
@@ -315,10 +320,9 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
               </div>
             </div>
 
-            {/* Grid of Toggles */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '14px' }}>
               {sec.items.map((item) => {
-                const isEnabled = secConfig[item.key] !== false; // По умолчанию включено
+                const isEnabled = secConfig[item.key] !== false;
 
                 return (
                   <div
@@ -346,7 +350,6 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
                       </div>
                     </div>
 
-                    {/* Apple-Style Switch */}
                     <div
                       style={{
                         width: '44px',
@@ -380,7 +383,6 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
         );
       })}
 
-      {/* Floating Save Bar */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
         <GoldButton
           variant="primary"

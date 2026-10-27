@@ -41,7 +41,6 @@ import {
   ChefHat
 } from 'lucide-react';
 
-
 export const DashboardLayout = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(() =>
     Boolean(sessionStorage.getItem('admin_session_token'))
@@ -49,7 +48,7 @@ export const DashboardLayout = () => {
   const [restaurants, setRestaurants] = useState([]);
   const [selectedSlug, setSelectedSlug] = useState('asr-royale');
   const [menuData, setMenuData] = useState(null);
-  const [activeTab, setActiveTab] = useState('dishes'); // 'dishes' | 'categories' | 'theme' | 'preview'
+  const [activeTab, setActiveTab] = useState('dishes');
   const [isDishModalOpen, setIsDishModalOpen] = useState(false);
   const [isCreateRestaurantOpen, setIsCreateRestaurantOpen] = useState(false);
   const [editingDish, setEditingDish] = useState(null);
@@ -57,9 +56,8 @@ export const DashboardLayout = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
 
-  // Smart Table Service Requests & Reservations
   const [serviceRequests, setServiceRequests] = useState([]);
-  const [serviceFilter, setServiceFilter] = useState('ALL'); // 'ALL' | 'PENDING' | 'COMPLETED'
+  const [serviceFilter, setServiceFilter] = useState('ALL');
   const [pendingReservationsCount, setPendingReservationsCount] = useState(0);
 
   const loadServiceRequests = async () => {
@@ -79,7 +77,7 @@ export const DashboardLayout = () => {
   const loadMenu = async () => {
     setIsLoading(true);
     try {
-      const res = await menuService.getFullMenu(selectedSlug, true); // true = include unavailable items for admin
+      const res = await menuService.getFullMenu(selectedSlug, true);
       setMenuData(res);
       await loadServiceRequests();
       await loadPendingReservationsCount();
@@ -107,7 +105,6 @@ export const DashboardLayout = () => {
 
   useEffect(() => {
     loadMenu();
-    // Poll service requests & pending reservations every 6 seconds
     const interval = setInterval(() => {
       loadServiceRequests();
       loadPendingReservationsCount();
@@ -115,7 +112,9 @@ export const DashboardLayout = () => {
     return () => clearInterval(interval);
   }, [selectedSlug]);
 
-  // Synchronize CSS variables when switching restaurant theme
+  const restaurant = menuData?.restaurant;
+  const categories = menuData?.categories || [];
+
   useEffect(() => {
     if (restaurant?.theme_config?.colors) {
       const colors = restaurant.theme_config.colors;
@@ -145,10 +144,6 @@ export const DashboardLayout = () => {
     }
   };
 
-  const restaurant = menuData?.restaurant;
-  const categories = menuData?.categories || [];
-
-  // All dishes combined for admin table
   const allDishes = categories.flatMap((c) =>
     c.dishes.map((d) => ({ ...d, categoryName: c.name?.ru || c.name?.en }))
   );
@@ -219,7 +214,6 @@ export const DashboardLayout = () => {
         padding: '32px 40px'
       }}
     >
-      {/* Top Header */}
       <header
         style={{
           display: 'flex',
@@ -237,13 +231,17 @@ export const DashboardLayout = () => {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
             <h1
-              onClick={() => setActiveTab('settings')}
+              onClick={() => {
+                if (adminTabsUI.show_settings_tab !== false) {
+                  setActiveTab('settings');
+                }
+              }}
               style={{
                 fontFamily: 'var(--font-serif)',
                 fontSize: '38px',
                 fontWeight: '600',
                 color: '#fff',
-                cursor: 'pointer',
+                cursor: adminTabsUI.show_settings_tab !== false ? 'pointer' : 'default',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '10px',
@@ -252,9 +250,11 @@ export const DashboardLayout = () => {
               title="Нажмите, чтобы изменить название и настройки заведения"
             >
               <span>{restaurant?.name || 'ASR Maison Royale'}</span>
-              <span style={{ fontSize: '13px', color: 'var(--accent-gold)', opacity: 0.8, backgroundColor: 'rgba(212, 175, 55, 0.12)', border: '1px solid rgba(212, 175, 55, 0.3)', borderRadius: '20px', padding: '2px 8px' }}>
-                изменить
-              </span>
+              {adminTabsUI.show_settings_tab !== false && (
+                <span style={{ fontSize: '13px', color: 'var(--accent-gold)', opacity: 0.8, backgroundColor: 'rgba(212, 175, 55, 0.12)', border: '1px solid rgba(212, 175, 55, 0.3)', borderRadius: '20px', padding: '2px 8px' }}>
+                  изменить
+                </span>
+              )}
             </h1>
 
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
@@ -300,7 +300,7 @@ export const DashboardLayout = () => {
                   gap: '6px',
                   transition: 'all 0.2s ease'
                 }}
-                title="Создать новый ресторан или филиал сети (Франшиза)"
+                title="Создать новый ресторан или филиал сети"
               >
                 <Building2 size={13} />
                 <span>+ Филиал</span>
@@ -309,7 +309,6 @@ export const DashboardLayout = () => {
           </div>
         </div>
 
-        {/* Action Buttons: Open Mobile & Open Kiosk */}
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
           <a
             href={mobileUrl}
@@ -344,36 +343,42 @@ export const DashboardLayout = () => {
             </GoldButton>
           </a>
 
-          <GoldButton
-            variant="outline"
-            size="sm"
-            icon={Building2}
-            onClick={() => setActiveTab('settings')}
-          >
-            Настройки заведения
-          </GoldButton>
+          {adminTabsUI.show_settings_tab !== false && (
+            <GoldButton
+              variant="outline"
+              size="sm"
+              icon={Building2}
+              onClick={() => setActiveTab('settings')}
+            >
+              Настройки заведения
+            </GoldButton>
+          )}
 
-          <GoldButton
-            variant="outline"
-            size="sm"
-            icon={Layers}
-            onClick={() => setActiveTab('categories')}
-          >
-            Разделы ({categories.length})
-          </GoldButton>
+          {adminTabsUI.show_categories_tab !== false && (
+            <GoldButton
+              variant="outline"
+              size="sm"
+              icon={Layers}
+              onClick={() => setActiveTab('categories')}
+            >
+              Разделы ({categories.length})
+            </GoldButton>
+          )}
 
-          <GoldButton
-            variant="primary"
-            size="sm"
-            icon={Plus}
-            onClick={() => {
-              setEditingDish(null);
-              setInitialCategoryId(null);
-              setIsDishModalOpen(true);
-            }}
-          >
-            Добавить блюдо
-          </GoldButton>
+          {adminTabsUI.show_dishes_tab !== false && (
+            <GoldButton
+              variant="primary"
+              size="sm"
+              icon={Plus}
+              onClick={() => {
+                setEditingDish(null);
+                setInitialCategoryId(null);
+                setIsDishModalOpen(true);
+              }}
+            >
+              Добавить блюдо
+            </GoldButton>
+          )}
 
           <button
             onClick={handleLogout}
@@ -399,7 +404,6 @@ export const DashboardLayout = () => {
         </div>
       </header>
 
-      {/* Navigation Tabs */}
       <div
         style={{
           display: 'flex',
@@ -463,10 +467,8 @@ export const DashboardLayout = () => {
         })}
       </div>
 
-      {/* TAB 1: DISHES & STOP-LIST */}
-      {activeTab === 'dishes' && (
+      {activeTab === 'dishes' && adminTabsUI.show_dishes_tab !== false && (
         <div>
-          {/* Category Filter Pills & Add Section Button */}
           <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', overflowX: 'auto', paddingBottom: '4px', alignItems: 'center' }}>
             <button
               onClick={() => setSelectedCategoryFilter('all')}
@@ -504,32 +506,32 @@ export const DashboardLayout = () => {
               </button>
             ))}
 
-            {/* Quick button to manage categories */}
-            <button
-              onClick={() => setActiveTab('categories')}
-              title="Перейти к управлению разделами"
-              style={{
-                background: 'rgba(212, 175, 55, 0.08)',
-                color: 'var(--accent-gold)',
-                border: '1px dashed rgba(212, 175, 55, 0.4)',
-                borderRadius: '20px',
-                padding: '6px 14px',
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                whiteSpace: 'nowrap',
-                marginLeft: '4px'
-              }}
-            >
-              <FolderPlus size={14} />
-              <span>+ Настроить разделы ({categories.length})</span>
-            </button>
+            {adminTabsUI.show_categories_tab !== false && (
+              <button
+                onClick={() => setActiveTab('categories')}
+                title="Перейти к управлению разделами"
+                style={{
+                  background: 'rgba(212, 175, 55, 0.08)',
+                  color: 'var(--accent-gold)',
+                  border: '1px dashed rgba(212, 175, 55, 0.4)',
+                  borderRadius: '20px',
+                  padding: '6px 14px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  whiteSpace: 'nowrap',
+                  marginLeft: '4px'
+                }}
+              >
+                <FolderPlus size={14} />
+                <span>+ Настроить разделы ({categories.length})</span>
+              </button>
+            )}
           </div>
 
-          {/* Empty categories warning in dishes tab */}
           {categories.length === 0 && (
             <GlassCard style={{ padding: '36px', textAlign: 'center', marginBottom: '24px' }}>
               <div style={{ color: 'var(--accent-gold)', marginBottom: '12px' }}>
@@ -541,18 +543,19 @@ export const DashboardLayout = () => {
               <p style={{ color: 'var(--text-muted)', fontSize: '14px', maxWidth: '420px', margin: '0 auto 20px' }}>
                 Перед добавлением позиций необходимо создать структуру разделов кухни или бара.
               </p>
-              <GoldButton
-                variant="primary"
-                size="sm"
-                icon={Plus}
-                onClick={() => setActiveTab('categories')}
-              >
-                Создать раздел
-              </GoldButton>
+              {adminTabsUI.show_categories_tab !== false && (
+                <GoldButton
+                  variant="primary"
+                  size="sm"
+                  icon={Plus}
+                  onClick={() => setActiveTab('categories')}
+                >
+                  Создать раздел
+                </GoldButton>
+              )}
             </GlassCard>
           )}
 
-          {/* Dishes Table */}
           <GlassCard style={{ padding: 0, overflow: 'hidden' }}>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
@@ -576,7 +579,6 @@ export const DashboardLayout = () => {
                         transition: 'background 0.2s ease'
                       }}
                     >
-                      {/* Media preview */}
                       <td style={{ padding: '14px 20px' }}>
                         <div
                           style={{
@@ -605,7 +607,6 @@ export const DashboardLayout = () => {
                         </div>
                       </td>
 
-                      {/* Name & Badges */}
                       <td style={{ padding: '14px 20px' }}>
                         <div style={{ fontWeight: '600', color: 'var(--text-main)', fontSize: '15px' }}>
                           {dish.name?.ru || Object.values(dish.name)[0]}
@@ -629,17 +630,14 @@ export const DashboardLayout = () => {
                         )}
                       </td>
 
-                      {/* Category */}
                       <td style={{ padding: '14px 20px', color: 'var(--text-muted)' }}>
                         {dish.categoryName}
                       </td>
 
-                      {/* Price */}
                       <td style={{ padding: '14px 20px', fontWeight: '700', color: 'var(--accent-gold)' }}>
                         {dish.price} {dish.currency}
                       </td>
 
-                      {/* 1-Tap Stop-list toggle */}
                       <td style={{ padding: '14px 20px' }}>
                         <button
                           onClick={() => handleToggleStopList(dish.id)}
@@ -669,7 +667,6 @@ export const DashboardLayout = () => {
                         </button>
                       </td>
 
-                      {/* Actions */}
                       <td style={{ padding: '14px 20px', textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', gap: '8px' }}>
                           <button
@@ -714,8 +711,7 @@ export const DashboardLayout = () => {
         </div>
       )}
 
-      {/* TAB 2: CATEGORIES MANAGEMENT */}
-      {activeTab === 'categories' && (
+      {activeTab === 'categories' && adminTabsUI.show_categories_tab !== false && (
         <CategoryManager
           restaurantId={restaurant?.id}
           categories={categories}
@@ -732,8 +728,7 @@ export const DashboardLayout = () => {
         />
       )}
 
-      {/* TAB 3: RESTAURANT PROFILE & BRANDING SETTINGS */}
-      {activeTab === 'settings' && (
+      {activeTab === 'settings' && adminTabsUI.show_settings_tab !== false && (
         <RestaurantSettings
           restaurant={restaurant}
           onRestaurantUpdated={(updated) => {
@@ -745,8 +740,7 @@ export const DashboardLayout = () => {
         />
       )}
 
-      {/* TAB 4: THEME & KIOSK */}
-      {activeTab === 'theme' && (
+      {activeTab === 'theme' && adminTabsUI.show_theme_tab !== false && (
         <ThemeCustomizer
           restaurantSlug={selectedSlug}
           initialTheme={restaurant?.theme}
@@ -754,8 +748,7 @@ export const DashboardLayout = () => {
         />
       )}
 
-      {/* TAB: UI CONFIG MANAGER */}
-      {activeTab === 'ui_config' && (
+      {activeTab === 'ui_config' && adminTabsUI.show_ui_config_tab !== false && (
         <UIConfigManager
           restaurantSlug={selectedSlug}
           initialConfig={restaurant?.ui_config || restaurant?.theme?.ui_config}
@@ -763,18 +756,14 @@ export const DashboardLayout = () => {
         />
       )}
 
-      {/* TAB 3: PREVIEW & QR */}
-      {activeTab === 'preview' && (
+      {activeTab === 'preview' && adminTabsUI.show_preview_tab !== false && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-          {/* Table Specific QR Code Generator with Print Support */}
           <TableQrGenerator 
             restaurant={restaurant} 
             availableTables={restaurant?.available_tables || []} 
           />
 
-          {/* Additional Displays & General Links */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px' }} className="no-print">
-            {/* General Restaurant QR Card (For entrance/Instagram) */}
             <GlassCard style={{ padding: '28px', textAlign: 'center' }}>
               <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', background: 'rgba(212, 175, 55, 0.15)', color: 'var(--accent-gold)', marginBottom: '16px' }}>
                 <Smartphone size={28} />
@@ -799,7 +788,6 @@ export const DashboardLayout = () => {
               </div>
             </GlassCard>
 
-            {/* Kiosk Display Info */}
             <GlassCard style={{ padding: '28px', textAlign: 'center' }}>
               <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', background: 'rgba(212, 175, 55, 0.15)', color: 'var(--accent-gold)', marginBottom: '16px' }}>
                 <Tv size={28} />
@@ -824,7 +812,6 @@ export const DashboardLayout = () => {
               </div>
             </GlassCard>
 
-            {/* KDS Kitchen Tablet Info */}
             <GlassCard style={{ padding: '28px', textAlign: 'center' }}>
               <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', marginBottom: '16px' }}>
                 <ChefHat size={28} />
@@ -852,10 +839,8 @@ export const DashboardLayout = () => {
         </div>
       )}
 
-      {/* TAB 6: SERVICE REQUESTS (SMART TABLE SERVICE) */}
-      {activeTab === 'service_requests' && (
+      {activeTab === 'service_requests' && adminTabsUI.show_service_requests_tab !== false && (
         <div>
-          {/* Header & Filter Pills */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <div style={{ display: 'flex', gap: '8px' }}>
               {[
@@ -1020,12 +1005,10 @@ export const DashboardLayout = () => {
         </div>
       )}
 
-      {/* TAB: TABLE RESERVATIONS (DISPATCHER & MANAGEMENT) */}
-      {activeTab === 'reservations' && (
+      {activeTab === 'reservations' && adminTabsUI.show_reservations_tab !== false && (
         <ReservationManager restaurantSlug={selectedSlug} />
       )}
 
-      {/* Dish Form Modal */}
       {isDishModalOpen && (
         <DishFormModal
           restaurantId={restaurant?.id}
@@ -1048,7 +1031,6 @@ export const DashboardLayout = () => {
         />
       )}
 
-      {/* Create Restaurant Modal */}
       {isCreateRestaurantOpen && (
         <CreateRestaurantModal
           existingRestaurants={restaurants}
