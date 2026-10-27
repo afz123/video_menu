@@ -32,8 +32,9 @@ export const SmartBillSplitModal = ({
         ? (item.dish.name.ru || Object.values(item.dish.name)[0] || 'Блюдо')
         : (item.dish?.name || item.name || 'Блюдо');
       
+      // Безопасное извлечение имени опции из любой схемы модификатора
       const optionsText = item.chosenOptions?.length
-        ? item.chosenOptions.map((o) => o.name).join(' • ')
+        ? item.chosenOptions.map((o) => (typeof o === 'string' ? o : o.optionName || o.name || '')).filter(Boolean).join(' • ')
         : null;
 
       for (let i = 0; i < qty; i++) {

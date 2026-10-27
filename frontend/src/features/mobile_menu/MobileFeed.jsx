@@ -260,14 +260,20 @@ export const MobileFeed = ({ restaurantData }) => {
         price = parseInt(match[1], 10);
       }
     }
-    if (!price) price = 120;
+    // Динамический расчет цены по умолчанию: 35% от стоимости родительского блюда (без хардкода 120)
+    if (!price) {
+      const parentPrice = Number(parentDish?.price) || 0;
+      price = parentPrice > 0 ? Math.round(parentPrice * 0.35) : 100;
+    }
     title = title.replace(/^(Идеально сочетается с:\s*|Рекомендация:\s*)/i, '');
+
+    const activeCurrency = parentDish?.currency || restaurantData?.restaurant?.currency || 'TJS';
 
     const pairingDish = {
       id: `pairing_${parentDish?.id || 'upsell'}_${Date.now()}`,
       name: { ru: title, en: title, tj: title },
       price: price,
-      currency: parentDish?.currency || 'TJS',
+      currency: activeCurrency,
       media: {}
     };
 

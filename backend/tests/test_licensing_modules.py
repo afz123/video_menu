@@ -70,6 +70,11 @@ async def test_licensing_modules_isolation(client: AsyncClient, admin_headers):
     assert res_response.status_code == 403
     assert "не активирован" in res_response.json()["detail"]
 
+    # Проверка блокировки слотов бронирования при отключенном модуле
+    slots_res = await client.get(f"/api/v1/reservations/slots?restaurant_slug={slug}&date=2026-11-01&guests=2")
+    assert slots_res.status_code == 403
+    assert "не активирован" in slots_res.json()["detail"]
+
     # 8. Kiosk config should be blocked with 403 Forbidden
     kiosk_res = await client.get(f"/api/v1/kiosk/{slug}/config")
     assert kiosk_res.status_code == 403

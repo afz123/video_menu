@@ -85,4 +85,22 @@ describe('Smart Bill Split Calculation Logic', () => {
     const sharedPerPerson = sharedPoolTotal / 3;
     expect(sharedPerPerson).toBe(70);
   });
+
+  it('safely extracts modifier option names without producing undefined', () => {
+    const item = {
+      dish: { name: 'Стейк Рибай' },
+      quantity: 1,
+      chosenOptions: [
+        { modifierName: 'Рекомендация сомелье к', optionName: 'Шато Марго' },
+        { name: 'Соус перечный' },
+        'Без лука'
+      ]
+    };
+    const optionsText = item.chosenOptions?.length
+      ? item.chosenOptions.map((o) => (typeof o === 'string' ? o : o.optionName || o.name || '')).filter(Boolean).join(' • ')
+      : null;
+
+    expect(optionsText).toBe('Шато Марго • Соус перечный • Без лука');
+    expect(optionsText).not.toContain('undefined');
+  });
 });

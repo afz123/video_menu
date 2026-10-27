@@ -4,8 +4,12 @@ import { InteractiveMenu } from './InteractiveMenu';
 import { QrBridgeModal } from './QrBridgeModal';
 import { BookingModal } from './BookingModal';
 import { useInactivityTimer } from '../../hooks/useInactivityTimer';
+import { useModules, MODULES } from '../../context/ModuleContext';
 
 export const KioskContainer = ({ restaurantData }) => {
+  const { hasModule } = useModules();
+  const canBook = hasModule(MODULES.RESERVATIONS);
+
   const [mode, setMode] = useState('ATTRACT'); // 'ATTRACT' | 'INTERACTIVE'
   const [isQrBridgeOpen, setIsQrBridgeOpen] = useState(false);
   const [isBookingOpen, setIsBookingOpen] = useState(false);
@@ -72,14 +76,14 @@ export const KioskContainer = ({ restaurantData }) => {
         <AttractScreen
           restaurant={restaurantData}
           onExplore={handleFirstTouch}
-          onOpenBooking={() => setIsBookingOpen(true)}
+          onOpenBooking={canBook ? () => setIsBookingOpen(true) : null}
           qrUrl={mobileUrl}
         />
       ) : (
         <InteractiveMenu
           restaurantData={restaurantData}
           onOpenQrBridge={() => setIsQrBridgeOpen(true)}
-          onOpenBooking={() => setIsBookingOpen(true)}
+          onOpenBooking={canBook ? () => setIsBookingOpen(true) : null}
           onActivity={resetTimer}
         />
       )}

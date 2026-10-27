@@ -81,6 +81,7 @@ DEFAULT_UI_CONFIG = {
         "show_waiter_screen_btn": True,   # Кнопка "Показать экран официанту"
         "show_live_status_tracker": True, # Трекер "Принят -> Готовится"
         "show_split_bill": True,          # Калькулятор разделения счета (1-6 чел)
+        "show_smart_item_split": True,    # Позиционный сплит-чек по персонам и блюдам
         "show_tip_tiers": True,           # Выбор чаевых (10%, 15%, 20%)
     },
     # 5. Уличный экран / Kiosk Mode

@@ -160,6 +160,11 @@ async def update_restaurant(
     for key, value in update_dict.items():
         setattr(restaurant, key, value)
 
+    if "enabled_modules" in update_dict:
+        flag_modified(restaurant, "enabled_modules")
+    if "call_types_enabled" in update_dict:
+        flag_modified(restaurant, "call_types_enabled")
+
     await db.commit()
     await db.refresh(restaurant)
     return restaurant

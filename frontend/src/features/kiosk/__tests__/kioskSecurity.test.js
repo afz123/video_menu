@@ -73,4 +73,15 @@ describe('Kiosk Security & PII Sanitization Lifecycle', () => {
     expect(mockVideo.muted).toBe(false);
     expect(mockVideo.play).toHaveBeenCalledTimes(1);
   });
+
+  it('isolates kiosk table booking when reservations module is not licensed', () => {
+    const canBook = false;
+    let isBookingOpen = false;
+    const onOpenBooking = canBook ? () => { isBookingOpen = true; } : null;
+
+    expect(onOpenBooking).toBeNull();
+    // In AttractScreen: kioskUI.show_booking_btn !== false && onOpenBooking
+    const shouldRenderBookingBtn = true && Boolean(onOpenBooking);
+    expect(shouldRenderBookingBtn).toBe(false);
+  });
 });

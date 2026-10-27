@@ -177,12 +177,12 @@ export const AttractScreen = ({ restaurant, onExplore, onOpenBooking, qrUrl }) =
             <span>{subheadline}</span>
           </div>
 
-          {kioskUI.show_booking_btn !== false && (
+          {kioskUI.show_booking_btn !== false && onOpenBooking && (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                if (onOpenBooking) onOpenBooking();
+                onOpenBooking();
               }}
               style={{
                 display: 'inline-flex',

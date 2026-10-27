@@ -95,6 +95,7 @@ async def get_slots(
     с учетом вместимости столов, защиты от овербукинга и pacing кухни.
     """
     restaurant = await get_restaurant_by_slug(restaurant_slug, db)
+    require_module(restaurant, ModuleAccess.RESERVATIONS)
 
     # Валидация формата даты YYYY-MM-DD
     try:
