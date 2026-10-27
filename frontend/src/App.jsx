@@ -6,6 +6,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { UIConfigProvider } from './context/UIConfigContext';
 import { menuService } from './services/menuService';
+import { KDSLayout } from './features/kds/KDSLayout';
 
 export default function App() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
@@ -142,6 +143,17 @@ export default function App() {
   }
 
   const restaurant = restaurantData?.restaurant || {};
+
+  // Kitchen Display System Route (/kds/:slug)
+  if (routeType === 'kds') {
+    return (
+      <ThemeProvider initialTheme={restaurant.theme}>
+        <UIConfigProvider customConfig={restaurant.ui_config || restaurant.theme?.ui_config}>
+          <KDSLayout restaurantSlug={slug} />
+        </UIConfigProvider>
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider initialTheme={restaurant.theme}>

@@ -100,8 +100,15 @@ async def get_slots(
     except ValueError:
         raise HTTPException(status_code=400, detail="Неверный формат даты, ожидается YYYY-MM-DD")
 
+    ui_cfg = restaurant.ui_config or {}
+    kitchen_pacing = ui_cfg.get("kitchen_pacing") or {}
+    enable_pacing = kitchen_pacing.get("enable_kitchen_pacing", True)
+    max_pacing_tables = int(kitchen_pacing.get("max_pacing_tables_per_slot", 3))
+
     slots = await ReservationService.get_available_slots(
-        db, restaurant.id, date, guests, zone_id
+        db, restaurant.id, date, guests, zone_id,
+        enable_pacing=enable_pacing,
+        max_pacing_tables=max_pacing_tables
     )
 
     # Список доступных зон с фото и столами для интерактивного плана

@@ -37,7 +37,8 @@ import {
   Receipt,
   ShoppingBag,
   Sliders,
-  Calendar
+  Calendar,
+  ChefHat
 } from 'lucide-react';
 
 
@@ -169,6 +170,7 @@ export const DashboardLayout = () => {
 
   const mobileUrl = `${window.location.origin}/menu/${selectedSlug}`;
   const kioskUrl = `${window.location.origin}/kiosk/${selectedSlug}`;
+  const kdsUrl = `${window.location.origin}/kds/${selectedSlug}`;
 
   const handleLogout = async () => {
     await menuService.logoutAdmin();
@@ -328,6 +330,17 @@ export const DashboardLayout = () => {
           >
             <GoldButton variant="outline" size="sm" icon={Tv}>
               Открыть уличный экран
+            </GoldButton>
+          </a>
+
+          <a
+            href={kdsUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{ textDecoration: 'none' }}
+          >
+            <GoldButton variant="outline" size="sm" icon={ChefHat}>
+              Экран кухни (KDS)
             </GoldButton>
           </a>
 
@@ -806,6 +819,31 @@ export const DashboardLayout = () => {
                 <a href={kioskUrl} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
                   <GoldButton variant="primary" size="sm" icon={Tv}>
                     Запустить Kiosk экран
+                  </GoldButton>
+                </a>
+              </div>
+            </GlassCard>
+
+            {/* KDS Kitchen Tablet Info */}
+            <GlassCard style={{ padding: '28px', textAlign: 'center' }}>
+              <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', marginBottom: '16px' }}>
+                <ChefHat size={28} />
+              </div>
+              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', marginBottom: '8px' }}>
+                Кухонный экран шефа (KDS)
+              </h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
+                Для установки на планшетах раздачи кухни, горячего/холодного цеха или бара
+              </p>
+
+              <div style={{ padding: '16px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '20px', wordBreak: 'break-all', fontSize: '13px', color: '#10b981' }}>
+                {kdsUrl}
+              </div>
+
+              <div>
+                <a href={kdsUrl} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+                  <GoldButton variant="primary" size="sm" icon={ChefHat}>
+                    Открыть монитор кухни
                   </GoldButton>
                 </a>
               </div>

@@ -1,8 +1,10 @@
+import React, { useState, useEffect } from 'react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { useLanguage } from '../../context/LanguageContext';
 import { useUI } from '../../context/UIConfigContext';
 import { menuService } from '../../services/menuService';
 import { X, Trash2, Plus, Minus, Send, CheckCircle2, QrCode, Sparkles, RefreshCw, Users, Heart } from 'lucide-react';
+import { SmartBillSplitModal } from './SmartBillSplitModal';
 
 const COURSES_OPTIONS = [
   { id: 'Курс 1 (Закуски)', label: '🥗 Курс 1' },
@@ -28,6 +30,7 @@ export const CartDrawer = ({
   const { t } = useLanguage();
   const ui = useUI();
   const cartUI = ui?.cart || {};
+  const coursesEnabled = ui?.kitchen_pacing?.enable_courses_system !== false;
   const [table, setTable] = useState(tableNumber || '');
   const [isEditingTable, setIsEditingTable] = useState(false);
   const isTableFromQr = Boolean(table);
@@ -38,6 +41,7 @@ export const CartDrawer = ({
   // F&B Split-Bill & Tip Tiers
   const [splitCount, setSplitCount] = useState(1);
   const [tipPercent, setTipPercent] = useState(10); // 10% standard tip
+  const [isSmartSplitOpen, setIsSmartSplitOpen] = useState(false);
   const [, forceUpdate] = useState(0);
 
   // Sync if tableNumber changes
@@ -100,7 +104,7 @@ export const CartDrawer = ({
           quantity: item.quantity || 1,
           price: item.totalPrice,
           currency: item.dish.currency,
-          course: item.course || 'По готовности кухни',
+          course: coursesEnabled ? (item.course || 'По готовности кухни') : undefined,
           chosen_options: item.chosenOptions || [],
           comment: item.comment || ''
         }))
@@ -175,9 +179,11 @@ export const CartDrawer = ({
                   <span>{item.quantity}x {t(item.dish.name)}</span>
                   <span style={{ color: 'var(--accent-gold)' }}>{(item.totalPrice * item.quantity).toFixed(0)} {activeCurrency}</span>
                 </div>
-                <div style={{ display: 'inline-block', marginTop: '6px', backgroundColor: 'rgba(212, 175, 55, 0.15)', border: '1px solid var(--accent-gold)', borderRadius: '6px', padding: '2px 8px', fontSize: '11px', color: 'var(--accent-gold)', fontWeight: '600' }}>
-                  ⏱️ {item.course || 'По готовности кухни'}
-                </div>
+                {coursesEnabled && item.course && (
+                  <div style={{ display: 'inline-block', marginTop: '6px', backgroundColor: 'rgba(212, 175, 55, 0.15)', border: '1px solid var(--accent-gold)', borderRadius: '6px', padding: '2px 8px', fontSize: '11px', color: 'var(--accent-gold)', fontWeight: '600' }}>
+                    ⏱️ {item.course}
+                  </div>
+                )}
                 {item.chosenOptions?.length > 0 && (
                   <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.75)', marginTop: '4px' }}>
                     {item.chosenOptions.map((o) => o.name).join(' • ')}
@@ -504,28 +510,30 @@ export const CartDrawer = ({
                       {t(item.dish.name)}
                     </div>
                     {/* Course Badge with quick cycle */}
-                    <button
-                      type="button"
-                      onClick={() => handleCycleCourse(idx)}
-                      title="Нажмите, чтобы переключить курс подачи"
-                      style={{
-                        marginTop: '4px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        background: 'rgba(212, 175, 55, 0.12)',
-                        border: '1px solid rgba(212, 175, 55, 0.3)',
-                        borderRadius: '6px',
-                        padding: '2px 8px',
-                        color: 'var(--accent-gold)',
-                        fontSize: '11px',
-                        fontWeight: '600',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <span>⏱️ {item.course || 'По готовности'}</span>
-                      <span style={{ fontSize: '9px', opacity: 0.7 }}>⇄</span>
-                    </button>
+                    {coursesEnabled && (
+                      <button
+                        type="button"
+                        onClick={() => handleCycleCourse(idx)}
+                        title="Нажмите, чтобы переключить курс подачи"
+                        style={{
+                          marginTop: '4px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          background: 'rgba(212, 175, 55, 0.12)',
+                          border: '1px solid rgba(212, 175, 55, 0.3)',
+                          borderRadius: '6px',
+                          padding: '2px 8px',
+                          color: 'var(--accent-gold)',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <span>⏱️ {item.course || 'По готовности'}</span>
+                        <span style={{ fontSize: '9px', opacity: 0.7 }}>⇄</span>
+                      </button>
+                    )}
                     {item.chosenOptions?.length > 0 && (
                       <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.6)', marginTop: '3px' }}>
                         {item.chosenOptions.map((o) => o.name).join(' • ')}
@@ -586,7 +594,7 @@ export const CartDrawer = ({
                 {/* Split-Bill Toggle */}
                 {cartUI.show_split_bill !== false && (
                   <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#fff' }}>
                         <Users size={14} color="var(--accent-gold)" />
                         <span>Разделить чек:</span>
@@ -618,6 +626,33 @@ export const CartDrawer = ({
                     {splitCount > 1 && (
                       <div style={{ fontSize: '11px', color: 'var(--accent-gold)', textAlign: 'right' }}>
                         По {splitAmount.toFixed(0)} {activeCurrency} на каждого гостя (из {splitCount})
+                      </div>
+                    )}
+
+                    {/* Кнопка умного попозиционного разделения «Кто что ел + Общий стол» */}
+                    {cartUI.show_smart_item_split !== false && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px' }}>
+                        <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.6)' }}>Позиционный расчет:</span>
+                        <button
+                          type="button"
+                          onClick={() => setIsSmartSplitOpen(true)}
+                          style={{
+                            background: 'rgba(212, 175, 55, 0.15)',
+                            border: '1px solid var(--accent-gold)',
+                            color: 'var(--accent-gold)',
+                            borderRadius: '8px',
+                            padding: '4px 10px',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px'
+                          }}
+                        >
+                          <Sparkles size={12} />
+                          <span>✨ По блюдам + Общий стол</span>
+                        </button>
                       </div>
                     )}
                   </>
@@ -743,6 +778,17 @@ export const CartDrawer = ({
           </>
         )}
       </div>
+
+      {/* Модальное окно попозиционного разделения счета с общим столом */}
+      {isSmartSplitOpen && (
+        <SmartBillSplitModal
+          cartItems={cartItems}
+          currency={activeCurrency}
+          serviceChargePercent={cartUI.show_service_charge !== false ? serviceChargePercent : 0}
+          tipPercent={cartUI.show_tip_tiers !== false ? tipPercent : 0}
+          onClose={() => setIsSmartSplitOpen(false)}
+        />
+      )}
     </div>
   );
 };

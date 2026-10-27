@@ -2,10 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { GoldButton } from '../../components/ui/GoldButton';
 import { useLanguage } from '../../context/LanguageContext';
+import { useUI } from '../../context/UIConfigContext';
 import { X, Check, Plus, AlertCircle } from 'lucide-react';
 
 export const ModifierModal = ({ dish, onClose, onAddToCart }) => {
   const { t } = useLanguage();
+  const ui = useUI();
+  const coursesEnabled = ui?.kitchen_pacing?.enable_courses_system !== false;
   const dishName = t(dish.name);
   const basePrice = Number(dish.price) || 0;
   const modifiers = dish.modifiers || [];
@@ -103,7 +106,7 @@ export const ModifierModal = ({ dish, onClose, onAddToCart }) => {
       totalPrice,
       chosenOptions,
       comment: comment.trim(),
-      course: selectedCourse
+      course: coursesEnabled ? selectedCourse : null
     });
     onClose();
   };
@@ -252,43 +255,45 @@ export const ModifierModal = ({ dish, onClose, onAddToCart }) => {
           })}
 
           {/* F&B Course Selection (Pacing/Firing Courses) */}
-          <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: '14px', padding: '14px', border: '1px solid rgba(212, 175, 55, 0.2)' }}>
-            <div style={{ fontSize: '12px', color: 'var(--accent-gold)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>⏱️ Порядок подачи (Курс кухни)</span>
+          {coursesEnabled && (
+            <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: '14px', padding: '14px', border: '1px solid rgba(212, 175, 55, 0.2)' }}>
+              <div style={{ fontSize: '12px', color: 'var(--accent-gold)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>⏱️ Порядок подачи (Курс кухни)</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                {[
+                  { id: 'Курс 1 (Закуски)', label: '🥗 Курс 1 (Закуски)' },
+                  { id: 'Курс 2 (Горячее)', label: '🥩 Курс 2 (Горячее)' },
+                  { id: 'Курс 3 (Десерт)', label: '🍰 Курс 3 (Десерт)' },
+                  { id: 'По готовности кухни', label: '⚡ По готовности' }
+                ].map((c) => {
+                  const isActive = selectedCourse === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setSelectedCourse(c.id)}
+                      style={{
+                        background: isActive ? 'var(--accent-gold-gradient)' : 'rgba(255, 255, 255, 0.04)',
+                        color: isActive ? '#09090b' : 'rgba(255, 255, 255, 0.85)',
+                        border: isActive ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '10px',
+                        padding: '10px 8px',
+                        fontSize: '12px',
+                        fontWeight: isActive ? '700' : '500',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        boxShadow: isActive ? '0 2px 10px rgba(212, 175, 55, 0.3)' : 'none',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {c.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-              {[
-                { id: 'Курс 1 (Закуски)', label: '🥗 Курс 1 (Закуски)' },
-                { id: 'Курс 2 (Горячее)', label: '🥩 Курс 2 (Горячее)' },
-                { id: 'Курс 3 (Десерт)', label: '🍰 Курс 3 (Десерт)' },
-                { id: 'По готовности кухни', label: '⚡ По готовности' }
-              ].map((c) => {
-                const isActive = selectedCourse === c.id;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setSelectedCourse(c.id)}
-                    style={{
-                      background: isActive ? 'var(--accent-gold-gradient)' : 'rgba(255, 255, 255, 0.04)',
-                      color: isActive ? '#09090b' : 'rgba(255, 255, 255, 0.85)',
-                      border: isActive ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: '10px',
-                      padding: '10px 8px',
-                      fontSize: '12px',
-                      fontWeight: isActive ? '700' : '500',
-                      cursor: 'pointer',
-                      textAlign: 'center',
-                      boxShadow: isActive ? '0 2px 10px rgba(212, 175, 55, 0.3)' : 'none',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    {c.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          )}
 
           {/* Special instructions comment */}
           {/* Chef / Sommelier Pairing Recommendation Cross-Sell */}

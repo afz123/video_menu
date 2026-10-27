@@ -44,6 +44,7 @@ export const DEFAULT_UI_CONFIG = {
     show_waiter_screen_btn: true,
     show_live_status_tracker: true,
     show_split_bill: true,
+    show_smart_item_split: true,
     show_tip_tiers: true,
   },
   kiosk: {
@@ -63,6 +64,21 @@ export const DEFAULT_UI_CONFIG = {
     show_settings_tab: true,
     show_theme_tab: true,
     show_preview_tab: true,
+  },
+  // БЛОК 1: УПРАВЛЕНИЕ КУХНЕЙ И ТАЙМИНГАМИ
+  kitchen_pacing: {
+    enable_courses_system: true,       // Выбор курсов подачи (Курс 1, 2, 3)
+    enable_kitchen_pacing: true,       // Лимит броней на 30 минут (защита кухни)
+    enable_waiter_call_cooldown: true, // Задержка 45 сек на повторный вызов официанта
+    cooldown_seconds: 45,              // Длительность задержки в секундах
+    max_pacing_tables_per_slot: 3,     // Максимум новых столов на один 30-мин слот
+  },
+  // МОДУЛЬ KDS: КУХОННЫЙ ПЛАНШЕТ И ДИСПЕТЧЕР РАЗДАЧИ
+  kds: {
+    enable_kds_system: false,          // По умолчанию выключено (принцип нулевого риска)
+    sound_alerts_enabled: true,        // Звуковое оповещение при новом заказе
+    notify_waiter_on_ready: true,      // Пуш официанту, когда блюдо готово
+    alert_critical_delay_minutes: 18,  // Минут до красного тревожного мигания
   }
 };
 

@@ -17,17 +17,49 @@ export const SmartServiceBar = ({
 }) => {
   const ui = useUI();
   const bar = ui?.service_bar || {};
+  const kitchenPacing = ui?.kitchen_pacing || {};
+  const isCooldownEnabled = kitchenPacing.enable_waiter_call_cooldown !== false;
+  const cooldownDuration = Number(kitchenPacing.cooldown_seconds) || 45;
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState('WAITER'); // 'WAITER' | 'BILL'
   const [specialistType, setSpecialistType] = useState('waiter'); // 'waiter' | 'sommelier' | 'hookah' | 'admin'
   const [table, setTable] = useState(tableNumber || '');
   const [isEditingTable, setIsEditingTable] = useState(false);
+  const [remainingCooldown, setRemainingCooldown] = useState(0);
 
   useEffect(() => {
     if (tableNumber) {
       setTable(tableNumber);
     }
   }, [tableNumber]);
+
+  // Check and run active cooldown countdown
+  useEffect(() => {
+    if (!isCooldownEnabled || !table) {
+      setRemainingCooldown(0);
+      return;
+    }
+
+    const checkCooldown = () => {
+      try {
+        const stored = sessionStorage.getItem(`waiter_call_ts_${restaurantSlug}_${table.trim()}`);
+        if (!stored) {
+          setRemainingCooldown(0);
+          return;
+        }
+        const diff = Math.floor((Date.now() - Number(stored)) / 1000);
+        const rem = Math.max(0, cooldownDuration - diff);
+        setRemainingCooldown(rem);
+      } catch (_) {
+        setRemainingCooldown(0);
+      }
+    };
+
+    checkCooldown();
+    const timer = setInterval(checkCooldown, 1000);
+    return () => clearInterval(timer);
+  }, [table, restaurantSlug, isCooldownEnabled, cooldownDuration]);
 
   const isTableFromQr = Boolean(table);
   const [billMethod, setBillMethod] = useState('card'); // 'card' | 'cash'
@@ -44,6 +76,14 @@ export const SmartServiceBar = ({
   const handleSendServiceRequest = async () => {
     if (!table.trim()) {
       alert('Пожалуйста, укажите номер стола');
+      return;
+    }
+
+    // Cooldown Anti-spam Protection (if enabled)
+    if (modalType === 'WAITER' && isCooldownEnabled && remainingCooldown > 0) {
+      setToastMessage(`⏳ Официант уже уведомлен и идет к вам (повторный вызов через ${remainingCooldown} сек)`);
+      setTimeout(() => setToastMessage(null), 4000);
+      setIsModalOpen(false);
       return;
     }
 
@@ -87,6 +127,14 @@ export const SmartServiceBar = ({
         guest_comment: comment,
         nps_score: modalType === 'BILL' ? npsRating : undefined
       });
+
+      // Save cooldown timestamp for table
+      if (modalType === 'WAITER' && isCooldownEnabled) {
+        try {
+          sessionStorage.setItem(`waiter_call_ts_${restaurantSlug}_${table.trim()}`, Date.now().toString());
+          setRemainingCooldown(cooldownDuration);
+        } catch (_) {}
+      }
 
       setIsModalOpen(false);
       let toast = `🛎️ Официант вызван к столу №${table.trim()}!`;
@@ -182,8 +230,14 @@ export const SmartServiceBar = ({
               boxShadow: '0 8px 24px rgba(0,0,0,0.6)'
             }}
           >
-            <Bell size={15} color="var(--accent-gold)" />
-            <span>{cartCount > 0 ? 'Официант' : 'Позвать официанта'}</span>
+            <Bell size={15} color={isCooldownEnabled && remainingCooldown > 0 ? '#10b981' : 'var(--accent-gold)'} />
+            <span>
+              {isCooldownEnabled && remainingCooldown > 0
+                ? `В пути (${remainingCooldown}с)`
+                : cartCount > 0
+                ? 'Официант'
+                : 'Позвать официанта'}
+            </span>
           </button>
         )}
 
@@ -611,25 +665,57 @@ export const SmartServiceBar = ({
               </div>
             )}
 
+            {/* Cooldown Anti-Spam Banner */}
+            {modalType === 'WAITER' && isCooldownEnabled && remainingCooldown > 0 && (
+              <div
+                style={{
+                  backgroundColor: 'rgba(212, 175, 55, 0.12)',
+                  border: '1px solid rgba(212, 175, 55, 0.4)',
+                  borderRadius: '12px',
+                  padding: '12px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  fontSize: '13px',
+                  color: '#fff',
+                  lineHeight: '1.4'
+                }}
+              >
+                <span style={{ fontSize: '18px' }}>⏳</span>
+                <div>
+                  <div style={{ color: 'var(--accent-gold)', fontWeight: '700' }}>
+                    Официант уже уведомлен и идет к вам
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>
+                    Повторный вызов будет доступен через <b>{remainingCooldown} сек</b>.
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Submit button */}
             <button
               onClick={handleSendServiceRequest}
-              disabled={isSubmitting}
+              disabled={isSubmitting || (modalType === 'WAITER' && isCooldownEnabled && remainingCooldown > 0)}
               style={{
                 width: '100%',
-                background: 'var(--accent-gold-gradient)',
+                background: (modalType === 'WAITER' && isCooldownEnabled && remainingCooldown > 0)
+                  ? 'rgba(255, 255, 255, 0.1)'
+                  : 'var(--accent-gold-gradient)',
                 border: 'none',
                 borderRadius: '14px',
                 padding: '14px',
-                color: '#09090b',
+                color: (modalType === 'WAITER' && isCooldownEnabled && remainingCooldown > 0) ? '#888' : '#09090b',
                 fontWeight: '700',
                 fontSize: '15px',
-                cursor: 'pointer',
+                cursor: (modalType === 'WAITER' && isCooldownEnabled && remainingCooldown > 0) ? 'not-allowed' : 'pointer',
                 marginTop: '4px'
               }}
             >
               {isSubmitting
                 ? 'Отправка...'
+                : (modalType === 'WAITER' && isCooldownEnabled && remainingCooldown > 0)
+                ? `⏳ Официант уже в пути (${remainingCooldown}с)`
                 : modalType === 'BILL'
                 ? 'Запросить счёт'
                 : specialistType === 'sommelier'

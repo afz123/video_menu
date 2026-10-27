@@ -88,6 +88,14 @@ export const menuService = {
   // Kiosk
   getKioskConfig: (slug) => api.get(`/kiosk/${slug}/config`),
 
+  // Kitchen Display System (KDS)
+  getKDSOrders: (slug, status) =>
+    api.get(`/restaurants/${slug}/kds/orders${status ? `?status=${status}` : ''}`),
+  updateKDSOrderStatus: (slug, reqId, status, chefName = null) =>
+    api.patch(`/restaurants/${slug}/kds/orders/${reqId}/status`, { status, chef_name: chefName }),
+  updateKDSItemStatus: (slug, reqId, itemIndex, status) =>
+    api.patch(`/restaurants/${slug}/kds/orders/${reqId}/items/${itemIndex}`, { status }),
+
   // Smart Table Service (Waiters, Bills, Guest Orders)
   createServiceRequest: (slug, data) => 
     api.post(`/restaurants/${slug}/service-requests`, data),

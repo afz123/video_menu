@@ -102,6 +102,21 @@ DEFAULT_UI_CONFIG = {
         "show_settings_tab": True,
         "show_theme_tab": True,
         "show_preview_tab": True,
+    },
+    # 7. Блок 1: Управление кухней и таймингами
+    "kitchen_pacing": {
+        "enable_courses_system": True,       # Выбор курсов подачи (Курс 1, 2, 3)
+        "enable_kitchen_pacing": True,       # Лимит броней на 30 минут (защита кухни)
+        "enable_waiter_call_cooldown": True, # Задержка 45 сек на повторный вызов официанта
+        "cooldown_seconds": 45,              # Длительность задержки в секундах
+        "max_pacing_tables_per_slot": 3,     # Максимум новых столов на один 30-мин слот
+    },
+    # 8. Модуль KDS: Кухонный планшет и диспетчер раздачи
+    "kds": {
+        "enable_kds_system": False,          # По умолчанию выключено (принцип нулевого риска)
+        "sound_alerts_enabled": True,        # Звуковое оповещение при новом заказе
+        "notify_waiter_on_ready": True,      # Пуш официанту, когда блюдо готово
+        "alert_critical_delay_minutes": 18,  # Минут до красного тревожного мигания
     }
 }
 

@@ -34,7 +34,9 @@ class ReservationService:
         restaurant_id: int,
         date_str: str,
         guests_count: int,
-        zone_id: Optional[int] = None
+        zone_id: Optional[int] = None,
+        enable_pacing: bool = True,
+        max_pacing_tables: int = 3
     ) -> List[Dict[str, Any]]:
         """
         Проверяет расписание всех столов заведения на выбранную дату
@@ -73,16 +75,13 @@ class ReservationService:
         current = datetime.strptime("11:00", "%H:%M")
         end_limit = datetime.strptime("22:30", "%H:%M")
 
-        # Pacing: максимум 3 новых стола на один временной слот, чтобы не перегружать кухню
-        MAX_PACING_TABLES = 3
-
         while current <= end_limit:
             slot_str = current.strftime("%H:%M")
             slot_end = (current + timedelta(minutes=turnover_minutes)).strftime("%H:%M")
 
-            # Проверка pacing
+            # Проверка pacing (если включен в админке: защита кухни от посадочной пробки)
             bookings_at_slot = [b for b in active_bookings if b.start_time == slot_str]
-            is_pacing_full = len(bookings_at_slot) >= MAX_PACING_TABLES
+            is_pacing_full = (len(bookings_at_slot) >= max_pacing_tables) if enable_pacing else False
 
             # Проверяем свободные подходящие столы
             free_tables = []

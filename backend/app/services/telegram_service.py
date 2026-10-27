@@ -269,3 +269,50 @@ class TelegramService:
 
         return await cls.send_message(bot_token, chat_id, "\n".join(lines), reply_markup=inline_keyboard)
 
+    @classmethod
+    async def notify_order_ready(
+        cls,
+        bot_token: str,
+        chat_id: str,
+        restaurant_name: str,
+        table_number: str,
+        item_name: Optional[str] = None,
+        department: Optional[str] = None,
+        cooking_minutes: Optional[int] = None,
+        items_count: int = 1,
+        order_id: Optional[int] = None
+    ) -> bool:
+        """
+        Instant Push Notification to staff Telegram when kitchen KDS marks order or item READY.
+        «🛎️ СТОЛ №4: Блюдо готово на раздаче! Заберите!»
+        """
+        safe_rest_name = sanitize_tg(restaurant_name or "Ресторан")
+        safe_table = sanitize_tg(table_number or "")
+        safe_item = sanitize_tg(item_name) if item_name else None
+        safe_dept = sanitize_tg(department) if department else "Кухня / Раздача"
+
+        lines = [
+            f"🛎️ <b>РАЗДАЧА КУХНИ: СТОЛ №{safe_table}</b>",
+            f"🏛️ <b>Заведение:</b> {safe_rest_name}",
+        ]
+        if safe_item:
+            lines.append(f"🍽️ <b>Блюдо:</b> {safe_item}")
+        else:
+            lines.append(f"🍽️ <b>Заказ:</b> Все блюда ({items_count} поз.) готовы к отдаче!")
+
+        lines.append(f"👨‍🍳 <b>Цех:</b> {safe_dept}")
+        if cooking_minutes is not None:
+            lines.append(f"⏱️ <b>Время готовки:</b> {cooking_minutes} мин.")
+
+        lines.append("⚡ <i>Заберите заказ с раздачи и отнесите к столу гостя!</i>")
+
+        oid = order_id or 0
+        inline_keyboard = {
+            "inline_keyboard": [
+                [
+                    {"text": "🏃 Забрал и несу гостю", "callback_data": f"served_{oid}_{safe_table}"}
+                ]
+            ]
+        }
+        return await cls.send_message(bot_token, chat_id, "\n".join(lines), reply_markup=inline_keyboard)
+

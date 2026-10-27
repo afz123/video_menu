@@ -557,6 +557,192 @@ async def update_service_request_status(
     await db.refresh(req)
     return req
 
+
+# -------------------------------------------------------------
+# KDS (Kitchen Display System) Endpoints
+# -------------------------------------------------------------
+
+@router.get("/{slug}/kds/orders")
+async def get_kds_orders(
+    slug: str,
+    status: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Public/Tablet endpoint for Kitchen Display System (KDS).
+    Checks if KDS is enabled in restaurant UI config and returns live kitchen orders.
+    """
+    restaurant = await find_restaurant_by_slug(slug, db)
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Ресторан не найден")
+
+    ui_cfg = restaurant.ui_config or {}
+    kds_cfg = ui_cfg.get("kds", {})
+    kds_enabled = bool(kds_cfg.get("enable_kds_system", False))
+
+    if not kds_enabled:
+        return {
+            "kds_enabled": False,
+            "message": "Модуль KDS выключен в настройках заведения",
+            "orders": []
+        }
+
+    query = select(ServiceRequest).where(
+        ServiceRequest.restaurant_id == restaurant.id,
+        ServiceRequest.request_type.in_(["order", "repeat_order"])
+    )
+    if status:
+        query = query.where(ServiceRequest.status == status)
+    else:
+        query = query.where(ServiceRequest.status.in_(["PENDING", "COOKING", "READY"]))
+
+    query = query.order_by(ServiceRequest.created_at.asc())
+    res = await db.execute(query)
+    orders = res.scalars().all()
+
+    return {
+        "kds_enabled": True,
+        "restaurant_name": restaurant.name,
+        "kds_config": kds_cfg,
+        "orders": [
+            {
+                "id": o.id,
+                "table_number": o.table_number,
+                "request_type": o.request_type,
+                "guest_comment": o.guest_comment,
+                "cart_items": o.cart_items or [],
+                "status": o.status,
+                "total_amount": o.total_amount,
+                "currency": o.currency,
+                "created_at": o.created_at.isoformat() if o.created_at else None
+            }
+            for o in orders
+        ]
+    }
+
+
+@router.patch("/{slug}/kds/orders/{req_id}/status")
+async def update_kds_order_status(
+    slug: str,
+    req_id: int,
+    payload: dict,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Kitchen tablet endpoint to update whole order status (COOKING, READY, COMPLETED).
+    Sends immediate alert to waiters via Telegram when dishes are ready at pickup counter.
+    """
+    restaurant = await find_restaurant_by_slug(slug, db)
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Ресторан не найден")
+
+    req = await db.get(ServiceRequest, req_id)
+    if not req or req.restaurant_id != restaurant.id:
+        raise HTTPException(status_code=404, detail="Заказ не найден")
+
+    new_status = payload.get("status")
+    if not new_status:
+        raise HTTPException(status_code=400, detail="status обязателен")
+
+    req.status = new_status
+    if payload.get("chef_name"):
+        req.acknowledged_by = payload["chef_name"]
+
+    await db.commit()
+    await db.refresh(req)
+
+    # Check if we should notify waiters via Telegram
+    ui_cfg = restaurant.ui_config or {}
+    kds_cfg = ui_cfg.get("kds", {})
+    should_notify = kds_cfg.get("notify_waiter_on_ready", True)
+
+    if (new_status in ["READY", "COMPLETED"]) and should_notify and restaurant.telegram_enabled and restaurant.telegram_bot_token and restaurant.telegram_chat_id:
+        cooking_mins = None
+        if req.created_at:
+            from datetime import datetime
+            diff = (datetime.utcnow() - req.created_at).total_seconds()
+            cooking_mins = max(1, int(diff / 60))
+
+        items_count = len(req.cart_items) if req.cart_items else 1
+        background_tasks.add_task(
+            TelegramService.notify_order_ready,
+            bot_token=restaurant.telegram_bot_token,
+            chat_id=restaurant.telegram_chat_id,
+            restaurant_name=restaurant.name,
+            table_number=req.table_number,
+            item_name=None,
+            department="Раздача шефа",
+            cooking_minutes=cooking_mins,
+            items_count=items_count,
+            order_id=req.id
+        )
+
+    return {
+        "status": "success",
+        "id": req.id,
+        "new_status": req.status
+    }
+
+
+@router.patch("/{slug}/kds/orders/{req_id}/items/{item_idx}")
+async def update_kds_item_status(
+    slug: str,
+    req_id: int,
+    item_idx: int,
+    payload: dict,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Toggle individual cart item status (COOKING <-> READY) on the kitchen station.
+    """
+    restaurant = await find_restaurant_by_slug(slug, db)
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Ресторан не найден")
+
+    req = await db.get(ServiceRequest, req_id)
+    if not req or req.restaurant_id != restaurant.id:
+        raise HTTPException(status_code=404, detail="Заказ не найден")
+
+    items = list(req.cart_items or [])
+    if item_idx < 0 or item_idx >= len(items):
+        raise HTTPException(status_code=400, detail="Неверный индекс позиции")
+
+    new_item_status = payload.get("status", "READY")
+    items[item_idx] = {**items[item_idx], "status": new_item_status}
+    req.cart_items = items
+    flag_modified(req, "cart_items")
+
+    await db.commit()
+    await db.refresh(req)
+
+    # Optional Telegram push for individual ready item
+    ui_cfg = restaurant.ui_config or {}
+    kds_cfg = ui_cfg.get("kds", {})
+    if new_item_status == "READY" and kds_cfg.get("notify_waiter_on_ready", True) and restaurant.telegram_enabled and restaurant.telegram_bot_token and restaurant.telegram_chat_id:
+        dish_name = items[item_idx].get("name", "Блюдо")
+        background_tasks.add_task(
+            TelegramService.notify_order_ready,
+            bot_token=restaurant.telegram_bot_token,
+            chat_id=restaurant.telegram_chat_id,
+            restaurant_name=restaurant.name,
+            table_number=req.table_number,
+            item_name=dish_name,
+            department=items[item_idx].get("course") or "Цех кухни",
+            cooking_minutes=None,
+            items_count=1,
+            order_id=req.id
+        )
+
+    return {
+        "status": "success",
+        "order_id": req.id,
+        "item_index": item_idx,
+        "item_status": new_item_status,
+        "cart_items": req.cart_items
+    }
+
 @router.post("/{slug}/test-telegram")
 async def test_telegram_connection(
     slug: str,
