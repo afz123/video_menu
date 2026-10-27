@@ -10,6 +10,7 @@ import { AdminLogin } from './AdminLogin';
 import { TableQrGenerator } from './TableQrGenerator';
 import { UIConfigManager } from './UIConfigManager';
 import { ReservationManager } from './ReservationManager';
+import { useUI } from '../../context/UIConfigContext';
 import { menuService } from '../../services/menuService';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -173,6 +174,27 @@ export const DashboardLayout = () => {
     await menuService.logoutAdmin();
     setIsAuthenticated(false);
   };
+
+  const ui = useUI();
+  const effectiveUI = restaurant?.theme_config?.ui_config || restaurant?.ui_config || ui || {};
+  const adminTabsUI = effectiveUI?.admin_tabs || {};
+
+  const AVAILABLE_TABS = [
+    { id: 'dishes', label: 'Позиции меню & Стоп-лист', icon: Utensils, count: allDishes.length, enabled: adminTabsUI.show_dishes_tab !== false },
+    { id: 'reservations', label: 'Бронирование столов', icon: Calendar, count: pendingReservationsCount, highlight: pendingReservationsCount > 0, enabled: adminTabsUI.show_reservations_tab !== false },
+    { id: 'service_requests', label: 'Вызовы & Заказы', icon: Bell, count: pendingRequestsCount, highlight: pendingRequestsCount > 0, enabled: adminTabsUI.show_service_requests_tab !== false },
+    { id: 'ui_config', label: 'Конструктор UI', icon: Sliders, enabled: adminTabsUI.show_ui_config_tab !== false },
+    { id: 'categories', label: 'Управление разделами', icon: Layers, count: categories.length, enabled: adminTabsUI.show_categories_tab !== false },
+    { id: 'settings', label: 'Настройки заведения', icon: Building2, enabled: adminTabsUI.show_settings_tab !== false },
+    { id: 'theme', label: 'Стиль & Kiosk Display', icon: Palette, enabled: adminTabsUI.show_theme_tab !== false },
+    { id: 'preview', label: 'QR-коды & Ссылки', icon: QrCode, enabled: adminTabsUI.show_preview_tab !== false }
+  ].filter((tab) => tab.enabled);
+
+  useEffect(() => {
+    if (AVAILABLE_TABS.length > 0 && !AVAILABLE_TABS.some((t) => t.id === activeTab)) {
+      setActiveTab(AVAILABLE_TABS[0].id);
+    }
+  }, [adminTabsUI, activeTab, AVAILABLE_TABS]);
 
   if (!isAuthenticated) {
     return (
@@ -375,16 +397,7 @@ export const DashboardLayout = () => {
           overflowX: 'auto'
         }}
       >
-        {[
-          { id: 'dishes', label: 'Позиции меню & Стоп-лист', icon: Utensils, count: allDishes.length },
-          { id: 'reservations', label: 'Бронирование столов', icon: Calendar, count: pendingReservationsCount, highlight: pendingReservationsCount > 0 },
-          { id: 'service_requests', label: 'Вызовы & Заказы', icon: Bell, count: pendingRequestsCount, highlight: pendingRequestsCount > 0 },
-          { id: 'ui_config', label: 'Конструктор UI', icon: Sliders },
-          { id: 'categories', label: 'Управление разделами', icon: Layers, count: categories.length },
-          { id: 'settings', label: 'Настройки заведения', icon: Building2 },
-          { id: 'theme', label: 'Стиль & Kiosk Display', icon: Palette },
-          { id: 'preview', label: 'QR-коды & Ссылки', icon: QrCode }
-        ].map((tab) => {
+        {AVAILABLE_TABS.map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
           return (

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { menuService } from '../../services/menuService';
+import { useUI } from '../../context/UIConfigContext';
 import { 
   X, CheckCircle, ChevronRight, AlertCircle, RefreshCw
 } from 'lucide-react';
 import { InteractiveFloorPlan } from './InteractiveFloorPlan';
 
 export const BookingModal = ({ restaurantSlug, restaurantName, onClose }) => {
+  const ui = useUI();
+  const kioskUI = ui?.kiosk || {};
   const [step, setStep] = useState(1); // 1: Параметры и слоты, 2: Контакты, 3: Успех
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [guestsCount, setGuestsCount] = useState(2);
@@ -354,19 +357,21 @@ export const BookingModal = ({ restaurantSlug, restaurantName, onClose }) => {
             </div>
 
             {/* 3. Интерактивная 3D-Карта с Zoom / Pan и списком столов */}
-            <div style={{ marginBottom: '18px' }}>
-              <InteractiveFloorPlan
-                zones={fullZones.length > 0 ? fullZones : zones}
-                selectedZoneId={selectedZoneId ? Number(selectedZoneId) : (fullZones[0]?.id || zones[0]?.id)}
-                onSelectZone={(zId) => setSelectedZoneId(String(zId))}
-                tables={(fullZones.length > 0 ? fullZones : zones).flatMap((z) => z.tables || [])}
-                selectedTableId={suggestedTableId}
-                onSelectTable={(tId) => setSuggestedTableId(tId)}
-                guestsCount={guestsCount}
-                availableTableIds={availableSlots.find((s) => s.time === selectedTime)?.available_table_ids || []}
-                selectedTime={selectedTime}
-              />
-            </div>
+            {kioskUI.show_floor_plan !== false && (
+              <div style={{ marginBottom: '18px' }}>
+                <InteractiveFloorPlan
+                  zones={fullZones.length > 0 ? fullZones : zones}
+                  selectedZoneId={selectedZoneId ? Number(selectedZoneId) : (fullZones[0]?.id || zones[0]?.id)}
+                  onSelectZone={(zId) => setSelectedZoneId(String(zId))}
+                  tables={(fullZones.length > 0 ? fullZones : zones).flatMap((z) => z.tables || [])}
+                  selectedTableId={suggestedTableId}
+                  onSelectTable={(tId) => setSuggestedTableId(tId)}
+                  guestsCount={guestsCount}
+                  availableTableIds={availableSlots.find((s) => s.time === selectedTime)?.available_table_ids || []}
+                  selectedTime={selectedTime}
+                />
+              </div>
+            )}
 
             {/* 4. Сетка доступного времени */}
             <div style={{ marginBottom: '22px' }}>

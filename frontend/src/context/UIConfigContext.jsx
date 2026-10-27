@@ -43,6 +43,8 @@ export const DEFAULT_UI_CONFIG = {
     show_service_charge: true,
     show_waiter_screen_btn: true,
     show_live_status_tracker: true,
+    show_split_bill: true,
+    show_tip_tiers: true,
   },
   kiosk: {
     show_mini_qr: true,
@@ -50,6 +52,17 @@ export const DEFAULT_UI_CONFIG = {
     show_qr_bridge_btn: true,
     show_details_modal: true,
     allow_sound_in_modal: true,
+    show_floor_plan: true,
+  },
+  admin_tabs: {
+    show_dishes_tab: true,
+    show_reservations_tab: true,
+    show_service_requests_tab: true,
+    show_ui_config_tab: true,
+    show_categories_tab: true,
+    show_settings_tab: true,
+    show_theme_tab: true,
+    show_preview_tab: true,
   }
 };
 

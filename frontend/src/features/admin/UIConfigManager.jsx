@@ -154,6 +154,8 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
         { key: 'show_waiter_screen_btn', label: 'Кнопка «Показать официанту»', desc: 'Полноэкранный режим показа экрана при личном заказе' },
         { key: 'show_service_charge', label: 'Строка «Обслуживание (10%)»', desc: 'Отображение сервисного сбора в чеке' },
         { key: 'show_live_status_tracker', label: 'Живой трекер статуса заказа', desc: 'Индикатор: Принят -> Передан на кухню' },
+        { key: 'show_split_bill', label: 'Калькулятор разделения счета (Split-Bill)', desc: 'Разделение суммы между гостями на 1–6 персон' },
+        { key: 'show_tip_tiers', label: 'Шкала чаевых официанту (10%, 15%, 20%)', desc: 'Быстрые кнопки чаевых команде зала' },
       ]
     },
     {
@@ -167,6 +169,23 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
         { key: 'show_qr_bridge_btn', label: 'Кнопка «Забрать меню на телефон»', desc: 'Большой QR-код передачи каталога на смартфон' },
         { key: 'show_details_modal', label: 'Полноэкранная карточка блюда', desc: 'Открытие видео и состава при тапе на блюдо' },
         { key: 'allow_sound_in_modal', label: 'Звук в карточке киоска', desc: 'Разрешить включение звука на уличном экране' },
+        { key: 'show_floor_plan', label: 'Интерактивная карта залов и столов (Floor Plan)', desc: 'Визуальный выбор стола на 2D-схеме ресторана' },
+      ]
+    },
+    {
+      id: 'admin_tabs',
+      title: 'Вкладки панели управления (Admin Panel)',
+      icon: Sliders,
+      color: '#ec4899',
+      items: [
+        { key: 'show_dishes_tab', label: 'Вкладка «Позиции меню & Стоп-лист»', desc: 'Управление блюдами, ценами и стоп-листом' },
+        { key: 'show_reservations_tab', label: 'Вкладка «Бронирование столов»', desc: 'Журнал броней, шахматка и рассадка' },
+        { key: 'show_service_requests_tab', label: 'Вкладка «Вызовы & Заказы»', desc: 'Монитор запросов гостей в реальном времени' },
+        { key: 'show_ui_config_tab', label: 'Вкладка «Конструктор UI»', desc: 'Рубильники и флаги интерфейса' },
+        { key: 'show_categories_tab', label: 'Вкладка «Управление разделами»', desc: 'Категории кухни и бара' },
+        { key: 'show_settings_tab', label: 'Вкладка «Настройки заведения»', desc: 'Реквизиты, контакты, Telegram и пароли' },
+        { key: 'show_theme_tab', label: 'Вкладка «Стиль & Kiosk Display»', desc: 'Цветовая палитра и параметры киоска' },
+        { key: 'show_preview_tab', label: 'Вкладка «QR-коды & Ссылки»', desc: 'Генератор и печать QR-кодов столов' },
       ]
     }
   ];

@@ -581,77 +581,85 @@ export const CartDrawer = ({
             </div>
 
             {/* Split-Bill & Tip Tiers Section */}
-            <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.02)', borderRadius: '12px', padding: '10px 12px', marginBottom: '12px', border: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {/* Split-Bill Toggle */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#fff' }}>
-                  <Users size={14} color="var(--accent-gold)" />
-                  <span>Разделить чек:</span>
-                </div>
-                <div style={{ display: 'flex', gap: '4px' }}>
-                  {[1, 2, 3, 4, 5, 6].map((num) => (
-                    <button
-                      key={num}
-                      type="button"
-                      onClick={() => setSplitCount(num)}
-                      style={{
-                        background: splitCount === num ? 'var(--accent-gold-gradient)' : 'rgba(255, 255, 255, 0.06)',
-                        color: splitCount === num ? '#09090b' : 'rgba(255, 255, 255, 0.8)',
-                        border: 'none',
-                        borderRadius: '6px',
-                        width: '26px',
-                        height: '26px',
-                        fontSize: '11px',
-                        fontWeight: '700',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {num}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {((cartUI.show_split_bill !== false) || (cartUI.show_tip_tiers !== false)) && (
+              <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.02)', borderRadius: '12px', padding: '10px 12px', marginBottom: '12px', border: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* Split-Bill Toggle */}
+                {cartUI.show_split_bill !== false && (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#fff' }}>
+                        <Users size={14} color="var(--accent-gold)" />
+                        <span>Разделить чек:</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        {[1, 2, 3, 4, 5, 6].map((num) => (
+                          <button
+                            key={num}
+                            type="button"
+                            onClick={() => setSplitCount(num)}
+                            style={{
+                              background: splitCount === num ? 'var(--accent-gold-gradient)' : 'rgba(255, 255, 255, 0.06)',
+                              color: splitCount === num ? '#09090b' : 'rgba(255, 255, 255, 0.8)',
+                              border: 'none',
+                              borderRadius: '6px',
+                              width: '26px',
+                              height: '26px',
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {num}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-              {splitCount > 1 && (
-                <div style={{ fontSize: '11px', color: 'var(--accent-gold)', textAlign: 'right' }}>
-                  По {splitAmount.toFixed(0)} {activeCurrency} на каждого гостя (из {splitCount})
-                </div>
-              )}
+                    {splitCount > 1 && (
+                      <div style={{ fontSize: '11px', color: 'var(--accent-gold)', textAlign: 'right' }}>
+                        По {splitAmount.toFixed(0)} {activeCurrency} на каждого гостя (из {splitCount})
+                      </div>
+                    )}
+                  </>
+                )}
 
-              {/* Tip Tiers */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#fff' }}>
-                  <Heart size={14} color="#f43f5e" />
-                  <span>Чаевые:</span>
-                </div>
-                <div style={{ display: 'flex', gap: '4px' }}>
-                  {[
-                    { pct: 0, label: '0%' },
-                    { pct: 10, label: '10%' },
-                    { pct: 15, label: '15%' },
-                    { pct: 20, label: '20%' }
-                  ].map((tTier) => (
-                    <button
-                      key={tTier.pct}
-                      type="button"
-                      onClick={() => setTipPercent(tTier.pct)}
-                      style={{
-                        background: tipPercent === tTier.pct ? 'rgba(244, 63, 94, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-                        color: tipPercent === tTier.pct ? '#fda4af' : 'rgba(255, 255, 255, 0.8)',
-                        border: tipPercent === tTier.pct ? '1px solid #f43f5e' : '1px solid rgba(255, 255, 255, 0.08)',
-                        borderRadius: '6px',
-                        padding: '3px 8px',
-                        fontSize: '11px',
-                        fontWeight: '600',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {tTier.label}
-                    </button>
-                  ))}
-                </div>
+                {/* Tip Tiers */}
+                {cartUI.show_tip_tiers !== false && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: cartUI.show_split_bill !== false ? '4px' : '0', borderTop: cartUI.show_split_bill !== false ? '1px solid rgba(255, 255, 255, 0.05)' : 'none' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#fff' }}>
+                      <Heart size={14} color="#f43f5e" />
+                      <span>Чаевые:</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      {[
+                        { pct: 0, label: '0%' },
+                        { pct: 10, label: '10%' },
+                        { pct: 15, label: '15%' },
+                        { pct: 20, label: '20%' }
+                      ].map((tTier) => (
+                        <button
+                          key={tTier.pct}
+                          type="button"
+                          onClick={() => setTipPercent(tTier.pct)}
+                          style={{
+                            background: tipPercent === tTier.pct ? 'rgba(244, 63, 94, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+                            color: tipPercent === tTier.pct ? '#fda4af' : 'rgba(255, 255, 255, 0.8)',
+                            border: tipPercent === tTier.pct ? '1px solid #f43f5e' : '1px solid rgba(255, 255, 255, 0.08)',
+                            borderRadius: '6px',
+                            padding: '3px 8px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {tTier.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
 
             {/* Footer Summary & Dual Actions */}
             <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -665,7 +673,7 @@ export const CartDrawer = ({
                   <span>+{serviceCharge.toFixed(1)} {activeCurrency}</span>
                 </div>
               )}
-              {tipAmount > 0 && (
+              {cartUI.show_tip_tiers !== false && tipAmount > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#4ade80' }}>
                   <span>Чаевые ({tipPercent}%):</span>
                   <span>+{tipAmount.toFixed(1)} {activeCurrency}</span>

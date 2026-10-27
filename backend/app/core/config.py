@@ -80,6 +80,8 @@ DEFAULT_UI_CONFIG = {
         "show_service_charge": True,      # Строка "Обслуживание (10%)"
         "show_waiter_screen_btn": True,   # Кнопка "Показать экран официанту"
         "show_live_status_tracker": True, # Трекер "Принят -> Готовится"
+        "show_split_bill": True,          # Калькулятор разделения счета (1-6 чел)
+        "show_tip_tiers": True,           # Выбор чаевых (10%, 15%, 20%)
     },
     # 5. Уличный экран / Kiosk Mode
     "kiosk": {
@@ -88,6 +90,18 @@ DEFAULT_UI_CONFIG = {
         "show_qr_bridge_btn": True,       # Кнопка "Забрать меню на телефон"
         "show_details_modal": True,       # Детальное модальное окно блюда
         "allow_sound_in_modal": True,     # Звук в модальном окне
+        "show_floor_plan": True,          # Интерактивная 2D-схема залов и столов
+    },
+    # 6. Вкладки панели управления (Admin Panel)
+    "admin_tabs": {
+        "show_dishes_tab": True,
+        "show_reservations_tab": True,
+        "show_service_requests_tab": True,
+        "show_ui_config_tab": True,
+        "show_categories_tab": True,
+        "show_settings_tab": True,
+        "show_theme_tab": True,
+        "show_preview_tab": True,
     }
 }
 

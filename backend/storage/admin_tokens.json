@@ -708,5 +708,25 @@
     "role": "manager",
     "restaurant_id": 347,
     "restaurant_slug": "steak-ea0a8f"
+  },
+  "8d677561d3eef7a82c13303032efe6f2cf7bfad8888f8643": {
+    "role": "manager",
+    "restaurant_id": 101,
+    "restaurant_slug": "branch-a"
+  },
+  "399af825ff85e1dfb8259283550c7539c34a8a06315b0402": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "9fd755162ac72947a3e5b7e30715365b275fbc06eda8de97": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "b24140fa82d27ddcdd55d62e4b7901e31b6191c899b50725": {
+    "role": "manager",
+    "restaurant_id": 359,
+    "restaurant_slug": "steak-fcc7c5"
   }
 }
