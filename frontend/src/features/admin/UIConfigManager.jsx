@@ -91,6 +91,17 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
           ui_config: config
         });
       }
+      // SWR Cache Invalidation: clear local storage menu caches so guest devices & kiosk update instantly
+      if (typeof window !== 'undefined') {
+        try {
+          Object.keys(localStorage).forEach((key) => {
+            if (key.startsWith('luxury_menu_cache_')) {
+              localStorage.removeItem(key);
+            }
+          });
+        } catch (_) {}
+      }
+
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
       if (onSaved) onSaved(config);

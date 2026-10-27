@@ -17,6 +17,9 @@ class RestaurantBase(BaseModel):
     telegram_bot_token: Optional[str] = None
     telegram_chat_id: Optional[str] = None
     telegram_enabled: Optional[bool] = False
+    enabled_modules: Optional[List[str]] = [
+        "menu", "ordering", "service_dispatch", "guest_finance", "reservations", "kiosk", "kds"
+    ]
     ui_config: Optional[Dict[str, Any]] = None
 
 class RestaurantCreate(RestaurantBase):
@@ -37,6 +40,7 @@ class RestaurantUpdate(BaseModel):
     telegram_bot_token: Optional[str] = None
     telegram_chat_id: Optional[str] = None
     telegram_enabled: Optional[bool] = None
+    enabled_modules: Optional[List[str]] = None
     admin_password: Optional[str] = None
     ui_config: Optional[Dict[str, Any]] = None
 

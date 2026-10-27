@@ -12,6 +12,8 @@ export const SmartServiceBar = ({
   hidden = false,
   callTypesEnabled = ['waiter', 'bill', 'sommelier', 'hookah', 'admin'],
   availableTables = [],
+  canDispatch = true,
+  canOrder = true,
   onOpenCart,
   onSetTableNumber
 }) => {
@@ -208,7 +210,7 @@ export const SmartServiceBar = ({
         }}
       >
         {/* Call Waiter button */}
-        {bar.show_call_waiter_btn !== false && (
+        {canDispatch && bar.show_call_waiter_btn !== false && (
           <button
             onClick={() => handleOpenAction('WAITER')}
             style={{
@@ -242,7 +244,7 @@ export const SmartServiceBar = ({
         )}
 
         {/* Request Bill button */}
-        {bar.show_request_bill_btn !== false && (
+        {canDispatch && bar.show_request_bill_btn !== false && (
           <button
             onClick={() => handleOpenAction('BILL')}
             style={{
@@ -270,7 +272,7 @@ export const SmartServiceBar = ({
         )}
 
         {/* Floating Cart Button (shows if items in cart) */}
-        {bar.show_cart_btn !== false && cartCount > 0 && (
+        {canOrder && bar.show_cart_btn !== false && cartCount > 0 && (
           <button
             onClick={onOpenCart}
             style={{

@@ -26,6 +26,18 @@ class Restaurant(Base):
     # Enabled Staff Call types: ["waiter", "bill", "sommelier", "hookah", "admin"]
     call_types_enabled = Column(JSON, default=lambda: ["waiter", "bill", "sommelier", "hookah", "admin"])
 
+    # Коммерческие модули подписки (License Feature-Gating)
+    # Возможные ключи: "menu", "ordering", "service_dispatch", "guest_finance", "reservations", "kiosk", "kds"
+    enabled_modules = Column(JSON, default=lambda: [
+        "menu",
+        "ordering",
+        "service_dispatch",
+        "guest_finance",
+        "reservations",
+        "kiosk",
+        "kds"
+    ])
+
     # Staff Telegram Bot integration for live waiter calls and bills
     telegram_bot_token = Column(String(128), nullable=True)
     telegram_chat_id = Column(String(64), nullable=True)

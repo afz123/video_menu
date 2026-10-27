@@ -33,6 +33,7 @@ from app.schemas.service_request import (
     ServiceRequestResponse,
     ServiceRequestStatusUpdate
 )
+from app.core.licensing import require_module, ModuleAccess, DEFAULT_MODULES
 
 router = APIRouter(prefix="/restaurants", tags=["Restaurants"])
 
@@ -296,6 +297,7 @@ async def get_restaurant_full_menu(
             "description": restaurant.description,
             "currency": restaurant.currency or "TJS",
             "call_types_enabled": restaurant.call_types_enabled or ["waiter", "bill", "sommelier", "hookah", "admin"],
+            "enabled_modules": restaurant.enabled_modules or DEFAULT_MODULES,
             "service_charge_percent": restaurant.service_charge_percent if restaurant.service_charge_percent is not None else 10.0,
             "telegram_enabled": bool(restaurant.telegram_enabled),
             "theme": restaurant.theme_config or {},
@@ -385,6 +387,12 @@ async def create_service_request(
     restaurant = await find_restaurant_by_slug(slug, db)
     if not restaurant:
         raise HTTPException(status_code=404, detail="Ресторан не найден")
+
+    # Commercial License Feature-Gating (Pay-per-Module isolation)
+    if data.request_type in ("order", "repeat_order"):
+        require_module(restaurant, ModuleAccess.ORDERING)
+    else:
+        require_module(restaurant, ModuleAccess.SERVICE_DISPATCH)
 
     normalized_table = data.table_number.strip()
 
@@ -576,6 +584,16 @@ async def get_kds_orders(
     if not restaurant:
         raise HTTPException(status_code=404, detail="Ресторан не найден")
 
+    modules = restaurant.enabled_modules
+    if modules is None:
+        modules = DEFAULT_MODULES
+    if ModuleAccess.KDS not in modules:
+        return {
+            "kds_enabled": False,
+            "message": "Модуль KDS не активирован в тарифном плане данного заведения",
+            "orders": []
+        }
+
     ui_cfg = restaurant.ui_config or {}
     kds_cfg = ui_cfg.get("kds", {})
     kds_enabled = bool(kds_cfg.get("enable_kds_system", False))
@@ -636,6 +654,8 @@ async def update_kds_order_status(
     restaurant = await find_restaurant_by_slug(slug, db)
     if not restaurant:
         raise HTTPException(status_code=404, detail="Ресторан не найден")
+
+    require_module(restaurant, ModuleAccess.KDS)
 
     req = await db.get(ServiceRequest, req_id)
     if not req or req.restaurant_id != restaurant.id:
@@ -700,6 +720,8 @@ async def update_kds_item_status(
     restaurant = await find_restaurant_by_slug(slug, db)
     if not restaurant:
         raise HTTPException(status_code=404, detail="Ресторан не найден")
+
+    require_module(restaurant, ModuleAccess.KDS)
 
     req = await db.get(ServiceRequest, req_id)
     if not req or req.restaurant_id != restaurant.id:

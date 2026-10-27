@@ -356,6 +356,7 @@ async def seed_database():
                 "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS telegram_chat_id VARCHAR(64);",
                 "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS telegram_enabled BOOLEAN DEFAULT FALSE;",
                 "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS admin_password_hash VARCHAR(256);",
+                "ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS enabled_modules JSON DEFAULT '[\"menu\", \"ordering\", \"service_dispatch\", \"guest_finance\", \"reservations\", \"kiosk\", \"kds\"]'::json;",
                 "ALTER TABLE categories ADD COLUMN IF NOT EXISTS schedule_start VARCHAR(8);",
                 "ALTER TABLE categories ADD COLUMN IF NOT EXISTS schedule_end VARCHAR(8);",
                 "ALTER TABLE categories ADD COLUMN IF NOT EXISTS daypart VARCHAR(32) DEFAULT 'all';",
@@ -494,6 +495,9 @@ async def seed_database():
             try:
                 await conn.execute(text("ALTER TABLE dining_tables ADD COLUMN features JSON;"))
             except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE restaurants ADD COLUMN enabled_modules JSON;"))
+            except Exception: pass
 
     session = await get_session()
     async with session as db:
@@ -503,6 +507,11 @@ async def seed_database():
         
         if existing_rest:
             logger.info("Database already seeded with asr-royale. Checking dish modifiers & badges...")
+            if existing_rest.enabled_modules is None:
+                existing_rest.enabled_modules = [
+                    "menu", "ordering", "service_dispatch", "guest_finance", "reservations", "kiosk", "kds"
+                ]
+                await db.commit()
             # Ensure existing dishes have sample modifiers if empty
             dishes_res = await db.execute(select(Dish).where(Dish.restaurant_id == existing_rest.id))
             all_dishes = dishes_res.scalars().all()
@@ -553,6 +562,7 @@ async def seed_database():
             description="Флагманский гастрономический ресторан премиум-класса с авторской кухней шеф-повара и собственной камерой сухого вызревания мяса.",
             supported_locales=["ru", "en", "tj"],
             default_locale="ru",
+            enabled_modules=["menu", "ordering", "service_dispatch", "guest_finance", "reservations", "kiosk", "kds"],
             theme_config={
                 "theme_id": "luxury_dark_gold",
                 "colors": {

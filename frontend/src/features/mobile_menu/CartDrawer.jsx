@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { useLanguage } from '../../context/LanguageContext';
 import { useUI } from '../../context/UIConfigContext';
+import { useModules, MODULES } from '../../context/ModuleContext';
 import { menuService } from '../../services/menuService';
 import { X, Trash2, Plus, Minus, Send, CheckCircle2, QrCode, Sparkles, RefreshCw, Users, Heart } from 'lucide-react';
 import { SmartBillSplitModal } from './SmartBillSplitModal';
@@ -28,6 +29,9 @@ export const CartDrawer = ({
   onSetTableNumber
 }) => {
   const { t } = useLanguage();
+  const { hasModule } = useModules();
+  const canFinance = hasModule(MODULES.GUEST_FINANCE);
+
   const ui = useUI();
   const cartUI = ui?.cart || {};
   const coursesEnabled = ui?.kitchen_pacing?.enable_courses_system !== false;
@@ -56,8 +60,8 @@ export const CartDrawer = ({
     return acc + (Number(item.totalPrice) || 0) * (item.quantity || 1);
   }, 0);
 
-  const serviceCharge = cartUI.show_service_charge !== false ? subtotal * (Number(serviceChargePercent) / 100) : 0;
-  const tipAmount = (cartUI.show_tip_tiers !== false && tipPercent > 0) ? (subtotal * tipPercent / 100) : 0;
+  const serviceCharge = (canFinance && cartUI.show_service_charge !== false) ? subtotal * (Number(serviceChargePercent) / 100) : 0;
+  const tipAmount = (canFinance && cartUI.show_tip_tiers !== false && tipPercent > 0) ? (subtotal * tipPercent / 100) : 0;
   const grandTotal = subtotal + serviceCharge + tipAmount;
   const splitAmount = grandTotal / Math.max(1, splitCount);
 
@@ -93,8 +97,8 @@ export const CartDrawer = ({
         guest_session_id: guestSessionId || undefined,
         request_type: isRepeatOrder ? 'repeat_order' : 'order',
         guest_comment: orderComment,
-        tip_percent: cartUI.show_tip_tiers !== false ? tipPercent : undefined,
-        tip_amount: cartUI.show_tip_tiers !== false ? tipAmount : undefined,
+        tip_percent: (canFinance && cartUI.show_tip_tiers !== false) ? tipPercent : undefined,
+        tip_amount: (canFinance && cartUI.show_tip_tiers !== false) ? tipAmount : undefined,
         cart_items: cartItems.map((item) => ({
           dish_id: item.dish.id,
           id: item.dish.id,
@@ -574,7 +578,7 @@ export const CartDrawer = ({
               ))}
             </div>
 
-            {((cartUI.show_split_bill !== false) || (cartUI.show_tip_tiers !== false)) && (
+            {canFinance && ((cartUI.show_split_bill !== false) || (cartUI.show_tip_tiers !== false)) && (
               <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.02)', borderRadius: '12px', padding: '10px 12px', marginBottom: '12px', border: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {cartUI.show_split_bill !== false && (
                   <>
@@ -760,7 +764,7 @@ export const CartDrawer = ({
         )}
       </div>
 
-      {isSmartSplitOpen && cartUI.show_smart_item_split !== false && (
+      {canFinance && isSmartSplitOpen && cartUI.show_smart_item_split !== false && (
         <SmartBillSplitModal
           cartItems={cartItems}
           currency={activeCurrency}

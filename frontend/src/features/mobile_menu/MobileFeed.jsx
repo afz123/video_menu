@@ -7,10 +7,16 @@ import { CartDrawer } from './CartDrawer';
 import { BookingModal } from '../kiosk/BookingModal';
 import { useLanguage } from '../../context/LanguageContext';
 import { useUI } from '../../context/UIConfigContext';
+import { useModules, MODULES } from '../../context/ModuleContext';
 import { useVideoPreload } from '../../hooks/useVideoPreload';
 import { WifiOff } from 'lucide-react';
 
 export const MobileFeed = ({ restaurantData }) => {
+  const { hasModule } = useModules();
+  const canOrder = hasModule(MODULES.ORDERING);
+  const canDispatch = hasModule(MODULES.SERVICE_DISPATCH);
+  const canBook = hasModule(MODULES.RESERVATIONS);
+
   const ui = useUI();
   const card = ui?.dish_card || {};
   const restaurantSlug = restaurantData?.restaurant?.slug || 'asr-royale';
@@ -322,7 +328,7 @@ export const MobileFeed = ({ restaurantData }) => {
         badgeFilter={badgeFilter}
         onSelectBadgeFilter={handleSelectBadgeFilter}
         tableNumber={tableNumber}
-        onOpenBooking={() => setIsBookingOpen(true)}
+        onOpenBooking={canBook ? () => setIsBookingOpen(true) : null}
         onChangeTable={() => {
           if (tableSignature) {
             alert('Номер стола верифицирован по оригинальному QR-коду и зафиксирован для защиты от ошибок.');
@@ -355,8 +361,8 @@ export const MobileFeed = ({ restaurantData }) => {
                   isSoundEnabled={isGlobalSoundOn}
                   onToggleSound={toggleGlobalSound}
                   categoryName={t(activeCategory.name)}
-                  onAddToCart={handleInitiateAddToCart}
-                  onAddPairingToCart={handleAddPairingToCart}
+                  onAddToCart={canOrder ? handleInitiateAddToCart : null}
+                  onAddPairingToCart={canOrder ? handleAddPairingToCart : null}
                   onDetailsToggle={setIsDetailExpanded}
                 />
               </section>
@@ -441,24 +447,28 @@ export const MobileFeed = ({ restaurantData }) => {
       )}
 
       {/* Smart Table Service Bar (Waiter, Bill, Cart) */}
-      <SmartServiceBar
-        restaurantSlug={restaurantSlug}
-        tableNumber={tableNumber}
-        tableSignature={tableSignature}
-        guestSessionId={guestSessionId}
-        cartCount={cartItems.reduce((acc, i) => acc + (i.quantity || 1), 0)}
-        hidden={isDetailExpanded}
-        callTypesEnabled={restaurantData.restaurant?.call_types_enabled || ['waiter', 'bill', 'sommelier', 'hookah', 'admin']}
-        availableTables={restaurantData.restaurant?.available_tables || []}
-        onOpenCart={() => setIsCartOpen(true)}
-        onSetTableNumber={(tbl) => {
-          setTableNumber(tbl);
-          sessionStorage.setItem(tableStorageKey, tbl);
-        }}
-      />
+      {(canDispatch || canOrder) && (
+        <SmartServiceBar
+          restaurantSlug={restaurantSlug}
+          tableNumber={tableNumber}
+          tableSignature={tableSignature}
+          guestSessionId={guestSessionId}
+          canDispatch={canDispatch}
+          canOrder={canOrder}
+          cartCount={canOrder ? cartItems.reduce((acc, i) => acc + (i.quantity || 1), 0) : 0}
+          hidden={isDetailExpanded}
+          callTypesEnabled={canDispatch ? (restaurantData.restaurant?.call_types_enabled || ['waiter', 'bill', 'sommelier', 'hookah', 'admin']) : []}
+          availableTables={restaurantData.restaurant?.available_tables || []}
+          onOpenCart={canOrder ? () => setIsCartOpen(true) : null}
+          onSetTableNumber={(tbl) => {
+            setTableNumber(tbl);
+            sessionStorage.setItem(tableStorageKey, tbl);
+          }}
+        />
+      )}
 
       {/* Modifiers Selection Modal */}
-      {modifierDish && (
+      {canOrder && modifierDish && (
         <ModifierModal
           dish={modifierDish}
           onClose={() => setModifierDish(null)}
@@ -467,7 +477,7 @@ export const MobileFeed = ({ restaurantData }) => {
       )}
 
       {/* Cart Drawer */}
-      {isCartOpen && (
+      {canOrder && isCartOpen && (
         <CartDrawer
           cartItems={cartItems}
           tableNumber={tableNumber}
@@ -488,7 +498,7 @@ export const MobileFeed = ({ restaurantData }) => {
       )}
 
       {/* Online Table Booking Modal */}
-      {isBookingOpen && (
+      {canBook && isBookingOpen && (
         <BookingModal
           restaurantSlug={restaurantSlug}
           restaurantName={restaurantData.restaurant?.name || 'ASR Maison Royale'}

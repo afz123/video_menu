@@ -12,6 +12,7 @@ from app.models.restaurant import Restaurant
 from app.models.reservation import TableReservation, DiningTable, TableZone
 from app.services.reservation_service import ReservationService
 from app.services.telegram_service import TelegramService
+from app.core.licensing import require_module, ModuleAccess
 
 logger = logging.getLogger("video_menu.reservations")
 
@@ -41,6 +42,7 @@ async def get_zones_and_tables(
     для интерактивного выбора или отображения карты зала.
     """
     restaurant = await get_restaurant_by_slug(restaurant_slug, db)
+    require_module(restaurant, ModuleAccess.RESERVATIONS)
     
     query = select(TableZone).where(
         TableZone.restaurant_id == restaurant.id,
@@ -167,6 +169,7 @@ async def create_reservation(
         raise HTTPException(status_code=400, detail="restaurant_slug обязателен")
 
     restaurant = await get_restaurant_by_slug(slug, db)
+    require_module(restaurant, ModuleAccess.RESERVATIONS)
 
     guest_name = (payload.get("guest_name") or "").strip()
     guest_phone = (payload.get("guest_phone") or "").strip()

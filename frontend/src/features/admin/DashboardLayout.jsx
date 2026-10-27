@@ -10,6 +10,7 @@ import { AdminLogin } from './AdminLogin';
 import { TableQrGenerator } from './TableQrGenerator';
 import { UIConfigManager } from './UIConfigManager';
 import { ReservationManager } from './ReservationManager';
+import { LicenseModuleManager } from './LicenseModuleManager';
 import { useUI } from '../../context/UIConfigContext';
 import { menuService } from '../../services/menuService';
 import { QRCodeSVG } from 'qrcode.react';
@@ -38,7 +39,8 @@ import {
   ShoppingBag,
   Sliders,
   Calendar,
-  ChefHat
+  ChefHat,
+  ShieldCheck
 } from 'lucide-react';
 
 export const DashboardLayout = () => {
@@ -183,6 +185,7 @@ export const DashboardLayout = () => {
     { id: 'ui_config', label: 'Конструктор UI', icon: Sliders, enabled: adminTabsUI.show_ui_config_tab !== false },
     { id: 'categories', label: 'Управление разделами', icon: Layers, count: categories.length, enabled: adminTabsUI.show_categories_tab !== false },
     { id: 'settings', label: 'Настройки заведения', icon: Building2, enabled: adminTabsUI.show_settings_tab !== false },
+    { id: 'licenses', label: 'Коммерческие модули', icon: ShieldCheck, enabled: adminTabsUI.show_licenses_tab !== false },
     { id: 'theme', label: 'Стиль & Kiosk Display', icon: Palette, enabled: adminTabsUI.show_theme_tab !== false },
     { id: 'preview', label: 'QR-коды & Ссылки', icon: QrCode, enabled: adminTabsUI.show_preview_tab !== false }
   ].filter((tab) => tab.enabled);
@@ -378,6 +381,29 @@ export const DashboardLayout = () => {
             >
               Добавить блюдо
             </GoldButton>
+          )}
+
+          {adminTabsUI.show_ui_config_tab === false && (
+            <button
+              onClick={() => setActiveTab('ui_config')}
+              style={{
+                background: 'rgba(212, 175, 55, 0.15)',
+                border: '1px dashed var(--accent-gold)',
+                color: 'var(--accent-gold)',
+                borderRadius: '12px',
+                padding: '8px 14px',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+              title="Аварийный доступ к Конструктору UI (защита от самоблокировки)"
+            >
+              <Sliders size={15} />
+              <span>Конструктор UI (SOS)</span>
+            </button>
           )}
 
           <button
@@ -748,7 +774,7 @@ export const DashboardLayout = () => {
         />
       )}
 
-      {activeTab === 'ui_config' && adminTabsUI.show_ui_config_tab !== false && (
+      {activeTab === 'ui_config' && (
         <UIConfigManager
           restaurantSlug={selectedSlug}
           initialConfig={restaurant?.ui_config || restaurant?.theme?.ui_config}
@@ -1007,6 +1033,10 @@ export const DashboardLayout = () => {
 
       {activeTab === 'reservations' && adminTabsUI.show_reservations_tab !== false && (
         <ReservationManager restaurantSlug={selectedSlug} />
+      )}
+
+      {activeTab === 'licenses' && (
+        <LicenseModuleManager restaurant={restaurant} onSaved={loadMenu} />
       )}
 
       {isDishModalOpen && (

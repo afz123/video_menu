@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.api.v1.restaurants import find_restaurant_by_slug
+from app.core.licensing import require_module, ModuleAccess
 
 router = APIRouter(prefix="/kiosk", tags=["Kiosk"])
 
@@ -10,6 +11,8 @@ async def get_kiosk_config(slug: str, db: AsyncSession = Depends(get_db)):
     restaurant = await find_restaurant_by_slug(slug, db)
     if not restaurant:
         raise HTTPException(status_code=404, detail="Ресторан не найден")
+
+    require_module(restaurant, ModuleAccess.KIOSK)
 
     theme = restaurant.theme_config or {}
     kiosk_settings = theme.get("kiosk_settings", {})

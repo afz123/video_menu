@@ -245,7 +245,7 @@ export const DishSlide = ({
                 <Wine size={16} style={{ flexShrink: 0 }} />
                 <span style={{ lineHeight: '1.3', fontWeight: '500' }}>{pairings[0].text}</span>
               </div>
-              {card.show_add_to_cart_btn !== false && (
+              {card.show_add_to_cart_btn !== false && onAddPairingToCart && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -365,7 +365,7 @@ export const DishSlide = ({
               )}
             </div>
 
-            {card.show_add_to_cart_btn !== false && (
+            {card.show_add_to_cart_btn !== false && onAddToCart && (
               <button
                 type="button"
                 onClick={(e) => {
