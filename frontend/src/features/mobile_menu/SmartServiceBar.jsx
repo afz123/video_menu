@@ -163,6 +163,13 @@ export const SmartServiceBar = ({
   // If entire service bar is disabled in UI config — render nothing
   if (bar.show_service_bar === false) return null;
 
+  // Демонтаж из DOM: если ни одна кнопка не разрешена лицензией/конфигом и корзина пуста
+  const hasAnyAction =
+    (canDispatch && (bar.show_call_waiter_btn !== false || bar.show_request_bill_btn !== false)) ||
+    (canOrder && bar.show_cart_btn !== false && cartCount > 0);
+
+  if (!hasAnyAction) return null;
+
   return (
     <>
       {/* Toast Notification */}

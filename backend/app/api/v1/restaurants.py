@@ -471,11 +471,17 @@ async def create_service_request(
             price = float(it.get("total_price") or it.get("price") or 0.0)
             subtotal += price * qty
 
+    # Проверка активности финансового модуля
+    modules = restaurant.enabled_modules if restaurant.enabled_modules is not None else DEFAULT_MODULES
+    has_finance = ModuleAccess.GUEST_FINANCE in modules
+
     svc_percent = float(restaurant.service_charge_percent if restaurant.service_charge_percent is not None else 10.0)
-    svc_charge = subtotal * (svc_percent / 100.0)
-    tip_amt = float(data.tip_amount or 0.0)
-    if not tip_amt and data.tip_percent and subtotal > 0:
+    svc_charge = (subtotal * (svc_percent / 100.0)) if has_finance else 0.0
+    
+    tip_amt = float(data.tip_amount or 0.0) if has_finance else 0.0
+    if has_finance and not tip_amt and data.tip_percent and subtotal > 0:
         tip_amt = subtotal * (float(data.tip_percent) / 100.0)
+        
     grand_total = subtotal + svc_charge + tip_amt
 
     req = ServiceRequest(

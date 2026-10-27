@@ -12,7 +12,8 @@ export const KDSLayout = ({ restaurantSlug = 'asr-royale' }) => {
   const kdsUI = ui?.kds || {};
   const [orders, setOrders] = useState([]);
   const [activeDepartment, setActiveDepartment] = useState('ALL'); // 'ALL' | 'HOT' | 'COLD' | 'BAR'
-  const [isSoundOn, setIsSoundOn] = useState(true);
+  const soundConfigEnabled = kdsUI.sound_alerts_enabled !== false;
+  const [isSoundOn, setIsSoundOn] = useState(() => soundConfigEnabled);
   const [isLoading, setIsLoading] = useState(true);
   const [kdsEnabled, setKdsEnabled] = useState(true);
   const [restaurantName, setRestaurantName] = useState('');
@@ -22,12 +23,17 @@ export const KDSLayout = ({ restaurantSlug = 'asr-royale' }) => {
     kdsUI.alert_critical_delay_minutes || 18
   );
 
+  // Синхронизация при обновлении конфигурации кухни
+  useEffect(() => {
+    setIsSoundOn(kdsUI.sound_alerts_enabled !== false);
+  }, [kdsUI.sound_alerts_enabled]);
+
   const audioContextRef = useRef(null);
   const prevOrderCountRef = useRef(0);
 
   // Play a soft high-end dining chime when a new ticket arrives
   const playAlertSound = () => {
-    if (!isSoundOn) return;
+    if (!isSoundOn || kdsUI.sound_alerts_enabled === false) return;
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) return;

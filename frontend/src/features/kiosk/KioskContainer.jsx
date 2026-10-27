@@ -177,8 +177,8 @@ export const KioskContainer = ({ restaurantData }) => {
         />
       )}
 
-      {/* Street Kiosk Table Reservation Modal */}
-      {isBookingOpen && (
+      {/* Street Kiosk Table Reservation Modal: строгая проверка canBook */}
+      {isBookingOpen && canBook && (
         <BookingModal
           key={sessionResetKey}
           restaurantSlug={restaurantData.slug}

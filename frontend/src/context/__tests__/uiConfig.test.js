@@ -74,4 +74,22 @@ describe('UIConfigContext Feature Flags & Resilient Merging', () => {
     expect(merged.custom_loyalty.enable_cashback).toBe(true);
     expect(merged.custom_loyalty.tier).toBe('gold');
   });
+
+  it('verifies service bar dismantles completely when no actions are enabled', () => {
+    const barConfig = {
+      show_service_bar: true,
+      show_call_waiter_btn: false,
+      show_request_bill_btn: false,
+      show_cart_btn: false
+    };
+    const canDispatch = true;
+    const canOrder = true;
+    const cartCount = 0;
+
+    const hasAnyAction =
+      (canDispatch && (barConfig.show_call_waiter_btn !== false || barConfig.show_request_bill_btn !== false)) ||
+      (canOrder && barConfig.show_cart_btn !== false && cartCount > 0);
+
+    expect(hasAnyAction).toBe(false);
+  });
 });

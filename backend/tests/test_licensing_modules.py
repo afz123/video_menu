@@ -86,6 +86,26 @@ async def test_licensing_modules_isolation(client: AsyncClient, admin_headers):
         enabled_modules = []
     require_module(EmptyRestaurant(), ModuleAccess.MENU)
 
+    # 8.2 Verify finance module protection: if guest_finance is disabled, tips & service charge are suppressed
+    await client.put(
+        f"/api/v1/restaurants/{slug}",
+        json={"enabled_modules": ["menu", "ordering"]},
+        headers=admin_headers
+    )
+    fin_order_payload = {
+        "table_number": table_num,
+        "table_token": token,
+        "request_type": "order",
+        "cart_items": [{"id": 1, "dish_id": 1, "name": "Steak", "price": 100, "quantity": 1}],
+        "tip_amount": 25.0
+    }
+    fin_res = await client.post(f"/api/v1/restaurants/{slug}/service-requests", json=fin_order_payload)
+    assert fin_res.status_code == 200
+    fin_data = fin_res.json()
+    assert fin_data["subtotal_amount"] == 100.0
+    assert fin_data["service_charge_amount"] == 0.0
+    assert fin_data["total_amount"] == 100.0
+
     # 9. Restore all modules for the demo restaurant
     restore_res = await client.put(
         f"/api/v1/restaurants/{slug}",
