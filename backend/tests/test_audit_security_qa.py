@@ -392,9 +392,12 @@ async def test_service_request_finance_and_courses(client):
     dish_id = dish["id"]
     price = float(dish["price"])
 
+    from app.core.security import generate_table_signature
+    valid_sig_14 = generate_table_signature(1, "14")
+
     order_payload = {
         "table_number": "14",
-        "table_token": "valid_mock_token",
+        "table_token": valid_sig_14,
         "guest_session_id": "test_session_uuid_123",
         "request_type": "order",
         "guest_comment": "Тест курсов подачи",
@@ -419,4 +422,38 @@ async def test_service_request_finance_and_courses(client):
     assert data["total_amount"] >= expected_subtotal
     assert data["guest_session_id"] == "test_session_uuid_123"
     assert data["nps_score"] == 5
+
+
+@pytest.mark.asyncio
+async def test_anti_spoofing_tampering_protection(client):
+    """
+    Проверка Anti-Spoofing: попытка отправить заказ со стола №15
+    с поддельной цифровой подписью должна быть жестко отклонена с 403 Forbidden.
+    """
+    from app.core.security import generate_table_signature
+
+    # 1. Генерируем валидную подпись для стола 15
+    valid_sig = generate_table_signature(1, "15")
+
+    # 2. Попытка отправить с поддельным токеном
+    tampered_payload = {
+        "table_number": "15",
+        "table_token": "tampered_evil_signature_999",
+        "request_type": "call_waiter",
+        "guest_comment": "Взлом стола"
+    }
+    tampered_res = await client.post("/api/v1/restaurants/asr-royale/service-requests", json=tampered_payload)
+    assert tampered_res.status_code == 403
+    assert "подпись" in tampered_res.json()["detail"].lower()
+
+    # 3. Отправка с легитимным токеном проходит успешно
+    legit_payload = {
+        "table_number": "15",
+        "table_token": valid_sig,
+        "request_type": "call_waiter",
+        "guest_comment": "Легитимный вызов"
+    }
+    legit_res = await client.post("/api/v1/restaurants/asr-royale/service-requests", json=legit_payload)
+    assert legit_res.status_code == 200
+    assert legit_res.json()["status"] == "PENDING"
 

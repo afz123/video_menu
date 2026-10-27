@@ -1,14 +1,20 @@
+import asyncio
 import html
 import logging
 from typing import Optional, List, Dict, Any
 import httpx
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 logger = logging.getLogger("video_menu.telegram")
 
 class TelegramService:
     @staticmethod
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=5), reraise=False)
+    @retry(
+        stop=stop_after_attempt(4),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type((httpx.NetworkError, httpx.TimeoutException)),
+        reraise=False
+    )
     async def send_message(
         bot_token: str,
         chat_id: str,
@@ -16,7 +22,7 @@ class TelegramService:
         reply_markup: Optional[Dict[str, Any]] = None
     ) -> bool:
         """
-        Sends an HTML-formatted notification to staff Telegram group with retry and backoff.
+        Sends an HTML-formatted notification to staff Telegram group with retry, 429 backoff and network recovery.
         """
         if not bot_token or not chat_id:
             logger.warning("Telegram dispatch skipped: bot_token or chat_id not configured")
@@ -33,16 +39,26 @@ class TelegramService:
             payload["reply_markup"] = reply_markup
 
         try:
-            async with httpx.AsyncClient(timeout=6.0) as client:
+            async with httpx.AsyncClient(timeout=8.0) as client:
                 res = await client.post(url, json=payload)
                 if res.status_code == 200:
                     logger.info(f"Telegram notification delivered to chat {chat_id}")
                     return True
-                logger.error(f"Telegram error {res.status_code}: {res.text}")
+                elif res.status_code == 429:
+                    retry_after = int(res.headers.get("Retry-After", 2))
+                    logger.warning(f"Telegram Rate Limit (429). Backing off for {retry_after}s")
+                    await asyncio.sleep(retry_after)
+                    retry_res = await client.post(url, json=payload)
+                    return retry_res.status_code == 200
+
+                logger.error(f"Telegram dispatch failed [{res.status_code}]: {res.text}")
                 return False
-        except Exception as e:
-            logger.error(f"Telegram connection exception: {e}")
+        except (httpx.NetworkError, httpx.TimeoutException) as e:
+            logger.error(f"Telegram network exception (retrying): {e}")
             raise e
+        except Exception as e:
+            logger.error(f"Telegram unexpected error: {e}")
+            return False
 
     @classmethod
     async def notify_service_request(
@@ -221,9 +237,11 @@ class TelegramService:
             f"⏰ <b>Дата & Время:</b> {reservation_date} с {start_time} до {end_time}",
         ]
 
-        table_info = f"№ {table_number}" if table_number else "Будет назначен хостес"
-        if zone_name:
-            table_info += f" ({zone_name})"
+        safe_tbl = html.escape(str(table_number)) if table_number else "Будет назначен хостес"
+        safe_zone = html.escape(str(zone_name)) if zone_name else ""
+        table_info = f"№ {safe_tbl}" if table_number else "Будет назначен хостес"
+        if safe_zone:
+            table_info += f" ({safe_zone})"
         lines.append(f"🪑 <b>Стол:</b> {table_info}")
 
         if safe_wishes:

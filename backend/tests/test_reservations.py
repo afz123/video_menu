@@ -93,12 +93,25 @@ async def test_create_and_manage_reservation_lifecycle(client: AsyncClient, admi
 
 @pytest.mark.asyncio
 async def test_get_zones_and_tables(client: AsyncClient):
-    """Verify endpoint returning restaurant zones with active tables."""
+    """Verify endpoint returning restaurant zones with active tables and floor levels."""
     res = await client.get("/api/v1/reservations/zones?restaurant_slug=asr-royale")
     assert res.status_code == 200
     zones = res.json()
-    assert len(zones) >= 3
+    assert len(zones) >= 4
     zone_names = [z["name"] for z in zones]
-    assert "Основной зал" in zone_names
-    assert "Панорамная терраса" in zone_names
-    assert "VIP-комната" in zone_names
+    assert any("Основной зал" in name for name in zone_names)
+    assert any("Панорамная терраса" in name for name in zone_names)
+    assert any("Лаунж" in name for name in zone_names)
+    assert any("VIP" in name for name in zone_names)
+
+    # Check multi-floor architecture
+    floors = [z.get("floor") for z in zones]
+    assert 1 in floors
+    assert 2 in floors
+
+    # Check VIP cabins have cabin shape
+    all_tables = [t for z in zones for t in z.get("tables", [])]
+    vip_tables = [t for t in all_tables if "VIP" in t["table_number"]]
+    assert len(vip_tables) >= 2
+    for vt in vip_tables:
+        assert vt["shape"] == "cabin"

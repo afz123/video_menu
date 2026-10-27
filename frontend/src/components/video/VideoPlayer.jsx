@@ -48,13 +48,12 @@ export const VideoPlayer = ({
     videoRef.current.muted = effectiveMuted;
   }, [effectiveMuted]);
 
-  // Hardware lifecycle for video element: prevent WebKit OOM crash on iOS Safari
+  // Очистка аппаратного декодера WebKit при уходе со слайда
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    let isCancelled = false;
-    let playPromise = null;
+    let isSubscribed = true;
 
     if (isCurrent && videoSrc) {
       if (video.src !== videoSrc) {
@@ -62,54 +61,43 @@ export const VideoPlayer = ({
         video.load();
       }
       video.muted = effectiveMuted;
-      video.currentTime = 0;
 
-      playPromise = video.play();
+      const playPromise = video.play();
       if (playPromise !== undefined) {
         playPromise
           .then(() => {
-            if (!isCancelled) {
-              setIsVideoLoaded(true);
-            }
+            if (isSubscribed) setIsVideoLoaded(true);
           })
           .catch((err) => {
-            if (!isCancelled) {
+            if (isSubscribed) {
               if (err.name === 'NotAllowedError') {
-                // Autoplay with sound blocked by mobile browser policy -> fall back to muted
                 video.muted = true;
                 if (!effectiveMuted && onToggleSound) {
-                  onToggleSound(); // Synchronize UI speaker state
+                  onToggleSound();
                 }
               }
               if (err.name !== 'AbortError') {
                 video.muted = true;
                 video.play().then(() => {
-                  if (!isCancelled) setIsVideoLoaded(true);
+                  if (isSubscribed) setIsVideoLoaded(true);
                 }).catch(() => {});
               }
             }
           });
       }
     } else {
-      if (playPromise) {
-        playPromise
-          .then(() => {
-            if (video) {
-              video.pause();
-              video.currentTime = 0;
-            }
-          })
-          .catch(() => {});
-      } else {
-        video.pause();
-      }
+      video.pause();
+      video.removeAttribute('src'); // Принудительный сброс видеобуфера
+      video.load();                 // Освобождение GPU-декодера в Safari
       setIsVideoLoaded(false);
     }
 
     return () => {
-      isCancelled = true;
+      isSubscribed = false;
       if (video) {
         video.pause();
+        video.removeAttribute('src');
+        video.load();
       }
     };
   }, [isCurrent, videoSrc, effectiveMuted, onToggleSound]);
@@ -205,25 +193,27 @@ export const VideoPlayer = ({
         />
       )}
 
-      {/* Layer 3: Vertical video stream H.264 FastStart */}
-      <video
-        ref={videoRef}
-        loop
-        muted={effectiveMuted}
-        playsInline
-        webkit-playsinline="true"
-        preload="auto"
-        onPlaying={() => setIsVideoLoaded(true)}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          opacity: isVideoLoaded ? 1 : 0,
-          transition: 'opacity 0.4s ease'
-        }}
-      />
+      {/* Layer 3: Vertical video stream H.264 FastStart - Рендерим ТОЛЬКО если слайд активен */}
+      {isCurrent && videoSrc && (
+        <video
+          ref={videoRef}
+          loop
+          muted={effectiveMuted}
+          playsInline
+          webkit-playsinline="true"
+          preload="auto"
+          onPlaying={() => setIsVideoLoaded(true)}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            opacity: isVideoLoaded ? 1 : 0,
+            transition: 'opacity 0.3s ease'
+          }}
+        />
+      )}
 
       {/* Cinematic dark gradients for legibility of dish typography */}
       <div

@@ -468,5 +468,140 @@
     "role": "superadmin",
     "restaurant_id": null,
     "restaurant_slug": null
+  },
+  "cbb86655284ed5e8f20197acd3384d88994decdc6aa369ec": {
+    "role": "manager",
+    "restaurant_id": 101,
+    "restaurant_slug": "branch-a"
+  },
+  "384f970da0af84e70c6bcb312b169631afd16a3f4391b132": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "c8cab92af37fe4f67ae100fc41091228f388d1375234cc57": {
+    "role": "manager",
+    "restaurant_id": 221,
+    "restaurant_slug": "steak-b028a5"
+  },
+  "d1127cd47b45d892864152ca8e3d17831abd7409982a3cb9": {
+    "role": "manager",
+    "restaurant_id": 101,
+    "restaurant_slug": "branch-a"
+  },
+  "9cc52f7de42212a4933c77871677411be98855cd19139140": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "f37b192a4dcda9a17d2e310cf8c2a981e14d08b8d53c46a2": {
+    "role": "manager",
+    "restaurant_id": 101,
+    "restaurant_slug": "branch-a"
+  },
+  "52ef0ce6486218c0df100c286a7620e9d69c4cd205c22dfe": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "3928edb209a46c9a080a6b47143c1bb5147d319a29455258": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "7f9bb55eb54400bee3a6cd168558c8e55129a453110cd9ee": {
+    "role": "manager",
+    "restaurant_id": 238,
+    "restaurant_slug": "steak-58aee6"
+  },
+  "8d0924df5ef8922ad7c710c16c7400075f886dd924f41c9d": {
+    "role": "manager",
+    "restaurant_id": 101,
+    "restaurant_slug": "branch-a"
+  },
+  "1d99df06e0d17e4fcab543489879dea1612e2cfe6fa4c07e": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "9b232e2ddd7e802c2016a0d205bcad89aeb83ec8f026acc2": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "1dfb024d01c01cd536388c13644575555def135bc7eabbf2": {
+    "role": "manager",
+    "restaurant_id": 250,
+    "restaurant_slug": "steak-9e9601"
+  },
+  "1975193b553d5d455293552269d5396ead0c65716c87c4a1": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "6eecde1f98c51efd1ac0335479140bd39fda1f6519a91c3f": {
+    "role": "manager",
+    "restaurant_id": 101,
+    "restaurant_slug": "branch-a"
+  },
+  "502fe87b39ba3a0c681ca35f3f1944afd54a8e1bef4ab294": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "703ba6c14a686cd7c28f9095376791cfa8cc1683f383546c": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "57433a2f24e7a525acb0c433b0f5b4c01c8cd9e43d3f3562": {
+    "role": "manager",
+    "restaurant_id": 262,
+    "restaurant_slug": "steak-d1f1d8"
+  },
+  "3fc4cf8321293355ae3525a95b4eb80bfc8dbcb75bbc218c": {
+    "role": "manager",
+    "restaurant_id": 101,
+    "restaurant_slug": "branch-a"
+  },
+  "e7b1b21334781ef4ae1552242faadbc0dbd0c81f93322e55": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "ac17ad587adddb565654fa12889c20377c9c5c2e90ecc2db": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "4699ed301ca5ecbcc37e8bd2ed40fe9c126ea38581f886f8": {
+    "role": "manager",
+    "restaurant_id": 274,
+    "restaurant_slug": "steak-9f17ec"
+  },
+  "4e0f2c154684faa764070f91ac9aa9b062aed6eb615f3797": {
+    "role": "manager",
+    "restaurant_id": 101,
+    "restaurant_slug": "branch-a"
+  },
+  "95312504485b5f031a37aadccf431d4a6de4949f6cd684f6": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "62243b86c9b8876a4c560f0f9b650c99b9c0e6e05163d167": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "036f03471d7f72a7efd9d4c2052b4d04042b4c502383a913": {
+    "role": "manager",
+    "restaurant_id": 286,
+    "restaurant_slug": "steak-5c953c"
+  },
+  "7cbe736d4c84069e2c05edebb5a5cc46849adc7449980808": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
   }
 }

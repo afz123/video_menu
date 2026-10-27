@@ -2,6 +2,7 @@ import asyncio
 import os
 import subprocess
 import logging
+import tempfile
 from pathlib import Path
 from app.core.config import settings
 
@@ -28,30 +29,33 @@ class VideoTranscodeService:
     @classmethod
     async def _run_async_proc(cls, cmd, timeout=120):
         """
-        Executes FFmpeg with DEVNULL for stdout and bounded reading of stderr
-        to prevent OS PIPE buffer deadlocks on long or verbose streams.
+        Запуск FFmpeg с перенаправлением stderr во временный кольцевой файл
+        для предотвращения переполнения буфера OS pipe (Deadlock Prevention).
         """
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.PIPE
-        )
-        try:
-            _, stderr_data = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-            if proc.returncode != 0:
-                err_msg = stderr_data.decode('utf-8', errors='ignore')[-8192:] if stderr_data else ''
-                logger.error(f"FFmpeg failed with code {proc.returncode}: {err_msg}")
-                raise RuntimeError(f"FFmpeg execution error (code {proc.returncode}): {err_msg}")
-        except asyncio.TimeoutError:
+        with tempfile.TemporaryFile() as stderr_file:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=stderr_file
+            )
             try:
-                proc.kill()
-                await proc.wait()
-            except ProcessLookupError:
-                pass
-            except Exception:
-                pass
-            logger.error(f"FFmpeg command timed out after {timeout}s: {' '.join(cmd)}")
-            raise TimeoutError(f"FFmpeg timed out after {timeout}s: {' '.join(cmd)}")
+                await asyncio.wait_for(proc.wait(), timeout=timeout)
+                if proc.returncode != 0:
+                    stderr_file.seek(0)
+                    err_bytes = stderr_file.read()
+                    err_msg = err_bytes.decode('utf-8', errors='ignore')[-4096:]
+                    logger.error(f"FFmpeg error (code {proc.returncode}): {err_msg}")
+                    raise RuntimeError(f"FFmpeg failed with exit code {proc.returncode}: {err_msg}")
+            except asyncio.TimeoutError:
+                try:
+                    proc.kill()
+                    await proc.wait()
+                except ProcessLookupError:
+                    pass
+                except Exception:
+                    pass
+                logger.error(f"FFmpeg process killed due to {timeout}s timeout: {' '.join(cmd)}")
+                raise TimeoutError(f"Транскодирование видео превысило лимит времени ({timeout}s)")
 
     @classmethod
     async def process_video(cls, input_path: str, output_dir: Path, asset_id: int) -> dict:

@@ -96,16 +96,103 @@ SAMPLE_MODIFIERS_LAMB = [
 ]
 
 async def ensure_reservation_tables_seeded(db, restaurant: Restaurant):
-    """Creates default zones and tables for restaurant if none exist."""
-    z_res = await db.execute(select(TableZone).where(TableZone.restaurant_id == restaurant.id))
+    """Creates multi-floor zones and tables (1st floor: Grand Hall & Terrace, 2nd floor: Lounge & VIP cabins)."""
+    z_res = await db.execute(select(TableZone).where(TableZone.restaurant_id == restaurant.id).order_by(TableZone.display_order.asc()))
     existing_zones = z_res.scalars().all()
+
     if existing_zones:
+        # 1. Update existing zones to multi-floor specification
+        for z in existing_zones:
+            name_lower = z.name.lower()
+            if "террас" in name_lower:
+                z.name = "Панорамная терраса"
+                z.floor = 1
+                z.display_order = 2
+                z.image_url = "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=1920&q=85"
+            elif "лаунж" in name_lower or "атриум" in name_lower:
+                z.name = "2-й этаж: Лаунж & Атриум"
+                z.floor = 2
+                z.display_order = 3
+                z.image_url = "https://images.unsplash.com/photo-1578474846511-04ba529f0b88?auto=format&fit=crop&w=1920&q=85"
+            elif "vip" in name_lower:
+                z.name = "2-й этаж: Приватные VIP-кабины"
+                z.floor = 2
+                z.display_order = 4
+                z.image_url = "https://images.unsplash.com/photo-1578474846511-04ba529f0b88?auto=format&fit=crop&w=1920&q=85"
+            else:
+                z.name = "Основной зал (Grand Hall)"
+                z.floor = 1
+                z.display_order = 1
+                z.image_url = "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1920&q=85"
+
+        # 2. If 2nd Floor Lounge is missing, create it
+        lounge_zone = next((z for z in existing_zones if "лаунж" in z.name.lower() or "атриум" in z.name.lower()), None)
+        if not lounge_zone:
+            lounge_zone = TableZone(
+                restaurant_id=restaurant.id,
+                name="2-й этаж: Лаунж & Атриум",
+                description="Панорамный балкон с видом на рояль, мягкие диваны и винный погреб",
+                image_url="https://images.unsplash.com/photo-1578474846511-04ba529f0b88?auto=format&fit=crop&w=1920&q=85",
+                floor=2,
+                display_order=3,
+                is_active=True
+            )
+            db.add(lounge_zone)
+            await db.flush()
+
+        # Check and add tables for Lounge if missing
+        lounge_tbls_res = await db.execute(select(DiningTable).where(DiningTable.zone_id == lounge_zone.id))
+        lounge_tbl_numbers = [t.table_number for t in lounge_tbls_res.scalars().all()]
+        new_lounge_tables = []
+        if "201" not in lounge_tbl_numbers:
+            new_lounge_tables.append(DiningTable(
+                restaurant_id=restaurant.id, zone_id=lounge_zone.id, table_number="201",
+                min_capacity=2, max_capacity=4, pos_x=26.0, pos_y=65.0, shape="square",
+                photo_url="https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=800&q=80",
+                features=["Вид на атриум", "Мягкие кресла"]
+            ))
+        if "202" not in lounge_tbl_numbers:
+            new_lounge_tables.append(DiningTable(
+                restaurant_id=restaurant.id, zone_id=lounge_zone.id, table_number="202",
+                min_capacity=2, max_capacity=4, pos_x=48.0, pos_y=68.0, shape="square",
+                photo_url="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+                features=["Панорама зала", "У камина"]
+            ))
+        if "203" not in lounge_tbl_numbers:
+            new_lounge_tables.append(DiningTable(
+                restaurant_id=restaurant.id, zone_id=lounge_zone.id, table_number="203",
+                min_capacity=2, max_capacity=4, pos_x=72.0, pos_y=64.0, shape="square",
+                photo_url="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80",
+                features=["Тихая зона", "Свечи"]
+            ))
+        if "204" not in lounge_tbl_numbers:
+            new_lounge_tables.append(DiningTable(
+                restaurant_id=restaurant.id, zone_id=lounge_zone.id, table_number="204",
+                min_capacity=4, max_capacity=8, pos_x=50.0, pos_y=30.0, shape="rectangle",
+                photo_url="https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=800&q=80",
+                features=["Большой лаунж", "Вид на рояль"]
+            ))
+        if new_lounge_tables:
+            db.add_all(new_lounge_tables)
+
+        # Ensure VIP cabins have shape="cabin"
+        vip_zone = next((z for z in existing_zones if "vip" in z.name.lower()), None)
+        if vip_zone:
+            vip_tbls_res = await db.execute(select(DiningTable).where(DiningTable.zone_id == vip_zone.id))
+            for vt in vip_tbls_res.scalars().all():
+                vt.shape = "cabin"
+
+        await db.commit()
+        logger.info("Multi-floor zones and tables synchronized for %s", restaurant.name)
         return
 
+    # Fresh seeding: 4 zones across 2 floors
     main_hall = TableZone(
         restaurant_id=restaurant.id,
-        name="Основной зал",
+        name="Основной зал (Grand Hall)",
         description="Элегантная атмосфера, живой рояль и панорамный камин",
+        image_url="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1920&q=85",
+        floor=1,
         display_order=1,
         is_active=True
     )
@@ -113,40 +200,136 @@ async def ensure_reservation_tables_seeded(db, restaurant: Restaurant):
         restaurant_id=restaurant.id,
         name="Панорамная терраса",
         description="Открытый вид на вечерний город с подогревом и пледами",
+        image_url="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=1920&q=85",
+        floor=1,
         display_order=2,
         is_active=True
     )
-    vip_room = TableZone(
+    lounge = TableZone(
         restaurant_id=restaurant.id,
-        name="VIP-комната",
-        description="Приватное пространство для деловых встреч и закрытых ужинов",
+        name="2-й этаж: Лаунж & Атриум",
+        description="Панорамный балкон с видом на рояль, мягкие диваны и винный погреб",
+        image_url="https://images.unsplash.com/photo-1578474846511-04ba529f0b88?auto=format&fit=crop&w=1920&q=85",
+        floor=2,
         display_order=3,
         is_active=True
     )
-    db.add_all([main_hall, terrace, vip_room])
+    vip_cabins = TableZone(
+        restaurant_id=restaurant.id,
+        name="2-й этаж: Приватные VIP-кабины",
+        description="Приватные звукоизолированные кабинеты для закрытых ужинов",
+        image_url="https://images.unsplash.com/photo-1578474846511-04ba529f0b88?auto=format&fit=crop&w=1920&q=85",
+        floor=2,
+        display_order=4,
+        is_active=True
+    )
+    db.add_all([main_hall, terrace, lounge, vip_cabins])
     await db.flush()
 
     tables = [
-        # Основной зал: столы 1-9
-        DiningTable(restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="1", min_capacity=1, max_capacity=2, pos_x=80, pos_y=120, shape="round"),
-        DiningTable(restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="2", min_capacity=1, max_capacity=2, pos_x=160, pos_y=120, shape="round"),
-        DiningTable(restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="3", min_capacity=1, max_capacity=2, pos_x=240, pos_y=120, shape="round"),
-        DiningTable(restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="4", min_capacity=2, max_capacity=4, pos_x=80, pos_y=240, shape="square"),
-        DiningTable(restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="5", min_capacity=2, max_capacity=4, pos_x=160, pos_y=240, shape="square"),
-        DiningTable(restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="6", min_capacity=2, max_capacity=4, pos_x=240, pos_y=240, shape="square"),
-        DiningTable(restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="7", min_capacity=3, max_capacity=6, pos_x=80, pos_y=360, shape="rectangle"),
-        DiningTable(restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="8", min_capacity=3, max_capacity=6, pos_x=200, pos_y=360, shape="rectangle"),
-        DiningTable(restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="9", min_capacity=4, max_capacity=8, pos_x=320, pos_y=360, shape="rectangle"),
+        # 1-й этаж: Основной зал (Grand Hall) — столы №1–№6
+        DiningTable(
+            restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="1",
+            min_capacity=1, max_capacity=2, pos_x=22.0, pos_y=72.0, shape="round",
+            photo_url="https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=800&q=80",
+            features=["У окна", "При свечах"]
+        ),
+        DiningTable(
+            restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="2",
+            min_capacity=1, max_capacity=2, pos_x=38.0, pos_y=76.0, shape="round",
+            photo_url="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+            features=["Уютный столик", "Свечи"]
+        ),
+        DiningTable(
+            restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="3",
+            min_capacity=1, max_capacity=2, pos_x=54.0, pos_y=74.0, shape="round",
+            photo_url="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80",
+            features=["Центр зала", "У камина"]
+        ),
+        DiningTable(
+            restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="4",
+            min_capacity=2, max_capacity=4, pos_x=24.0, pos_y=48.0, shape="square",
+            photo_url="https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=800&q=80",
+            features=["Мягкие диваны", "У окна"]
+        ),
+        DiningTable(
+            restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="5",
+            min_capacity=2, max_capacity=4, pos_x=52.0, pos_y=50.0, shape="square",
+            photo_url="https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=800&q=80",
+            features=["Рядом с роялем", "Диваны"]
+        ),
+        DiningTable(
+            restaurant_id=restaurant.id, zone_id=main_hall.id, table_number="6",
+            min_capacity=2, max_capacity=4, pos_x=76.0, pos_y=52.0, shape="square",
+            photo_url="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+            features=["Барная линия", "Быстрая подача"]
+        ),
 
-        # Терраса: T-1 to T-4
-        DiningTable(restaurant_id=restaurant.id, zone_id=terrace.id, table_number="T-1", min_capacity=1, max_capacity=2, pos_x=100, pos_y=100, shape="round"),
-        DiningTable(restaurant_id=restaurant.id, zone_id=terrace.id, table_number="T-2", min_capacity=2, max_capacity=4, pos_x=200, pos_y=100, shape="square"),
-        DiningTable(restaurant_id=restaurant.id, zone_id=terrace.id, table_number="T-3", min_capacity=2, max_capacity=4, pos_x=300, pos_y=100, shape="square"),
-        DiningTable(restaurant_id=restaurant.id, zone_id=terrace.id, table_number="T-4", min_capacity=4, max_capacity=8, pos_x=150, pos_y=220, shape="rectangle"),
+        # 1-й этаж: Панорамная терраса — столы T-1–T-4
+        DiningTable(
+            restaurant_id=restaurant.id, zone_id=terrace.id, table_number="T-1",
+            min_capacity=1, max_capacity=2, pos_x=25.0, pos_y=68.0, shape="round",
+            photo_url="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80",
+            features=["Панорама заката", "Обогрев и плед"]
+        ),
+        DiningTable(
+            restaurant_id=restaurant.id, zone_id=terrace.id, table_number="T-2",
+            min_capacity=2, max_capacity=4, pos_x=48.0, pos_y=64.0, shape="square",
+            photo_url="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80",
+            features=["Первая линия", "Свежий воздух"]
+        ),
+        DiningTable(
+            restaurant_id=restaurant.id, zone_id=terrace.id, table_number="T-3",
+            min_capacity=2, max_capacity=4, pos_x=74.0, pos_y=62.0, shape="square",
+            photo_url="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80",
+            features=["Уютный уголок", "Теплый свет"]
+        ),
+        DiningTable(
+            restaurant_id=restaurant.id, zone_id=terrace.id, table_number="T-4",
+            min_capacity=4, max_capacity=8, pos_x=52.0, pos_y=32.0, shape="rectangle",
+            photo_url="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80",
+            features=["Лаунж-диваны", "Широкий обзор"]
+        ),
 
-        # VIP: VIP-1, VIP-2
-        DiningTable(restaurant_id=restaurant.id, zone_id=vip_room.id, table_number="VIP-1", min_capacity=4, max_capacity=10, pos_x=120, pos_y=150, shape="rectangle"),
-        DiningTable(restaurant_id=restaurant.id, zone_id=vip_room.id, table_number="VIP-2", min_capacity=6, max_capacity=16, pos_x=300, pos_y=150, shape="rectangle"),
+        # 2-й этаж: Лаунж & Атриум — столы 201–204
+        DiningTable(
+            restaurant_id=restaurant.id, zone_id=lounge.id, table_number="201",
+            min_capacity=2, max_capacity=4, pos_x=26.0, pos_y=65.0, shape="square",
+            photo_url="https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=800&q=80",
+            features=["Вид на атриум", "Мягкие кресла"]
+        ),
+        DiningTable(
+            restaurant_id=restaurant.id, zone_id=lounge.id, table_number="202",
+            min_capacity=2, max_capacity=4, pos_x=48.0, pos_y=68.0, shape="square",
+            photo_url="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+            features=["Панорама зала", "У камина"]
+        ),
+        DiningTable(
+            restaurant_id=restaurant.id, zone_id=lounge.id, table_number="203",
+            min_capacity=2, max_capacity=4, pos_x=72.0, pos_y=64.0, shape="square",
+            photo_url="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80",
+            features=["Тихая зона", "Свечи"]
+        ),
+        DiningTable(
+            restaurant_id=restaurant.id, zone_id=lounge.id, table_number="204",
+            min_capacity=4, max_capacity=8, pos_x=50.0, pos_y=30.0, shape="rectangle",
+            photo_url="https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=800&q=80",
+            features=["Большой лаунж", "Вид на рояль"]
+        ),
+
+        # 2-й этаж: Приватные VIP-кабины — VIP-1 и VIP-2
+        DiningTable(
+            restaurant_id=restaurant.id, zone_id=vip_cabins.id, table_number="VIP-1",
+            min_capacity=4, max_capacity=10, pos_x=34.0, pos_y=56.0, shape="cabin",
+            photo_url="https://images.unsplash.com/photo-1578474846511-04ba529f0b88?auto=format&fit=crop&w=800&q=80",
+            features=["Полная приватность", "Камин", "Личный официант"]
+        ),
+        DiningTable(
+            restaurant_id=restaurant.id, zone_id=vip_cabins.id, table_number="VIP-2",
+            min_capacity=6, max_capacity=16, pos_x=68.0, pos_y=52.0, shape="cabin",
+            photo_url="https://images.unsplash.com/photo-1578474846511-04ba529f0b88?auto=format&fit=crop&w=800&q=80",
+            features=["Президентский стол", "Аудиосистема", "VIP-гардероб"]
+        ),
     ]
     db.add_all(tables)
     await db.commit()
@@ -183,15 +366,56 @@ async def seed_database():
                 "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS total_amount FLOAT DEFAULT 0.0;",
                 "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS currency VARCHAR(8) DEFAULT 'TJS';",
                 "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS nps_score INTEGER;",
-                "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS acknowledged_by VARCHAR(64);"
+                "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS acknowledged_by VARCHAR(64);",
+                "ALTER TABLE table_zones ADD COLUMN IF NOT EXISTS image_url VARCHAR(512);",
+                "ALTER TABLE table_zones ADD COLUMN IF NOT EXISTS floor INTEGER DEFAULT 1;",
+                "ALTER TABLE dining_tables ADD COLUMN IF NOT EXISTS photo_url VARCHAR(512);",
+                "ALTER TABLE dining_tables ADD COLUMN IF NOT EXISTS features JSON DEFAULT '[]'::json;"
             ]
             for stmt in stmts:
                 try:
                     await conn.execute(text(stmt))
                 except Exception as e:
                     logger.debug(f"Migration note: {e}")
+
+            # Обновление существующих данных для фото-карты, если пустые
+            try:
+                await conn.execute(text("UPDATE table_zones SET image_url = 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1920&q=85' WHERE name = 'Основной зал' AND (image_url IS NULL OR image_url = '');"))
+                await conn.execute(text("UPDATE table_zones SET image_url = 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=1920&q=85' WHERE name = 'Панорамная терраса' AND (image_url IS NULL OR image_url = '');"))
+                await conn.execute(text("UPDATE table_zones SET image_url = 'https://images.unsplash.com/photo-1578474846511-04ba529f0b88?auto=format&fit=crop&w=1920&q=85' WHERE name = 'VIP-комната' AND (image_url IS NULL OR image_url = '');"))
+                
+                # Нормализация координат в проценты для столов и заполнение фото и фич
+                await conn.execute(text("UPDATE dining_tables SET pos_x = 22.0, pos_y = 72.0, photo_url = 'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=800&q=80', features = '[\"У окна\", \"При свечах\"]'::json WHERE table_number = '1' AND (pos_y > 100 OR photo_url IS NULL);"))
+                await conn.execute(text("UPDATE dining_tables SET pos_x = 38.0, pos_y = 76.0, photo_url = 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80', features = '[\"Уютный столик\", \"Свечи\"]'::json WHERE table_number = '2' AND (pos_y > 100 OR photo_url IS NULL);"))
+                await conn.execute(text("UPDATE dining_tables SET pos_x = 54.0, pos_y = 74.0, photo_url = 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80', features = '[\"Центр зала\", \"У камина\"]'::json WHERE table_number = '3' AND (pos_y > 100 OR photo_url IS NULL);"))
+                await conn.execute(text("UPDATE dining_tables SET pos_x = 24.0, pos_y = 48.0, photo_url = 'https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=800&q=80', features = '[\"Мягкие диваны\", \"У окна\"]'::json WHERE table_number = '4' AND (pos_y > 100 OR photo_url IS NULL);"))
+                await conn.execute(text("UPDATE dining_tables SET pos_x = 52.0, pos_y = 50.0, photo_url = 'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=800&q=80', features = '[\"Рядом с роялем\", \"Диваны\"]'::json WHERE table_number = '5' AND (pos_y > 100 OR photo_url IS NULL);"))
+                await conn.execute(text("UPDATE dining_tables SET pos_x = 76.0, pos_y = 52.0, photo_url = 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80', features = '[\"Барная линия\", \"Быстрая подача\"]'::json WHERE table_number = '6' AND (pos_y > 100 OR photo_url IS NULL);"))
+                await conn.execute(text("UPDATE dining_tables SET pos_x = 28.0, pos_y = 28.0, photo_url = 'https://images.unsplash.com/photo-1578474846511-04ba529f0b88?auto=format&fit=crop&w=800&q=80', features = '[\"Для компании\", \"Кожаные диваны\"]'::json WHERE table_number = '7' AND (pos_y > 100 OR photo_url IS NULL);"))
+                await conn.execute(text("UPDATE dining_tables SET pos_x = 66.0, pos_y = 26.0, photo_url = 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80', features = '[\"Панорамный обзор\", \"Тихий сектор\"]'::json WHERE table_number = '8' AND (pos_y > 100 OR photo_url IS NULL);"))
+                await conn.execute(text("UPDATE dining_tables SET pos_x = 84.0, pos_y = 72.0, photo_url = 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80', features = '[\"Банкетная зона\", \"Большой диван\"]'::json WHERE table_number = '9' AND (pos_y > 100 OR photo_url IS NULL);"))
+                await conn.execute(text("UPDATE dining_tables SET pos_x = 25.0, pos_y = 68.0, photo_url = 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80', features = '[\"Панорама заката\", \"Обогрев и плед\"]'::json WHERE table_number = 'T-1' AND (pos_y > 100 OR photo_url IS NULL);"))
+                await conn.execute(text("UPDATE dining_tables SET pos_x = 48.0, pos_y = 64.0, photo_url = 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80', features = '[\"Первая линия\", \"Свежий воздух\"]'::json WHERE table_number = 'T-2' AND (pos_y > 100 OR photo_url IS NULL);"))
+                await conn.execute(text("UPDATE dining_tables SET pos_x = 74.0, pos_y = 62.0, photo_url = 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80', features = '[\"Уютный уголок\", \"Теплый свет\"]'::json WHERE table_number = 'T-3' AND (pos_y > 100 OR photo_url IS NULL);"))
+                await conn.execute(text("UPDATE dining_tables SET pos_x = 52.0, pos_y = 32.0, photo_url = 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80', features = '[\"Лаунж-диваны\", \"Широкий обзор\"]'::json WHERE table_number = 'T-4' AND (pos_y > 100 OR photo_url IS NULL);"))
+                await conn.execute(text("UPDATE dining_tables SET pos_x = 34.0, pos_y = 56.0, photo_url = 'https://images.unsplash.com/photo-1578474846511-04ba529f0b88?auto=format&fit=crop&w=800&q=80', features = '[\"Полная приватность\", \"Камин\", \"Личный официант\"]'::json WHERE table_number = 'VIP-1' AND (pos_y > 100 OR photo_url IS NULL);"))
+                await conn.execute(text("UPDATE dining_tables SET pos_x = 68.0, pos_y = 52.0, photo_url = 'https://images.unsplash.com/photo-1578474846511-04ba529f0b88?auto=format&fit=crop&w=800&q=80', features = '[\"Президентский стол\", \"Аудиосистема\", \"VIP-гардероб\"]'::json WHERE table_number = 'VIP-2' AND (pos_y > 100 OR photo_url IS NULL);"))
+            except Exception as e:
+                logger.debug(f"Data migration note: {e}")
         else:
             # SQLite fallback migrations
+            try:
+                await conn.execute(text("ALTER TABLE table_zones ADD COLUMN image_url VARCHAR(512);"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE table_zones ADD COLUMN floor INTEGER DEFAULT 1;"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE dining_tables ADD COLUMN photo_url VARCHAR(512);"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE dining_tables ADD COLUMN features JSON DEFAULT '[]';"))
+            except Exception: pass
             try:
                 await conn.execute(text("ALTER TABLE restaurants ADD COLUMN currency VARCHAR(8) DEFAULT 'TJS';"))
             except Exception: pass
@@ -257,6 +481,18 @@ async def seed_database():
             except Exception: pass
             try:
                 await conn.execute(text("ALTER TABLE categories ADD COLUMN daypart VARCHAR(32) DEFAULT 'all';"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE table_zones ADD COLUMN floor INTEGER DEFAULT 1;"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE table_zones ADD COLUMN image_url VARCHAR(512);"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE dining_tables ADD COLUMN photo_url VARCHAR(512);"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE dining_tables ADD COLUMN features JSON;"))
             except Exception: pass
 
     session = await get_session()

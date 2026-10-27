@@ -22,9 +22,14 @@ def event_loop():
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def setup_test_db(event_loop):
     """Ensure database schema is created and initialized before tests run."""
+    from sqlalchemy import text
     engine = await init_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        try:
+            await conn.execute(text("DELETE FROM table_reservations WHERE guest_phone = '+992900112233' OR guest_name LIKE 'Фарход%';"))
+        except Exception:
+            pass
     await seed_database()
     yield
 

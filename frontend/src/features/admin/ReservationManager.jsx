@@ -5,11 +5,13 @@ import {
   Calendar, Clock, Users, Phone, CheckCircle, XCircle,
   AlertCircle, Search, RefreshCw, UserCheck, PhoneCall,
   UserX, Filter, Eye, Sparkles, MapPin, Check, Ban,
-  Plus, Edit2, Trash2, Layers, LayoutGrid, CheckSquare
+  Plus, Edit2, Trash2, Layers, LayoutGrid, CheckSquare,
+  Move, Image as ImageIcon
 } from 'lucide-react';
+import { InteractiveFloorPlan } from '../kiosk/InteractiveFloorPlan';
 
 export const ReservationManager = ({ restaurantSlug }) => {
-  const [activeView, setActiveView] = useState('reservations'); // 'reservations' | 'tables_and_zones'
+  const [activeView, setActiveView] = useState('floor_editor'); // 'floor_editor' | 'reservations' | 'tables_and_zones'
   const [reservations, setReservations] = useState([]);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -28,6 +30,8 @@ export const ReservationManager = ({ restaurantSlug }) => {
   // Form states for Zone modal
   const [zoneName, setZoneName] = useState('');
   const [zoneDesc, setZoneDesc] = useState('');
+  const [zoneImage, setZoneImage] = useState('');
+  const [zoneFloor, setZoneFloor] = useState(1);
   const [zoneOrder, setZoneOrder] = useState(0);
 
   // Form states for Table modal
@@ -36,7 +40,16 @@ export const ReservationManager = ({ restaurantSlug }) => {
   const [tableMinCap, setTableMinCap] = useState(2);
   const [tableMaxCap, setTableMaxCap] = useState(4);
   const [tableShape, setTableShape] = useState('square');
+  const [tablePhoto, setTablePhoto] = useState('');
+  const [tableFeatures, setTableFeatures] = useState('');
+  const [tablePosX, setTablePosX] = useState(50);
+  const [tablePosY, setTablePosY] = useState(50);
   const [tableIsActive, setTableIsActive] = useState(true);
+
+  // Visual Editor State
+  const [editorSelectedZoneId, setEditorSelectedZoneId] = useState(null);
+  const [editorSelectedTableId, setEditorSelectedTableId] = useState(null);
+  const [editorNotice, setEditorNotice] = useState('');
 
   // 1. Load Reservations
   const loadReservations = useCallback(async (isSilent = false) => {
@@ -61,6 +74,9 @@ export const ReservationManager = ({ restaurantSlug }) => {
     try {
       const data = await menuService.getReservationZones(restaurantSlug);
       setZones(data || []);
+      if (data && data.length > 0) {
+        setEditorSelectedZoneId((prev) => prev || data[0].id);
+      }
     } catch (err) {
       console.error('Failed to load zones and tables:', err);
     } finally {
@@ -68,14 +84,19 @@ export const ReservationManager = ({ restaurantSlug }) => {
     }
   }, [restaurantSlug]);
 
+  // Initial load of layout structure (zones & tables)
+  useEffect(() => {
+    loadZonesAndTables();
+  }, [loadZonesAndTables]);
+
+  // Periodic polling and filtered updates for reservations
   useEffect(() => {
     loadReservations();
-    loadZonesAndTables();
     const interval = setInterval(() => {
       loadReservations(true);
     }, 10000);
     return () => clearInterval(interval);
-  }, [loadReservations, loadZonesAndTables]);
+  }, [loadReservations]);
 
   const handleUpdateStatus = async (id, newStatus) => {
     setActionLoadingId(id);
@@ -95,11 +116,15 @@ export const ReservationManager = ({ restaurantSlug }) => {
       setEditingZone(zone);
       setZoneName(zone.name);
       setZoneDesc(zone.description || '');
+      setZoneImage(zone.image_url || '');
+      setZoneFloor(zone.floor || 1);
       setZoneOrder(zone.display_order || 0);
     } else {
       setEditingZone(null);
       setZoneName('');
       setZoneDesc('');
+      setZoneImage('');
+      setZoneFloor(1);
       setZoneOrder(zones.length + 1);
     }
     setIsZoneModalOpen(true);
@@ -116,12 +141,16 @@ export const ReservationManager = ({ restaurantSlug }) => {
         await menuService.updateZone(editingZone.id, {
           name: zoneName.trim(),
           description: zoneDesc.trim(),
+          image_url: zoneImage.trim() || null,
+          floor: Number(zoneFloor) || 1,
           display_order: Number(zoneOrder)
         });
       } else {
         await menuService.createZone(restaurantSlug, {
           name: zoneName.trim(),
           description: zoneDesc.trim(),
+          image_url: zoneImage.trim() || null,
+          floor: Number(zoneFloor) || 1,
           display_order: Number(zoneOrder)
         });
       }
@@ -151,14 +180,22 @@ export const ReservationManager = ({ restaurantSlug }) => {
       setTableMinCap(tbl.min_capacity);
       setTableMaxCap(tbl.max_capacity);
       setTableShape(tbl.shape || 'square');
+      setTablePhoto(tbl.photo_url || '');
+      setTableFeatures(Array.isArray(tbl.features) ? tbl.features.join(', ') : '');
+      setTablePosX(tbl.pos_x ?? 50);
+      setTablePosY(tbl.pos_y ?? 50);
       setTableIsActive(tbl.is_active);
     } else {
       setEditingTable(null);
       setTableNumber('');
-      setTableZoneId(defaultZoneId || zones[0]?.id || '');
+      setTableZoneId(defaultZoneId || editorSelectedZoneId || zones[0]?.id || '');
       setTableMinCap(2);
       setTableMaxCap(4);
       setTableShape('square');
+      setTablePhoto('');
+      setTableFeatures('У окна, Диваны');
+      setTablePosX(50);
+      setTablePosY(50);
       setTableIsActive(true);
     }
     setIsTableModalOpen(true);
@@ -171,6 +208,11 @@ export const ReservationManager = ({ restaurantSlug }) => {
       return;
     }
     try {
+      const featArray = tableFeatures
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+
       if (editingTable) {
         await menuService.updateTable(editingTable.id, {
           table_number: tableNumber.trim(),
@@ -178,6 +220,10 @@ export const ReservationManager = ({ restaurantSlug }) => {
           min_capacity: Number(tableMinCap),
           max_capacity: Number(tableMaxCap),
           shape: tableShape,
+          photo_url: tablePhoto.trim() || null,
+          features: featArray,
+          pos_x: Number(tablePosX),
+          pos_y: Number(tablePosY),
           is_active: tableIsActive
         });
       } else {
@@ -187,6 +233,10 @@ export const ReservationManager = ({ restaurantSlug }) => {
           min_capacity: Number(tableMinCap),
           max_capacity: Number(tableMaxCap),
           shape: tableShape,
+          photo_url: tablePhoto.trim() || null,
+          features: featArray,
+          pos_x: Number(tablePosX),
+          pos_y: Number(tablePosY),
           is_active: tableIsActive
         });
       }
@@ -194,6 +244,29 @@ export const ReservationManager = ({ restaurantSlug }) => {
       await loadZonesAndTables();
     } catch (err) {
       alert('Ошибка сохранения стола: ' + err.message);
+    }
+  };
+
+  // Instant Drag / Click repositioning for Visual Editor
+  const handleUpdateTablePosition = async (tableId, posX, posY) => {
+    try {
+      // Optimistic state update
+      setZones((prev) =>
+        prev.map((z) => ({
+          ...z,
+          tables: (z.tables || []).map((t) =>
+            Number(t.id) === Number(tableId) ? { ...t, pos_x: posX, pos_y: posY } : t
+          )
+        }))
+      );
+      const tblNum = zones.flatMap((z) => z.tables || []).find((t) => Number(t.id) === Number(tableId))?.table_number;
+      setEditorNotice(`Стол №${tblNum || tableId} сохранён: X=${posX}%, Y=${posY}%`);
+      await menuService.updateTable(tableId, { pos_x: posX, pos_y: posY });
+      setTimeout(() => setEditorNotice(''), 3000);
+    } catch (err) {
+      console.error('Failed to update table position:', err);
+      alert('Ошибка сохранения позиции стола: ' + err.message);
+      await loadZonesAndTables();
     }
   };
 
@@ -243,8 +316,31 @@ export const ReservationManager = ({ restaurantSlug }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* 0. Переключатель режима: Журнал броней vs Схема столов */}
-      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+      {/* 0. Переключатель режима: Фото-карта зала vs Журнал броней vs Список */}
+      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          onClick={() => setActiveView('floor_editor')}
+          style={{
+            background: activeView === 'floor_editor' ? 'var(--accent-gold-gradient)' : 'rgba(255, 255, 255, 0.05)',
+            color: activeView === 'floor_editor' ? '#000' : 'var(--text-muted)',
+            border: activeView === 'floor_editor' ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '14px',
+            padding: '10px 22px',
+            fontSize: '14px',
+            fontWeight: '700',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: activeView === 'floor_editor' ? '0 4px 16px rgba(212, 175, 55, 0.3)' : 'none',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          <Sparkles size={16} />
+          <span>🗺️ Фото-карта интерьера & Расстановка</span>
+        </button>
+
         <button
           type="button"
           onClick={() => setActiveView('reservations')}
@@ -288,9 +384,178 @@ export const ReservationManager = ({ restaurantSlug }) => {
           }}
         >
           <LayoutGrid size={16} />
-          <span>Столы & Схема залов ({totalTables})</span>
+          <span>Таблица столов ({totalTables})</span>
         </button>
       </div>
+
+      {/* РЕЖИМ: ВИЗУАЛЬНЫЙ РЕДАКТОР С РЕАЛЬНЫМИ ФОТОГРАФИЯМИ ИНТЕРЬЕРА */}
+      {activeView === 'floor_editor' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <GlassCard style={{ padding: '24px 28px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-gold)', fontSize: '13px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                  <Sparkles size={16} />
+                  <span>Кинематографичный Spatial Editor</span>
+                </div>
+                <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '28px', color: '#fff', margin: '4px 0 6px' }}>
+                  Интерактивная фото-карта зала
+                </h2>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
+                  Кликните на любой стол на фотографии, затем кликните в новое место интерьера. Координаты стола сохраняются автоматически в процентах.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                {editorNotice && (
+                  <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', border: '1px solid #10b981', color: '#10b981', padding: '6px 14px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Check size={14} />
+                    <span>{editorNotice}</span>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentZ = zones.find(z => Number(z.id) === Number(editorSelectedZoneId || zones[0]?.id));
+                    handleOpenZoneModal(currentZ);
+                  }}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    color: '#fff',
+                    borderRadius: '12px',
+                    padding: '10px 18px',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <ImageIcon size={15} />
+                  <span>Фото зала</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleOpenTableModal(null, editorSelectedZoneId || zones[0]?.id)}
+                  style={{
+                    background: 'var(--accent-gold-gradient)',
+                    border: 'none',
+                    color: '#000',
+                    borderRadius: '12px',
+                    padding: '10px 20px',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 4px 16px rgba(212, 175, 55, 0.35)'
+                  }}
+                >
+                  <Plus size={16} />
+                  <span>Добавить стол</span>
+                </button>
+              </div>
+            </div>
+          </GlassCard>
+
+          {/* Интерактивный компонент фото-маппинга */}
+          {zones.length === 0 ? (
+            <GlassCard style={{ padding: '40px', textAlign: 'center' }}>
+              <p style={{ color: 'var(--text-muted)' }}>Сначала создайте хотя бы один зал в заведении</p>
+            </GlassCard>
+          ) : (
+            <GlassCard style={{ padding: '24px 28px' }}>
+              <InteractiveFloorPlan
+                zones={zones}
+                selectedZoneId={editorSelectedZoneId || zones[0]?.id}
+                onSelectZone={(zId) => {
+                  setEditorSelectedZoneId(zId);
+                  setEditorSelectedTableId(null);
+                }}
+                tables={zones.flatMap((z) => z.tables || [])}
+                selectedTableId={editorSelectedTableId}
+                onSelectTable={(tId) => setEditorSelectedTableId(tId)}
+                isEditor={true}
+                onUpdateTablePosition={handleUpdateTablePosition}
+                onEditTableDetails={(tbl) => handleOpenTableModal(tbl, editorSelectedZoneId || zones[0]?.id)}
+              />
+
+              {/* Информационный бар подсказки редактора */}
+              <div
+                style={{
+                  marginTop: '16px',
+                  backgroundColor: 'rgba(212, 175, 55, 0.08)',
+                  border: '1px solid rgba(212, 175, 55, 0.25)',
+                  borderRadius: '14px',
+                  padding: '12px 16px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '10px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#fff' }}>
+                  <Sparkles size={16} color="var(--accent-gold)" />
+                  <span>
+                    {editorSelectedTableId ? (
+                      <>
+                        Выбран стол <b>№{zones.flatMap(z => z.tables || []).find(t => Number(t.id) === Number(editorSelectedTableId))?.table_number}</b>.
+                        Кликните в любую точку на фотографии зала, чтобы переместить его туда.
+                      </>
+                    ) : (
+                      'Нажмите на любой стол на фотографии зала, чтобы переместить его или настроить вид.'
+                    )}
+                  </span>
+                </div>
+
+                {editorSelectedTableId && (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tbl = zones.flatMap(z => z.tables || []).find(t => Number(t.id) === Number(editorSelectedTableId));
+                        if (tbl) handleOpenTableModal(tbl, editorSelectedZoneId || zones[0]?.id);
+                      }}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        color: '#fff',
+                        borderRadius: '8px',
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Настройки стола (фото и фичи)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditorSelectedTableId(null)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        padding: '6px 10px',
+                        fontSize: '12px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Снять выбор
+                    </button>
+                  </div>
+                )}
+              </div>
+            </GlassCard>
+          )}
+        </div>
+      )}
 
       {/* РЕЖИМ 1: ЖУРНАЛ БРОНИРОВАНИЙ */}
       {activeView === 'reservations' && (
@@ -790,7 +1055,10 @@ export const ReservationManager = ({ restaurantSlug }) => {
                         <span style={{ fontSize: '18px', fontWeight: '700', color: '#fff' }}>
                           {zone.name}
                         </span>
-                        <span style={{ background: 'rgba(212, 175, 55, 0.15)', color: 'var(--accent-gold)', padding: '2px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: '700' }}>
+                        <span style={{ background: 'rgba(212, 175, 55, 0.2)', border: '1px solid var(--accent-gold)', color: 'var(--accent-gold)', padding: '2px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: '800' }}>
+                          {zone.floor || 1}F ({zone.floor === 2 ? '2-й этаж' : zone.floor === 3 ? 'Крыша' : '1-й этаж'})
+                        </span>
+                        <span style={{ background: 'rgba(255, 255, 255, 0.08)', color: 'var(--text-muted)', padding: '2px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: '700' }}>
                           {zone.tables?.length || 0} столов • {zoneCapacity} мест
                         </span>
                       </div>
@@ -1043,6 +1311,92 @@ export const ReservationManager = ({ restaurantSlug }) => {
 
               <div>
                 <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                  URL фотографии интерьера зала (для фото-карты)
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://images.unsplash.com/..."
+                  value={zoneImage}
+                  onChange={(e) => setZoneImage(e.target.value)}
+                  style={{
+                    width: '100%',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '10px',
+                    padding: '10px 12px',
+                    color: '#fff',
+                    fontSize: '13px',
+                    outline: 'none'
+                  }}
+                />
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                  {[
+                    { name: 'Основной Зал', url: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1920&q=85' },
+                    { name: 'Терраса', url: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=1920&q=85' },
+                    { name: 'VIP-Комната', url: 'https://images.unsplash.com/photo-1578474846511-04ba529f0b88?auto=format&fit=crop&w=1920&q=85' },
+                    { name: 'Лаунж', url: 'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=1920&q=85' }
+                  ].map((p) => (
+                    <button
+                      key={p.name}
+                      type="button"
+                      onClick={() => setZoneImage(p.url)}
+                      style={{
+                        background: 'rgba(212, 175, 55, 0.1)',
+                        border: '1px solid rgba(212, 175, 55, 0.25)',
+                        color: 'var(--accent-gold)',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      + {p.name}
+                    </button>
+                  ))}
+                </div>
+                {zoneImage && (
+                  <div style={{ marginTop: '8px', position: 'relative', height: '110px', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(212, 175, 55, 0.3)' }}>
+                    <img src={zoneImage} alt="Превью интерьера" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                )}
+              </div>
+
+              {/* Выбор этажа заведения */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                  Этаж заведения *
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {[
+                    { num: 1, label: '1-й этаж (Зал & Терраса)' },
+                    { num: 2, label: '2-й этаж (Лаунж & VIP)' },
+                    { num: 3, label: '3-й этаж / Крыша' }
+                  ].map((f) => (
+                    <button
+                      key={f.num}
+                      type="button"
+                      onClick={() => setZoneFloor(f.num)}
+                      style={{
+                        flex: 1,
+                        padding: '10px 8px',
+                        borderRadius: '10px',
+                        border: zoneFloor === f.num ? '1.5px solid var(--accent-gold)' : '1px solid rgba(255,255,255,0.1)',
+                        background: zoneFloor === f.num ? 'var(--accent-gold-gradient)' : 'rgba(255,255,255,0.04)',
+                        color: zoneFloor === f.num ? '#000' : '#fff',
+                        fontWeight: '700',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
                   Порядок отображения в фильтрах (0, 1, 2...)
                 </label>
                 <input
@@ -1120,7 +1474,9 @@ export const ReservationManager = ({ restaurantSlug }) => {
             onClick={(e) => e.stopPropagation()}
             style={{
               width: '100%',
-              maxWidth: '480px',
+              maxWidth: '520px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
               backgroundColor: '#121217',
               border: '1px solid var(--accent-gold)',
               borderRadius: '20px',
@@ -1179,7 +1535,7 @@ export const ReservationManager = ({ restaurantSlug }) => {
                   >
                     {zones.map((z) => (
                       <option key={z.id} value={z.id} style={{ background: '#121217' }}>
-                        {z.name}
+                        [{z.floor || 1}F] {z.name}
                       </option>
                     ))}
                   </select>
@@ -1263,6 +1619,134 @@ export const ReservationManager = ({ restaurantSlug }) => {
                       {s.label}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Особенности / Фичи стола */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                  Особенности столика (через запятую)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Например: У панорамного окна, Мягкие диваны, У камина"
+                  value={tableFeatures}
+                  onChange={(e) => setTableFeatures(e.target.value)}
+                  style={{
+                    width: '100%',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '10px',
+                    padding: '10px 12px',
+                    color: '#fff',
+                    fontSize: '13px',
+                    outline: 'none'
+                  }}
+                />
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                  {['У окна', 'Мягкие диваны', 'У камина', 'При свечах', 'Рядом с роялем', 'Тихая зона'].map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => {
+                        const current = tableFeatures ? tableFeatures.split(',').map((s) => s.trim()) : [];
+                        if (!current.includes(tag)) {
+                          setTableFeatures([...current, tag].join(', '));
+                        }
+                      }}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        color: 'var(--accent-gold)',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      + {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Фото стола / вид с него */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                  Фото стола или вид с этого места (URL)
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://images.unsplash.com/..."
+                  value={tablePhoto}
+                  onChange={(e) => setTablePhoto(e.target.value)}
+                  style={{
+                    width: '100%',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '10px',
+                    padding: '10px 12px',
+                    color: '#fff',
+                    fontSize: '13px',
+                    outline: 'none'
+                  }}
+                />
+                {tablePhoto && (
+                  <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <img src={tablePhoto} alt="Превью вида" style={{ width: '48px', height: '48px', borderRadius: '8px', objectFit: 'cover', border: '1px solid var(--accent-gold)' }} />
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Вид с этого стола отображается гостю при выборе</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Координаты на фото-карте */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                    Позиция X на фото (%)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.5"
+                    value={tablePosX}
+                    onChange={(e) => setTablePosX(Number(e.target.value))}
+                    style={{
+                      width: '100%',
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      borderRadius: '10px',
+                      padding: '10px 12px',
+                      color: '#fff',
+                      fontSize: '13px',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                    Позиция Y на фото (%)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.5"
+                    value={tablePosY}
+                    onChange={(e) => setTablePosY(Number(e.target.value))}
+                    style={{
+                      width: '100%',
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      borderRadius: '10px',
+                      padding: '10px 12px',
+                      color: '#fff',
+                      fontSize: '13px',
+                      outline: 'none'
+                    }}
+                  />
                 </div>
               </div>
 

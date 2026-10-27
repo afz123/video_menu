@@ -16,5 +16,9 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  test: {
+    include: ['src/**/__tests__/**/*.{test,spec}.{js,jsx,ts,tsx}'],
+    exclude: ['e2e/**', 'node_modules/**', 'dist/**']
   }
 });

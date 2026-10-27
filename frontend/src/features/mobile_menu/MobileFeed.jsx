@@ -313,6 +313,10 @@ export const MobileFeed = ({ restaurantData }) => {
         tableNumber={tableNumber}
         onOpenBooking={() => setIsBookingOpen(true)}
         onChangeTable={() => {
+          if (tableSignature) {
+            alert('Номер стола верифицирован по оригинальному QR-коду и зафиксирован для защиты от ошибок.');
+            return;
+          }
           const newTbl = window.prompt('Укажите номер вашего стола (например: 12 или VIP-1):', tableNumber || '');
           if (newTbl && newTbl.trim()) {
             const trimmed = newTbl.trim();

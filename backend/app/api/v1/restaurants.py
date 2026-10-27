@@ -390,11 +390,20 @@ async def create_service_request(
 
     # Anti-spoofing table signature verification
     if data.table_token:
-        is_valid_sig = verify_table_signature(restaurant.id, normalized_table, data.table_token)
-        if not is_valid_sig and getattr(settings, "ENFORCE_TABLE_SIGNATURE", False):
-            raise HTTPException(status_code=403, detail="Недействительная цифровая подпись стола")
+        if not verify_table_signature(restaurant.id, normalized_table, data.table_token):
+            logger.warning(
+                f"SECURITY ALERT: Invalid table signature attempt for restaurant {restaurant.id}, "
+                f"table {normalized_table}, provided token: {data.table_token}"
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Недействительная цифровая подпись стола. Отсканируйте оригинальный QR-код на вашем столике."
+            )
     elif getattr(settings, "ENFORCE_TABLE_SIGNATURE", False):
-        raise HTTPException(status_code=403, detail="Отсутствует обязательная цифровая подпись стола")
+        raise HTTPException(
+            status_code=403,
+            detail="Отсутствует электронная подпись стола. Заказ возможен только при сканировании фирменного QR-кода."
+        )
 
     # Anti-spam rate-limit / debounce for waiter calls (45s window)
     if data.request_type != "order":

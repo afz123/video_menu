@@ -1,16 +1,18 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Float
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Float, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.models.base import Base
 
 class TableZone(Base):
-    """Зоны ресторана (Основной зал, Терраса, VIP, Барная зона)"""
+    """Зоны ресторана с привязкой к этажу (1-й этаж, 2-й этаж, веранда на крыше)"""
     __tablename__ = "table_zones"
 
     id = Column(Integer, primary_key=True, index=True)
     restaurant_id = Column(Integer, ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
-    name = Column(String(64), nullable=False)  # "Основной зал", "Панорамная терраса", "VIP-комната"
+    name = Column(String(64), nullable=False)  # "Основной зал", "Панорамный лаунж", "VIP-комната"
     description = Column(String(256), nullable=True)
+    image_url = Column(String(512), nullable=True)  # Фотография зала / 3D-план конкретного этажа
+    floor = Column(Integer, default=1, index=True)  # 1 = 1-й этаж, 2 = 2-й этаж, 3 = Roof/Крыша
     display_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
 
@@ -30,10 +32,13 @@ class DiningTable(Base):
     min_capacity = Column(Integer, default=1)           # Мин. персон
     max_capacity = Column(Integer, default=4)           # Макс. персон
     
-    # Координаты для интерактивной карты рассадки (Floor Plan)
-    pos_x = Column(Float, default=100.0)
-    pos_y = Column(Float, default=100.0)
+    # Координаты для интерактивной фото-карты рассадки (Hotspot Floor Plan в процентах 0-100%)
+    pos_x = Column(Float, default=50.0)
+    pos_y = Column(Float, default=50.0)
     shape = Column(String(16), default="square")  # "square", "round", "rectangle"
+    
+    photo_url = Column(String(512), nullable=True)  # Фото конкретного стола или вид с этого места
+    features = Column(JSON, default=list)           # ["У окна", "Диваны", "Рядом с роялем"]
     
     is_active = Column(Boolean, default=True)
 

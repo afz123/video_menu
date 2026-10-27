@@ -10,7 +10,7 @@ from app.models.restaurant import Restaurant
 class ReservationService:
     @staticmethod
     def generate_booking_code() -> str:
-        return f"BK-{secrets.randbelow(8999) + 1000}"
+        return f"BK-{secrets.token_hex(3).upper()}"
 
     @staticmethod
     def get_turnover_duration(guests_count: int) -> int:
@@ -84,8 +84,8 @@ class ReservationService:
             bookings_at_slot = [b for b in active_bookings if b.start_time == slot_str]
             is_pacing_full = len(bookings_at_slot) >= MAX_PACING_TABLES
 
-            # Проверяем наличие свободного подходящего стола
-            free_table = None
+            # Проверяем свободные подходящие столы
+            free_tables = []
             if not is_pacing_full:
                 for tbl in suitable_tables:
                     # Пересечение интервалов: max(A, C) < min(B, D)
@@ -96,16 +96,18 @@ class ReservationService:
                                 has_collision = True
                                 break
                     if not has_collision:
-                        free_table = tbl
-                        break
+                        free_tables.append(tbl)
+
+            first_free = free_tables[0] if free_tables else None
 
             slots.append({
                 "time": slot_str,
                 "end_time": slot_end,
                 "duration_minutes": turnover_minutes,
-                "is_available": free_table is not None,
-                "suggested_table_id": free_table.id if free_table else None,
-                "suggested_table_number": free_table.table_number if free_table else None
+                "is_available": len(free_tables) > 0,
+                "suggested_table_id": first_free.id if first_free else None,
+                "suggested_table_number": first_free.table_number if first_free else None,
+                "available_table_ids": [t.id for t in free_tables]
             })
             current += timedelta(minutes=30)
 
@@ -124,49 +126,54 @@ class ReservationService:
         preferred_table_id: Optional[int] = None
     ) -> Optional[DiningTable]:
         """
-        Находит оптимальный стол без коллизий для нового бронирования.
+        Атомарный выбор и пессимистическая блокировка стола (FOR UPDATE).
+        Исключает Race Conditions при овербукинге на уровне СУБД.
         """
-        b_query = select(TableReservation).where(
-            TableReservation.restaurant_id == restaurant_id,
-            TableReservation.reservation_date == date_str,
-            TableReservation.status.in_(["PENDING", "CONFIRMED", "SEATED"])
-        )
-        b_res = await db.execute(b_query)
-        active_bookings = b_res.scalars().all()
+        bind = db.bind
+        is_postgres = bind and "postgresql" in bind.dialect.name
 
-        # Если передан предпочитаемый стол, проверяем его доступность
-        if preferred_table_id:
-            pt_res = await db.get(DiningTable, preferred_table_id)
-            if pt_res and pt_res.restaurant_id == restaurant_id and pt_res.is_active:
-                if pt_res.min_capacity <= guests_count <= pt_res.max_capacity:
-                    if not zone_id or pt_res.zone_id == zone_id:
-                        has_collision = any(
-                            b.table_id == pt_res.id and max(start_time, b.start_time) < min(end_time, b.end_time)
-                            for b in active_bookings
-                        )
-                        if not has_collision:
-                            return pt_res
-
-        # Иначе выбираем наиболее подходящий стол по вместимости
         query = select(DiningTable).where(
             DiningTable.restaurant_id == restaurant_id,
             DiningTable.is_active == True,
             DiningTable.min_capacity <= guests_count,
             DiningTable.max_capacity >= guests_count
-        ).order_by(DiningTable.max_capacity.asc(), DiningTable.id.asc())
+        )
 
-        if zone_id:
+        if preferred_table_id:
+            query = query.where(DiningTable.id == preferred_table_id)
+        elif zone_id:
             query = query.where(DiningTable.zone_id == zone_id)
+
+        query = query.order_by(DiningTable.max_capacity.asc(), DiningTable.id.asc())
+
+        if is_postgres:
+            query = query.with_for_update(of=DiningTable)
 
         tables_res = await db.execute(query)
         candidates = tables_res.scalars().all()
+        if not candidates:
+            return None
+
+        candidate_ids = [t.id for t in candidates]
+
+        b_query = select(TableReservation).where(
+            TableReservation.restaurant_id == restaurant_id,
+            TableReservation.reservation_date == date_str,
+            TableReservation.table_id.in_(candidate_ids),
+            TableReservation.status.in_(["PENDING", "CONFIRMED", "SEATED"]),
+            and_(
+                TableReservation.start_time < end_time,
+                TableReservation.end_time > start_time
+            )
+        )
+        if is_postgres:
+            b_query = b_query.with_for_update(of=TableReservation)
+
+        b_res = await db.execute(b_query)
+        occupied_table_ids = {b.table_id for b in b_res.scalars().all()}
 
         for tbl in candidates:
-            has_collision = any(
-                b.table_id == tbl.id and max(start_time, b.start_time) < min(end_time, b.end_time)
-                for b in active_bookings
-            )
-            if not has_collision:
+            if tbl.id not in occupied_table_ids:
                 return tbl
 
         return None

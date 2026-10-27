@@ -55,15 +55,22 @@ async def get_zones_and_tables(
             "id": z.id,
             "name": z.name,
             "description": z.description,
+            "image_url": z.image_url,
+            "floor": getattr(z, "floor", 1) or 1,
+            "display_order": z.display_order,
+            "is_active": z.is_active,
             "tables": [
                 {
                     "id": t.id,
+                    "zone_id": t.zone_id,
                     "table_number": t.table_number,
                     "min_capacity": t.min_capacity,
                     "max_capacity": t.max_capacity,
                     "pos_x": t.pos_x,
                     "pos_y": t.pos_y,
                     "shape": t.shape,
+                    "photo_url": t.photo_url,
+                    "features": t.features or [],
                     "is_active": t.is_active
                 }
                 for t in z.tables if t.is_active
@@ -97,14 +104,38 @@ async def get_slots(
         db, restaurant.id, date, guests, zone_id
     )
 
-    # Список доступных зон для фильтра
+    # Список доступных зон с фото и столами для интерактивного плана
     z_res = await db.execute(
         select(TableZone).where(
             TableZone.restaurant_id == restaurant.id,
             TableZone.is_active == True
-        ).order_by(TableZone.display_order.asc())
+        ).order_by(TableZone.display_order.asc()).options(selectinload(TableZone.tables))
     )
-    zones = [{"id": z.id, "name": z.name} for z in z_res.scalars().all()]
+    zones = [
+        {
+            "id": z.id,
+            "name": z.name,
+            "description": z.description,
+            "image_url": z.image_url,
+            "floor": getattr(z, "floor", 1) or 1,
+            "tables": [
+                {
+                    "id": t.id,
+                    "zone_id": t.zone_id,
+                    "table_number": t.table_number,
+                    "min_capacity": t.min_capacity,
+                    "max_capacity": t.max_capacity,
+                    "pos_x": t.pos_x,
+                    "pos_y": t.pos_y,
+                    "shape": t.shape,
+                    "photo_url": t.photo_url,
+                    "features": t.features or []
+                }
+                for t in z.tables if t.is_active
+            ]
+        }
+        for z in z_res.scalars().all()
+    ]
 
     return {
         "date": date,
@@ -150,8 +181,10 @@ async def create_reservation(
     turnover_minutes = ReservationService.get_turnover_duration(guests_count)
     end_time = (start_dt + timedelta(minutes=turnover_minutes)).strftime("%H:%M")
 
-    zone_id = payload.get("zone_id")
-    preferred_table_id = payload.get("table_id")
+    raw_zone = payload.get("zone_id")
+    zone_id = int(raw_zone) if raw_zone is not None and str(raw_zone).isdigit() else None
+    raw_table = payload.get("table_id")
+    preferred_table_id = int(raw_table) if raw_table is not None and str(raw_table).isdigit() else None
 
     # Умный подбор свободного стола с защитой от пересечений
     assigned_table = await ReservationService.assign_table_for_booking(
@@ -206,7 +239,8 @@ async def create_reservation(
     if reservation.zone_id:
         z = await db.get(TableZone, reservation.zone_id)
         if z:
-            zone_name = z.name
+            floor_str = f"{getattr(z, 'floor', 1)}-й этаж, " if getattr(z, "floor", None) else ""
+            zone_name = f"{floor_str}{z.name}"
 
     # Мгновенная диспетчеризация в Telegram хостес
     if restaurant.telegram_enabled and restaurant.telegram_bot_token and restaurant.telegram_chat_id:
@@ -365,13 +399,26 @@ async def create_zone(
         restaurant_id=restaurant.id,
         name=name,
         description=payload.get("description"),
+        image_url=payload.get("image_url"),
+        floor=int(payload.get("floor", 1)),
         display_order=int(payload.get("display_order", 0)),
         is_active=bool(payload.get("is_active", True))
     )
     db.add(zone)
     await db.commit()
     await db.refresh(zone)
-    return {"status": "success", "zone": {"id": zone.id, "name": zone.name, "description": zone.description}}
+    return {
+        "status": "success",
+        "zone": {
+            "id": zone.id,
+            "name": zone.name,
+            "description": zone.description,
+            "image_url": zone.image_url,
+            "floor": getattr(zone, "floor", 1) or 1,
+            "display_order": zone.display_order,
+            "is_active": zone.is_active
+        }
+    }
 
 
 @router.put("/admin/zones/{zone_id}")
@@ -392,6 +439,10 @@ async def update_zone(
         zone.name = payload["name"].strip()
     if "description" in payload:
         zone.description = payload["description"]
+    if "image_url" in payload:
+        zone.image_url = payload["image_url"]
+    if "floor" in payload:
+        zone.floor = int(payload["floor"])
     if "display_order" in payload:
         zone.display_order = int(payload["display_order"])
     if "is_active" in payload:
@@ -399,7 +450,18 @@ async def update_zone(
 
     await db.commit()
     await db.refresh(zone)
-    return {"status": "success", "zone": {"id": zone.id, "name": zone.name, "is_active": zone.is_active}}
+    return {
+        "status": "success",
+        "zone": {
+            "id": zone.id,
+            "name": zone.name,
+            "description": zone.description,
+            "image_url": zone.image_url,
+            "floor": getattr(zone, "floor", 1) or 1,
+            "display_order": zone.display_order,
+            "is_active": zone.is_active
+        }
+    }
 
 
 @router.delete("/admin/zones/{zone_id}")
@@ -454,8 +516,10 @@ async def create_table(
         min_capacity=max(1, int(payload.get("min_capacity", 1))),
         max_capacity=max(1, int(payload.get("max_capacity", 4))),
         shape=payload.get("shape", "square"),
-        pos_x=float(payload.get("pos_x", 100.0)),
-        pos_y=float(payload.get("pos_y", 100.0)),
+        pos_x=float(payload.get("pos_x", 50.0)),
+        pos_y=float(payload.get("pos_y", 50.0)),
+        photo_url=payload.get("photo_url"),
+        features=payload.get("features") or [],
         is_active=bool(payload.get("is_active", True))
     )
     db.add(table)
@@ -469,7 +533,12 @@ async def create_table(
             "min_capacity": table.min_capacity,
             "max_capacity": table.max_capacity,
             "shape": table.shape,
-            "zone_id": table.zone_id
+            "zone_id": table.zone_id,
+            "pos_x": table.pos_x,
+            "pos_y": table.pos_y,
+            "photo_url": table.photo_url,
+            "features": table.features or [],
+            "is_active": table.is_active
         }
     }
 
@@ -481,7 +550,7 @@ async def update_table(
     current_admin=Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """Обновление параметров стола (вместимость, номер, активность)"""
+    """Обновление параметров стола (вместимость, номер, активность, координаты, фичи)"""
     table = await db.get(DiningTable, table_id)
     if not table:
         raise HTTPException(status_code=404, detail="Стол не найден")
@@ -504,6 +573,10 @@ async def update_table(
         table.pos_x = float(payload["pos_x"])
     if "pos_y" in payload:
         table.pos_y = float(payload["pos_y"])
+    if "photo_url" in payload:
+        table.photo_url = payload["photo_url"]
+    if "features" in payload:
+        table.features = payload["features"]
 
     await db.commit()
     await db.refresh(table)
@@ -514,7 +587,13 @@ async def update_table(
             "table_number": table.table_number,
             "is_active": table.is_active,
             "min_capacity": table.min_capacity,
-            "max_capacity": table.max_capacity
+            "max_capacity": table.max_capacity,
+            "shape": table.shape,
+            "zone_id": table.zone_id,
+            "pos_x": table.pos_x,
+            "pos_y": table.pos_y,
+            "photo_url": table.photo_url,
+            "features": table.features or []
         }
     }
 
