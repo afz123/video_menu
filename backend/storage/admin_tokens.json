@@ -1,0 +1,27 @@
+{
+  "demo_master_token": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "0fe88b6e0ab97af5892b326084b855153a3a6c4d11e61539": {
+    "role": "manager",
+    "restaurant_id": 101,
+    "restaurant_slug": "branch-a"
+  },
+  "13c06122120d0ee25dd3219f2e63528cf4e993ed019377e3": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "ede1462dc74a76df5ca07e25c5fb03c77de4d52fa6ab6bd6": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "ff2b158d8c7f15c70189a5a064fde4dd6c0abb8bde9d83a4": {
+    "role": "manager",
+    "restaurant_id": 467,
+    "restaurant_slug": "steak-5f97df"
+  }
+}

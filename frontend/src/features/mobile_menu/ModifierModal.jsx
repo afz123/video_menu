@@ -9,6 +9,7 @@ export const ModifierModal = ({ dish, onClose, onAddToCart }) => {
   const { t } = useLanguage();
   const ui = useUI();
   const coursesEnabled = ui?.kitchen_pacing?.enable_courses_system !== false;
+  const cardUI = ui?.dish_card || {};
   const dishName = t(dish.name);
   const basePrice = Number(dish.price) || 0;
   const modifiers = dish.modifiers || [];
@@ -297,7 +298,7 @@ export const ModifierModal = ({ dish, onClose, onAddToCart }) => {
 
           {/* Special instructions comment */}
           {/* Chef / Sommelier Pairing Recommendation Cross-Sell */}
-          {dish.pairings && dish.pairings.length > 0 && (
+          {cardUI.show_sommelier_pairing !== false && dish.pairings && dish.pairings.length > 0 && (
             <div
               style={{
                 backgroundColor: 'rgba(212, 175, 55, 0.08)',

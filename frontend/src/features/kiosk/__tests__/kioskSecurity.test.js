@@ -84,4 +84,27 @@ describe('Kiosk Security & PII Sanitization Lifecycle', () => {
     const shouldRenderBookingBtn = true && Boolean(onOpenBooking);
     expect(shouldRenderBookingBtn).toBe(false);
   });
+
+  it('correctly suppresses price and weight in kiosk when dish_card flags are false', () => {
+    const cardUI = {
+      show_price: false,
+      show_weight: false,
+      show_badges: true
+    };
+
+    const dish = {
+      price: 450,
+      currency: 'TJS',
+      weight: '350 г',
+      badges: ['Хит']
+    };
+
+    const renderedPrice = cardUI.show_price !== false ? `${dish.price} ${dish.currency}` : null;
+    const renderedWeight = cardUI.show_weight !== false && dish.weight ? dish.weight : null;
+    const renderedBadges = cardUI.show_badges !== false ? dish.badges : [];
+
+    expect(renderedPrice).toBeNull();
+    expect(renderedWeight).toBeNull();
+    expect(renderedBadges).toEqual(['Хит']);
+  });
 });

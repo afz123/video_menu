@@ -16,6 +16,7 @@ export const InteractiveMenu = ({
   const { t } = useLanguage();
   const ui = useUI();
   const kioskUI = ui?.kiosk || {};
+  const cardUI = ui?.dish_card || {};
   const categories = restaurantData.categories || [];
   const [activeCategoryId, setActiveCategoryId] = useState(() => categories[0]?.id || 1);
   const [selectedDish, setSelectedDish] = useState(null);
@@ -192,59 +193,61 @@ export const InteractiveMenu = ({
                   enableSoundToggle={false}
                 />
 
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '16px',
-                      left: '16px',
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: '6px'
-                    }}
-                  >
-                    {dish.badges && dish.badges.length > 0 ? (
-                      dish.badges.map((b, bIdx) => (
+                  {cardUI.show_badges !== false && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '16px',
+                        left: '16px',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '6px'
+                      }}
+                    >
+                      {dish.badges && dish.badges.length > 0 ? (
+                        dish.badges.map((b, bIdx) => (
+                          <div
+                            key={bIdx}
+                            style={{
+                              background: b.includes('Шеф') || b.includes('Хит') ? 'var(--accent-gold-gradient)' : 'rgba(9, 9, 11, 0.8)',
+                              color: b.includes('Шеф') || b.includes('Хит') ? '#09090b' : '#fff',
+                              padding: '5px 10px',
+                              borderRadius: '16px',
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              letterSpacing: '0.04em',
+                              textTransform: 'uppercase',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+                              border: '1px solid rgba(255,255,255,0.2)'
+                            }}
+                          >
+                            {b}
+                          </div>
+                        ))
+                      ) : dish.is_featured ? (
                         <div
-                          key={bIdx}
                           style={{
-                            background: b.includes('Шеф') || b.includes('Хит') ? 'var(--accent-gold-gradient)' : 'rgba(9, 9, 11, 0.8)',
-                            color: b.includes('Шеф') || b.includes('Хит') ? '#09090b' : '#fff',
-                            padding: '5px 10px',
-                            borderRadius: '16px',
-                            fontSize: '11px',
+                            background: 'rgba(10, 10, 12, 0.75)',
+                            backdropFilter: 'blur(12px)',
+                            color: 'var(--accent-gold)',
+                            padding: '6px 14px',
+                            borderRadius: '20px',
+                            fontSize: '12px',
                             fontWeight: '700',
-                            letterSpacing: '0.04em',
+                            letterSpacing: '0.08em',
                             textTransform: 'uppercase',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-                            border: '1px solid rgba(255,255,255,0.2)'
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            border: '1px solid var(--glass-border)'
                           }}
                         >
-                          {b}
+                          <Sparkles size={14} />
+                          <span>Special</span>
                         </div>
-                      ))
-                    ) : dish.is_featured ? (
-                      <div
-                        style={{
-                          background: 'rgba(10, 10, 12, 0.75)',
-                          backdropFilter: 'blur(12px)',
-                          color: 'var(--accent-gold)',
-                          padding: '6px 14px',
-                          borderRadius: '20px',
-                          fontSize: '12px',
-                          fontWeight: '700',
-                          letterSpacing: '0.08em',
-                          textTransform: 'uppercase',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          border: '1px solid var(--glass-border)'
-                        }}
-                      >
-                        <Sparkles size={14} />
-                        <span>Special</span>
-                      </div>
-                    ) : null}
-                  </div>
+                      ) : null}
+                    </div>
+                  )}
               </div>
 
               {/* Bottom text info */}
@@ -275,17 +278,19 @@ export const InteractiveMenu = ({
                   >
                     {name}
                   </h3>
-                  <div
-                    style={{
-                      fontSize: '22px',
-                      fontWeight: '700',
-                      color: 'var(--accent-gold)',
-                      whiteSpace: 'nowrap',
-                      marginLeft: '12px'
-                    }}
-                  >
-                    {dish.price} {dish.currency}
-                  </div>
+                  {cardUI.show_price !== false && (
+                    <div
+                      style={{
+                        fontSize: '22px',
+                        fontWeight: '700',
+                        color: 'var(--accent-gold)',
+                        whiteSpace: 'nowrap',
+                        marginLeft: '12px'
+                      }}
+                    >
+                      {dish.price} {dish.currency}
+                    </div>
+                  )}
                 </div>
 
                 {desc && (
@@ -311,7 +316,7 @@ export const InteractiveMenu = ({
                     color: 'var(--text-muted)'
                   }}
                 >
-                  <span>{dish.weight || '300 г'}</span>
+                  <span>{cardUI.show_weight !== false && dish.weight ? dish.weight : ''}</span>
                   <div
                     style={{
                       display: 'flex',
@@ -422,7 +427,7 @@ export const InteractiveMenu = ({
                 </span>
 
                 {/* Badges in modal */}
-                {selectedDish.badges && selectedDish.badges.length > 0 && (
+                {cardUI.show_badges !== false && selectedDish.badges && selectedDish.badges.length > 0 && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
                     {selectedDish.badges.map((b, idx) => (
                       <span
@@ -458,16 +463,18 @@ export const InteractiveMenu = ({
                   {t(selectedDish.name)}
                 </h2>
 
-                <div
-                  style={{
-                    fontSize: '34px',
-                    fontWeight: '700',
-                    color: 'var(--accent-gold)',
-                    marginBottom: '24px'
-                  }}
-                >
-                  {selectedDish.price} {selectedDish.currency}
-                </div>
+                {cardUI.show_price !== false && (
+                  <div
+                    style={{
+                      fontSize: '34px',
+                      fontWeight: '700',
+                      color: 'var(--accent-gold)',
+                      marginBottom: '24px'
+                    }}
+                  >
+                    {selectedDish.price} {selectedDish.currency}
+                  </div>
+                )}
 
                 {(() => {
                   const rawDesc = t(selectedDish.description);
@@ -525,17 +532,19 @@ export const InteractiveMenu = ({
                     border: '1px solid rgba(255,255,255,0.06)'
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Выход блюда:</span>
-                    <span style={{ fontWeight: '600' }}>{selectedDish.weight || '350 г'}</span>
-                  </div>
-                  {selectedDish.calories && (
+                  {cardUI.show_weight !== false && selectedDish.weight && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Выход блюда:</span>
+                      <span style={{ fontWeight: '600' }}>{selectedDish.weight}</span>
+                    </div>
+                  )}
+                  {cardUI.show_calories !== false && selectedDish.calories && (
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: 'var(--text-muted)' }}>Калорийность:</span>
                       <span style={{ fontWeight: '600' }}>{selectedDish.calories}</span>
                     </div>
                   )}
-                  {selectedDish.allergens && selectedDish.allergens.length > 0 && (
+                  {cardUI.show_allergens !== false && selectedDish.allergens && selectedDish.allergens.length > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', color: '#f59e0b' }}>
                       <span>Аллергены:</span>
                       <span style={{ fontWeight: '600' }}>{selectedDish.allergens.join(', ')}</span>
@@ -549,7 +558,7 @@ export const InteractiveMenu = ({
                       </span>
                     </div>
                   )}
-                  {selectedDish.pairings && selectedDish.pairings.length > 0 && selectedDish.pairings[0]?.text && (
+                  {cardUI.show_sommelier_pairing !== false && selectedDish.pairings && selectedDish.pairings.length > 0 && selectedDish.pairings[0]?.text && (
                     <div style={{ padding: '8px 12px', background: 'rgba(212,175,55,0.08)', borderRadius: '10px', border: '1px solid rgba(212,175,55,0.2)', color: 'var(--accent-gold)', fontSize: '13px' }}>
                       🍷 {selectedDish.pairings[0].text}
                     </div>

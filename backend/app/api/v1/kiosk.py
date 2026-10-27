@@ -20,6 +20,7 @@ async def get_kiosk_config(slug: str, db: AsyncSession = Depends(get_db)):
     return {
         "restaurant_name": restaurant.name,
         "slug": restaurant.slug,
+        "currency": restaurant.currency or "TJS",
         "theme": theme,
         "inactivity_seconds": kiosk_settings.get("inactivity_seconds", 45),
         "attract_video_url": kiosk_settings.get("attract_video_url", ""),
