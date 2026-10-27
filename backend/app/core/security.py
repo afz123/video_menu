@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import asyncio
 import logging
+import fcntl
 from pathlib import Path
 from typing import Optional, Dict, Any
 from fastapi import HTTPException, Security, Request, status
@@ -120,6 +121,30 @@ class AdminSession(str):
         return instance
 
 
+TOKEN_LOCK_FILE = settings.STORAGE_DIR / "admin_tokens.lock"
+
+
+class _SessionFileLock:
+    def __init__(self, exclusive: bool = False):
+        self.exclusive = exclusive
+        self.fd = None
+
+    def __enter__(self):
+        settings.STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+        self.fd = open(TOKEN_LOCK_FILE, "a+")
+        mode = fcntl.LOCK_EX if self.exclusive else fcntl.LOCK_SH
+        fcntl.flock(self.fd, mode)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.fd:
+            try:
+                fcntl.flock(self.fd, fcntl.LOCK_UN)
+                self.fd.close()
+            except Exception:
+                pass
+
+
 def _load_persisted_tokens() -> Dict[str, Dict[str, Any]]:
     tokens: Dict[str, Dict[str, Any]] = {}
     if _is_dev_environment():
@@ -168,25 +193,26 @@ def create_admin_token(
     restaurant_slug: Optional[str] = None
 ) -> str:
     token = secrets.token_hex(24)
-    # Refresh in-memory sessions first
-    fresh = _load_persisted_tokens()
-    fresh[token] = {
-        "role": role,
-        "restaurant_id": restaurant_id,
-        "restaurant_slug": restaurant_slug
-    }
-    VALID_SESSIONS.update(fresh)
-    _save_persisted_tokens(VALID_SESSIONS)
+    with _SessionFileLock(exclusive=True):
+        fresh = _load_persisted_tokens()
+        fresh[token] = {
+            "role": role,
+            "restaurant_id": restaurant_id,
+            "restaurant_slug": restaurant_slug
+        }
+        VALID_SESSIONS.update(fresh)
+        _save_persisted_tokens(VALID_SESSIONS)
     return token
 
 
 def revoke_admin_token(token: str):
-    fresh = _load_persisted_tokens()
-    if token in fresh:
-        del fresh[token]
-    if token in VALID_SESSIONS:
-        del VALID_SESSIONS[token]
-    _save_persisted_tokens(VALID_SESSIONS)
+    with _SessionFileLock(exclusive=True):
+        fresh = _load_persisted_tokens()
+        if token in fresh:
+            del fresh[token]
+        if token in VALID_SESSIONS:
+            del VALID_SESSIONS[token]
+        _save_persisted_tokens(VALID_SESSIONS)
 
 
 def is_valid_token(token: str) -> bool:
@@ -196,9 +222,9 @@ def is_valid_token(token: str) -> bool:
         return False
     if token in VALID_SESSIONS:
         return True
-    # Re-sync in case another worker created the token
-    fresh = _load_persisted_tokens()
-    VALID_SESSIONS.update(fresh)
+    with _SessionFileLock(exclusive=False):
+        fresh = _load_persisted_tokens()
+        VALID_SESSIONS.update(fresh)
     return token in VALID_SESSIONS
 
 

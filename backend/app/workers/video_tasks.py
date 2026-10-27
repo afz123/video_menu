@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+from typing import Optional, Dict, Any
 from pathlib import Path
 from app.core.config import settings
 from app.core.database import get_session
@@ -12,6 +13,30 @@ logger = logging.getLogger("video_menu.worker")
 
 # Concurrency semaphore limiting parallel FFmpeg tasks to avoid CPU spikes and OOM
 TRANSCODE_SEMAPHORE = asyncio.Semaphore(2)
+
+async def update_asset_metadata(asset_id: int, urls: Optional[Dict[str, Any]], error_msg: Optional[str] = None):
+    """
+    Acquires an isolated DB session strictly after FFmpeg completion for < 5ms
+    to prevent connection pool exhaustion during long-running video transcoding.
+    """
+    session = await get_session()
+    async with session as db:
+        async with db.begin():
+            asset = await db.get(MediaAsset, asset_id)
+            if asset:
+                if urls:
+                    asset.poster_lqip_url = urls.get("poster_lqip")
+                    asset.poster_hd_url = urls.get("poster_hd")
+                    asset.video_mobile_url = urls.get("video_mobile")
+                    asset.video_kiosk_url = urls.get("video_kiosk")
+                    asset.file_size_bytes = urls.get("file_size_bytes")
+                    asset.status = "READY"
+                    logger.info(f"Asset {asset_id} successfully converted and marked READY")
+                else:
+                    asset.status = "FAILED"
+                    asset.error_message = error_msg
+                    logger.warning(f"Asset {asset_id} marked FAILED: {error_msg}")
+
 
 async def transcode_video_task(asset_id: int, temp_file_path_str: str, is_image: bool = False):
     temp_path = Path(temp_file_path_str)
@@ -45,22 +70,7 @@ async def transcode_video_task(asset_id: int, temp_file_path_str: str, is_image:
             logger.error(f"Error processing asset {asset_id}: {e}", exc_info=True)
             error_msg = str(e)
 
-        # DB session is acquired briefly only to commit status and URLs
-        session = await get_session()
-        async with session as db:
-            asset = await db.get(MediaAsset, asset_id)
-            if asset:
-                if urls:
-                    asset.poster_lqip_url = urls["poster_lqip"]
-                    asset.poster_hd_url = urls["poster_hd"]
-                    asset.video_mobile_url = urls["video_mobile"]
-                    asset.video_kiosk_url = urls["video_kiosk"]
-                    asset.file_size_bytes = urls["file_size_bytes"]
-                    asset.status = "READY"
-                    logger.info(f"Asset {asset_id} successfully converted and marked READY")
-                else:
-                    asset.status = "FAILED"
-                    asset.error_message = error_msg
-                await db.commit()
+        # 2. DB session is acquired strictly after heavy transcode finishes (< 5ms write lock)
+        await update_asset_metadata(asset_id, urls, error_msg)
 
         StorageService.cleanup_file(temp_path)

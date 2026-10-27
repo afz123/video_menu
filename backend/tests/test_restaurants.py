@@ -76,13 +76,16 @@ async def test_get_restaurant_full_menu(client):
 async def test_smart_table_service_requests(client, admin_headers):
     """Test guest waiter call, bill request, and admin resolution."""
     import time
+    from app.core.security import generate_table_signature
     tbl = f"T_{int(time.time() * 1000) % 100000}"
+    sig = generate_table_signature(1, tbl)
 
     # 1. Guest calls waiter from unique table
     call_res = await client.post(
         "/api/v1/restaurants/asr-royale/service-requests",
         json={
             "table_number": tbl,
+            "table_token": sig,
             "request_type": "call_waiter",
             "guest_comment": "Пожалуйста, принесите дополнительное меню десертов"
         }
@@ -98,6 +101,7 @@ async def test_smart_table_service_requests(client, admin_headers):
         "/api/v1/restaurants/asr-royale/service-requests",
         json={
             "table_number": tbl,
+            "table_token": sig,
             "request_type": "request_bill_card",
             "guest_comment": "Оплата картой"
         }
@@ -127,19 +131,21 @@ async def test_smart_table_service_requests(client, admin_headers):
 async def test_waiter_call_rate_limiting(client):
     """Test 45-second debounce protection against waiter call spam."""
     import time
+    from app.core.security import generate_table_signature
     spam_table = f"SPAM_{int(time.time() * 1000) % 100000}"
+    spam_sig = generate_table_signature(1, spam_table)
 
     # First waiter call succeeds
     res1 = await client.post(
         "/api/v1/restaurants/asr-royale/service-requests",
-        json={"table_number": spam_table, "request_type": "call_waiter"}
+        json={"table_number": spam_table, "table_token": spam_sig, "request_type": "call_waiter"}
     )
     assert res1.status_code == 200
 
     # Immediate second call from same table and same request_type triggers 429
     res2 = await client.post(
         "/api/v1/restaurants/asr-royale/service-requests",
-        json={"table_number": spam_table, "request_type": "call_waiter"}
+        json={"table_number": spam_table, "table_token": spam_sig, "request_type": "call_waiter"}
     )
     assert res2.status_code == 429
     assert "уже уведомлен" in res2.json()["detail"]
@@ -188,11 +194,15 @@ async def test_order_stop_list_validation(client, admin_headers):
     put_res = await client.put(f"/api/v1/dishes/{dish_id}", json={"is_available": False}, headers=admin_headers)
     assert put_res.status_code == 200
 
+    from app.core.security import generate_table_signature
+    sig7 = generate_table_signature(1, "7")
+
     # 3. Attempt to place an order with this stopped dish -> Should fail with 400
     order_res = await client.post(
         "/api/v1/restaurants/asr-royale/service-requests",
         json={
             "table_number": "7",
+            "table_token": sig7,
             "request_type": "order",
             "guest_comment": "Тестовый заказ",
             "cart_items": [
@@ -216,6 +226,7 @@ async def test_order_stop_list_validation(client, admin_headers):
         "/api/v1/restaurants/asr-royale/service-requests",
         json={
             "table_number": "7",
+            "table_token": sig7,
             "request_type": "order",
             "guest_comment": "Повторный заказ",
             "cart_items": [
@@ -237,6 +248,8 @@ async def test_dynamic_service_charge_calculation_in_telegram(client, admin_head
     """Test dynamic calculation of service charge (e.g. 15%) on an order of 200 -> total 230."""
     from unittest.mock import patch, AsyncMock
     from app.services.telegram_service import TelegramService
+    from app.core.security import generate_table_signature
+    sig12 = generate_table_signature(1, "12")
 
     # 1. Update restaurant to 15% service charge
     update_res = await client.put(
@@ -261,6 +274,7 @@ async def test_dynamic_service_charge_calculation_in_telegram(client, admin_head
             "/api/v1/restaurants/asr-royale/service-requests",
             json={
                 "table_number": "12",
+                "table_token": sig12,
                 "request_type": "order",
                 "guest_comment": "Стейк рибай с соусом",
                 "cart_items": [

@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Body, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Body, BackgroundTasks, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -388,22 +388,18 @@ async def create_service_request(
 
     normalized_table = data.table_number.strip()
 
-    # Anti-spoofing table signature verification
-    if data.table_token:
-        if not verify_table_signature(restaurant.id, normalized_table, data.table_token):
+    # Anti-spoofing table signature verification: strictly enforced unless kiosk internal request
+    is_kiosk_request = bool(data.guest_session_id and data.guest_session_id.startswith("kiosk_internal_"))
+    if not is_kiosk_request:
+        if not data.table_token or not verify_table_signature(restaurant.id, normalized_table, data.table_token):
             logger.warning(
-                f"SECURITY ALERT: Invalid table signature attempt for restaurant {restaurant.id}, "
+                f"SECURITY ALERT: Spoofing attempt blocked for restaurant {restaurant.id}, "
                 f"table {normalized_table}, provided token: {data.table_token}"
             )
             raise HTTPException(
-                status_code=403,
-                detail="Недействительная цифровая подпись стола. Отсканируйте оригинальный QR-код на вашем столике."
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Вызов заблокирован: недействительная цифровая подпись стола. Требуется скан оригинального QR-кода столика заведения."
             )
-    elif getattr(settings, "ENFORCE_TABLE_SIGNATURE", False):
-        raise HTTPException(
-            status_code=403,
-            detail="Отсутствует электронная подпись стола. Заказ возможен только при сканировании фирменного QR-кода."
-        )
 
     # Anti-spam rate-limit / debounce for waiter calls (45s window)
     if data.request_type != "order":

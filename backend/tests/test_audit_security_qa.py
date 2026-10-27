@@ -432,7 +432,15 @@ async def test_anti_spoofing_tampering_protection(client):
     """
     from app.core.security import generate_table_signature
 
-    # 1. Генерируем валидную подпись для стола 15
+    # 1. Генерируем валидную подпись для стола 15 и очищаем старые тестовые вызовы
+    from app.core.database import get_session
+    from app.models.service_request import ServiceRequest
+    from sqlalchemy import delete
+    s = await get_session()
+    async with s as db:
+        await db.execute(delete(ServiceRequest).where(ServiceRequest.table_number == "15"))
+        await db.commit()
+
     valid_sig = generate_table_signature(1, "15")
 
     # 2. Попытка отправить с поддельным токеном

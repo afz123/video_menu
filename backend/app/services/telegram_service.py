@@ -7,7 +7,16 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 
 logger = logging.getLogger("video_menu.telegram")
 
+def sanitize_tg(text: Any) -> str:
+    """Безопасное экранирование спецсимволов HTML для Telegram Bot API"""
+    if text is None:
+        return ""
+    return html.escape(str(text), quote=True)
+
 class TelegramService:
+    @staticmethod
+    def sanitize(text: Any) -> str:
+        return sanitize_tg(text)
     @staticmethod
     @retry(
         stop=stop_after_attempt(4),
@@ -92,8 +101,8 @@ class TelegramService:
         if guest_comment and "ДОЗАКАЗ" in guest_comment:
             header = "🔁 ДОЗАКАЗ К СТОЛУ"
 
-        safe_rest_name = html.escape(str(restaurant_name or "Ресторан"))
-        safe_table = html.escape(str(table_number or ""))
+        safe_rest_name = sanitize_tg(restaurant_name or "Ресторан")
+        safe_table = sanitize_tg(table_number or "")
 
         lines = [
             f"<b>{header}</b>",
@@ -102,20 +111,19 @@ class TelegramService:
         ]
 
         if guest_comment:
-            lines.append(f"💬 <b>Пожелание гостя:</b> <i>«{html.escape(guest_comment.strip())}»</i>")
+            lines.append(f"💬 <b>Пожелание гостя:</b> <i>«{sanitize_tg(guest_comment.strip())}»</i>")
 
         if cart_items and len(cart_items) > 0:
             lines.append("\n📋 <b>Позиции к подаче:</b>")
             subtotal = 0.0
-            curr = html.escape(restaurant_currency or "TJS")
+            curr = sanitize_tg(restaurant_currency or "TJS")
 
             for idx, item in enumerate(cart_items, 1):
-                raw_name = item.get("name") or "Блюдо"
-                safe_name = html.escape(str(raw_name))
+                safe_name = sanitize_tg(item.get("name") or "Блюдо")
                 qty = int(item.get("quantity", 1))
                 price = float(item.get("total_price") or item.get("price") or 0.0)
                 course = item.get("course") or item.get("selected_course") or "Основной курс"
-                safe_course = html.escape(str(course))
+                safe_course = sanitize_tg(course)
                 subtotal += price * qty
 
                 mods = item.get("chosen_options") or item.get("selected_modifiers") or item.get("modifiers") or []
@@ -126,14 +134,14 @@ class TelegramService:
                         raw_opt = m.get("name") or m.get("option_name") or ""
                         extra = m.get("price") or m.get("extra_price") or 0
                         extra_str = f" (+{extra})" if extra and float(extra) > 0 else ""
-                        safe_grp = html.escape(str(raw_grp))
-                        safe_opt = html.escape(str(raw_opt))
+                        safe_grp = sanitize_tg(raw_grp)
+                        safe_opt = sanitize_tg(raw_opt)
                         if safe_grp:
                             mod_texts.append(f"<b>{safe_grp}:</b> {safe_opt}{extra_str}")
                         elif safe_opt:
                             mod_texts.append(f"{safe_opt}{extra_str}")
                     elif isinstance(m, str):
-                        mod_texts.append(html.escape(m))
+                        mod_texts.append(sanitize_tg(m))
 
                 mod_str = f"\n     └ <i>Параметры: {', '.join(mod_texts)}</i>" if mod_texts else ""
                 lines.append(f"  {idx}. <b>{safe_name}</b> x{qty} [<code>{safe_course}</code>] — {price * qty:.1f} {curr}{mod_str}")
@@ -171,8 +179,8 @@ class TelegramService:
         """
         Instant High-Priority Alert directly to General Manager when a guest leaves 1-3 stars.
         """
-        safe_rest_name = html.escape(str(restaurant_name or "Ресторан"))
-        safe_table = html.escape(str(table_number or ""))
+        safe_rest_name = sanitize_tg(restaurant_name or "Ресторан")
+        safe_table = sanitize_tg(table_number or "")
         stars = "⭐" * max(1, min(5, int(nps_score)))
 
         lines = [
@@ -183,7 +191,7 @@ class TelegramService:
             "⚠️ <i>Гость еще находится в зале! Пожалуйста, подойдите к столу немедленно для решения вопроса.</i>"
         ]
         if guest_comment:
-            lines.append(f"💬 <b>Отзыв:</b> «{html.escape(guest_comment.strip())}»")
+            lines.append(f"💬 <b>Отзыв:</b> «{sanitize_tg(guest_comment.strip())}»")
 
         inline_keyboard = {
             "inline_keyboard": [
@@ -214,11 +222,11 @@ class TelegramService:
         """
         Instant Push Notification to hostess / manager Telegram with interactive action buttons.
         """
-        safe_rest_name = html.escape(str(restaurant_name or "Ресторан"))
-        safe_code = html.escape(str(booking_code or ""))
-        safe_guest = html.escape(str(guest_name or "Гость"))
-        safe_phone = html.escape(str(guest_phone or ""))
-        safe_wishes = html.escape(str(guest_wishes.strip())) if guest_wishes else None
+        safe_rest_name = sanitize_tg(restaurant_name or "Ресторан")
+        safe_code = sanitize_tg(booking_code or "")
+        safe_guest = sanitize_tg(guest_name or "Гость")
+        safe_phone = sanitize_tg(guest_phone or "")
+        safe_wishes = sanitize_tg(guest_wishes.strip()) if guest_wishes else None
 
         source_labels = {
             "KIOSK_STREET": "🖥️ Уличный сенсорный киоск",
@@ -237,8 +245,8 @@ class TelegramService:
             f"⏰ <b>Дата & Время:</b> {reservation_date} с {start_time} до {end_time}",
         ]
 
-        safe_tbl = html.escape(str(table_number)) if table_number else "Будет назначен хостес"
-        safe_zone = html.escape(str(zone_name)) if zone_name else ""
+        safe_tbl = sanitize_tg(table_number) if table_number else "Будет назначен хостес"
+        safe_zone = sanitize_tg(zone_name) if zone_name else ""
         table_info = f"№ {safe_tbl}" if table_number else "Будет назначен хостес"
         if safe_zone:
             table_info += f" ({safe_zone})"

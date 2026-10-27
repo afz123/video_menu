@@ -8,6 +8,7 @@ import { Info, Sparkles, AlertCircle, ChevronUp, ChevronDown, Plus, Wine } from 
 export const DishSlide = ({ 
   dish, 
   isCurrent, 
+  shouldMountMedia = true,
   isSoundEnabled, 
   onToggleSound, 
   categoryName, 
@@ -55,16 +56,24 @@ export const DishSlide = ({
         overflow: 'hidden'
       }}
     >
-      {/* 1. Background Video Stream */}
-      <VideoPlayer
-        lqip={dish.media?.lqip}
-        poster={dish.media?.poster}
-        videoSrc={dish.media?.video_mobile}
-        isCurrent={isCurrent}
-        isSoundEnabled={isSoundEnabled}
-        onToggleSound={onToggleSound}
-        enableSoundToggle={card.show_sound_toggle !== false}
-      />
+      {/* 1. Background Video Stream or Static Image (Hardware-safe WebKit Virtualization) */}
+      {shouldMountMedia ? (
+        <VideoPlayer
+          lqip={dish.media?.lqip}
+          poster={dish.media?.poster}
+          videoSrc={dish.media?.video_mobile}
+          isCurrent={isCurrent}
+          isSoundEnabled={isSoundEnabled}
+          onToggleSound={onToggleSound}
+          enableSoundToggle={card.show_sound_toggle !== false}
+        />
+      ) : (
+        <img
+          src={dish.media?.poster || dish.media?.lqip}
+          alt={name}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      )}
 
       {/* 2. Top/Middle Badges Ribbon */}
       {card.show_badges && badges.length > 0 && (

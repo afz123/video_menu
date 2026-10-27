@@ -43,24 +43,46 @@ export const useInactivityTimer = (timeoutSeconds, onInactive, enabled = true, w
     }, 1000);
 
     let lastCoords = { x: 0, y: 0 };
+    let hasCoords = false;
 
     const handleActivity = (e) => {
       if (e && e.type === 'mousemove') {
-        // Ignore minor cursor jitter under 15px (weather/electromagnetic noise on outdoor kiosk glass)
-        const deltaX = Math.abs((e.clientX || 0) - lastCoords.x);
-        const deltaY = Math.abs((e.clientY || 0) - lastCoords.y);
-        if (deltaX < 15 && deltaY < 15) return;
-        lastCoords = { x: e.clientX || 0, y: e.clientY || 0 };
+        const clientX = e.clientX || 0;
+        const clientY = e.clientY || 0;
+
+        // Ignore sensor hover noise when no buttons are pressed on outdoor kiosk displays
+        if (e.pointerType === 'mouse' && e.buttons === 0) {
+          return;
+        }
+
+        if (!hasCoords) {
+          lastCoords = { x: clientX, y: clientY };
+          hasCoords = true;
+          return;
+        }
+
+        // Euclidean distance filtering against raindrops and electromagnetic noise
+        const distance = Math.hypot(clientX - lastCoords.x, clientY - lastCoords.y);
+        lastCoords = { x: clientX, y: clientY }; // Always update to prevent slow drift accumulation
+        if (distance < 20) return;
       }
       resetTimer();
     };
 
+    const handleTestTimeout = () => {
+      if (onInactiveRef.current) {
+        onInactiveRef.current();
+      }
+    };
+
     const events = ['touchstart', 'click', 'keydown', 'mousemove'];
     events.forEach((evt) => window.addEventListener(evt, handleActivity, { passive: true }));
+    window.addEventListener('test-inactivity-timeout', handleTestTimeout);
 
     return () => {
       clearInterval(interval);
       events.forEach((evt) => window.removeEventListener(evt, handleActivity));
+      window.removeEventListener('test-inactivity-timeout', handleTestTimeout);
     };
   }, [enabled, timeoutSeconds, warningSeconds, resetTimer]);
 

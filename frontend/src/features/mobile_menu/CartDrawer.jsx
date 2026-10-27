@@ -21,6 +21,7 @@ export const CartDrawer = ({
   serviceChargePercent = 10,
   onClose,
   onUpdateQty,
+  onUpdateItemCourse,
   onClearCart,
   onSetTableNumber
 }) => {
@@ -62,8 +63,12 @@ export const CartDrawer = ({
     const current = cartItems[idx]?.course || 'По готовности кухни';
     const currentIdx = COURSES_OPTIONS.findIndex((c) => c.id === current);
     const nextIdx = (currentIdx + 1) % COURSES_OPTIONS.length;
-    cartItems[idx].course = COURSES_OPTIONS[nextIdx].id;
-    forceUpdate((n) => n + 1);
+    if (onUpdateItemCourse) {
+      onUpdateItemCourse(idx, COURSES_OPTIONS[nextIdx].id);
+    } else {
+      cartItems[idx].course = COURSES_OPTIONS[nextIdx].id;
+      forceUpdate((n) => n + 1);
+    }
   };
 
   const handleSendOrder = async () => {

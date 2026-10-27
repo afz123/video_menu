@@ -603,5 +603,110 @@
     "role": "superadmin",
     "restaurant_id": null,
     "restaurant_slug": null
+  },
+  "9d3454851c464b4b053491bcc5705ab775d4c574c0326187": {
+    "role": "manager",
+    "restaurant_id": 101,
+    "restaurant_slug": "branch-a"
+  },
+  "dbebfc123644f5c30e6bc6a22658f271de8847bb6eea9639": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "927f86612459d23cd3f8d007fccf1f7f728adf0c22ad42a8": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "5ef8450da30cabbcf83147127f719a79d44fe2ec2ef9a8ee": {
+    "role": "manager",
+    "restaurant_id": 101,
+    "restaurant_slug": "branch-a"
+  },
+  "a6abf806bb5f74f7017aa2dfdce56b1abb2bc3e447a07b6e": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "b617a21784a20e67571baee850f4c5880c6f29759da419ad": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "db548487b8e94ab69142e56a3c8cfabd8526fb22a66499d8": {
+    "role": "manager",
+    "restaurant_id": 306,
+    "restaurant_slug": "steak-72a959"
+  },
+  "07155c28b5e1f1998a02483c1baebcc7411f8637b5fb84f2": {
+    "role": "manager",
+    "restaurant_id": 101,
+    "restaurant_slug": "branch-a"
+  },
+  "752b568b63640fbb1f5e25728b6abb543f6634484bf1dc40": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "bc15e7eeaa43ea9eb625d6bd6f1458d4c33dbca345a72938": {
+    "role": "manager",
+    "restaurant_id": 101,
+    "restaurant_slug": "branch-a"
+  },
+  "95272a185c60db598362c55419227ac1b019165bc690a5ef": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "0f7c1c6c49ab6d782140d8347733c38fb7e5fbe2a7487b57": {
+    "role": "manager",
+    "restaurant_id": 323,
+    "restaurant_slug": "steak-56a65d"
+  },
+  "cd64f8de755c5f37757a33ebd2f26d22ff6c280eb68d09ac": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "33f6f8b52a1b421e68b512094b543b4099b54bd9869d966d": {
+    "role": "manager",
+    "restaurant_id": 101,
+    "restaurant_slug": "branch-a"
+  },
+  "9824f6aa25974ca8414f2e2ef826850ce16021b2c4e1080f": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "b145bcc0a7383c7fa2c52ae666455cec479b71f50c00be09": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "bad962fe4077284d87d863e3808416e062c31f102af78711": {
+    "role": "manager",
+    "restaurant_id": 335,
+    "restaurant_slug": "steak-6f664e"
+  },
+  "32ba28e672bbb7e779d077cedbe5229b224a02eba005486f": {
+    "role": "manager",
+    "restaurant_id": 101,
+    "restaurant_slug": "branch-a"
+  },
+  "bd24bb4cbf6ba6ce925061812c3dc33a0c467c86c83a7c02": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "62ba3a7da197e17a9be6eec431c752fce402c75e556a4b8b": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "14b809bd08d6a36daea83dd42f98fc890a5ed4bc8ebebece": {
+    "role": "manager",
+    "restaurant_id": 347,
+    "restaurant_slug": "steak-ea0a8f"
   }
 }

@@ -125,15 +125,16 @@ export const VideoPlayer = ({
   // Synchronous audio unmuting directly inside physical user gesture tick
   const handleToggleAudio = useCallback((e) => {
     e.stopPropagation();
-    unlockAudioContext();
-    
     const video = videoRef.current;
-    if (video) {
-      const nextMuted = !video.muted;
-      video.muted = nextMuted;
-      if (!nextMuted) {
-        video.play().catch(() => {
-          video.muted = true;
+    if (!video) return;
+
+    const targetMuted = !video.muted;
+    video.muted = targetMuted; // Синхронно в контексте физического тапа пользователя
+    if (!targetMuted) {
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          video.muted = true; // Безопасный откат при блокировке автоплея
         });
       }
     }

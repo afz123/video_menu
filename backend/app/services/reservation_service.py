@@ -3,7 +3,7 @@ import html
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select, and_, or_, text
 from app.models.reservation import TableReservation, DiningTable, TableZone
 from app.models.restaurant import Restaurant
 
@@ -154,26 +154,26 @@ class ReservationService:
         if not candidates:
             return None
 
-        candidate_ids = [t.id for t in candidates]
-
-        b_query = select(TableReservation).where(
-            TableReservation.restaurant_id == restaurant_id,
-            TableReservation.reservation_date == date_str,
-            TableReservation.table_id.in_(candidate_ids),
-            TableReservation.status.in_(["PENDING", "CONFIRMED", "SEATED"]),
-            and_(
-                TableReservation.start_time < end_time,
-                TableReservation.end_time > start_time
-            )
-        )
-        if is_postgres:
-            b_query = b_query.with_for_update(of=TableReservation)
-
-        b_res = await db.execute(b_query)
-        occupied_table_ids = {b.table_id for b in b_res.scalars().all()}
-
         for tbl in candidates:
-            if tbl.id not in occupied_table_ids:
+            if is_postgres:
+                lock_hash = f"res_lock_{restaurant_id}_{tbl.id}_{date_str}"
+                await db.execute(
+                    text("SELECT pg_advisory_xact_lock(hashtext(:lh))").params(lh=lock_hash)
+                )
+
+            conflict_query = select(TableReservation.id).where(
+                TableReservation.restaurant_id == restaurant_id,
+                TableReservation.table_id == tbl.id,
+                TableReservation.reservation_date == date_str,
+                TableReservation.status.in_(["PENDING", "CONFIRMED", "SEATED"]),
+                and_(
+                    TableReservation.start_time < end_time,
+                    TableReservation.end_time > start_time
+                )
+            ).limit(1)
+
+            res = await db.execute(conflict_query)
+            if res.scalar_one_or_none() is None:
                 return tbl
 
         return None

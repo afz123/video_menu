@@ -231,6 +231,17 @@ export const MobileFeed = ({ restaurantData }) => {
     setCartItems([]);
   };
 
+  const handleUpdateItemCourse = useCallback((itemIndex, newCourse) => {
+    setCartItems((prevItems) => {
+      return prevItems.map((item, idx) => {
+        if (idx === itemIndex) {
+          return { ...item, course: newCourse };
+        }
+        return item;
+      });
+    });
+  }, []);
+
   const handleAddPairingToCart = (pairing, parentDish) => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       try { navigator.vibrate(16); } catch (_) {}
@@ -333,20 +344,24 @@ export const MobileFeed = ({ restaurantData }) => {
           className="reels-container"
           onScroll={handleScroll}
         >
-          {dishes.map((dish, idx) => (
-            <section key={dish.id} className="reel-slide">
-              <DishSlide
-                dish={dish}
-                isCurrent={idx === currentSlideIndex}
-                isSoundEnabled={isGlobalSoundOn}
-                onToggleSound={toggleGlobalSound}
-                categoryName={t(activeCategory.name)}
-                onAddToCart={handleInitiateAddToCart}
-                onAddPairingToCart={handleAddPairingToCart}
-                onDetailsToggle={setIsDetailExpanded}
-              />
-            </section>
-          ))}
+          {dishes.map((dish, idx) => {
+            const shouldMountMedia = Math.abs(idx - currentSlideIndex) <= 1;
+            return (
+              <section key={dish.id} className="reel-slide">
+                <DishSlide
+                  dish={dish}
+                  isCurrent={idx === currentSlideIndex}
+                  shouldMountMedia={shouldMountMedia}
+                  isSoundEnabled={isGlobalSoundOn}
+                  onToggleSound={toggleGlobalSound}
+                  categoryName={t(activeCategory.name)}
+                  onAddToCart={handleInitiateAddToCart}
+                  onAddPairingToCart={handleAddPairingToCart}
+                  onDetailsToggle={setIsDetailExpanded}
+                />
+              </section>
+            );
+          })}
         </div>
       ) : (
         <div
@@ -463,6 +478,7 @@ export const MobileFeed = ({ restaurantData }) => {
           serviceChargePercent={restaurantData.restaurant?.service_charge_percent ?? 10}
           onClose={() => setIsCartOpen(false)}
           onUpdateQty={handleUpdateQty}
+          onUpdateItemCourse={handleUpdateItemCourse}
           onClearCart={handleClearCart}
           onSetTableNumber={(tbl) => {
             setTableNumber(tbl);
