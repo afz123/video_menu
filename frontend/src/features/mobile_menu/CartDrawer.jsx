@@ -711,7 +711,8 @@ export const CartDrawer = ({
                   style={{
                     display: 'grid',
                     gridTemplateColumns: (cartUI.show_waiter_screen_btn !== false && cartUI.allow_self_ordering !== false) ? '1fr 1fr' : '1fr',
-                    gap: '10px'
+                    gap: '10px',
+                    marginTop: '8px'
                   }}
                 >
                   {cartUI.show_waiter_screen_btn !== false && (
@@ -746,7 +747,7 @@ export const CartDrawer = ({
                         color: '#09090b',
                         fontWeight: '700',
                         fontSize: '13px',
-                        cursor: 'pointer',
+                        cursor: isSubmitting ? 'not-allowed' : 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',

@@ -76,8 +76,8 @@
    - `kitchen_pacing`: 5 узлов (`enable_courses_system`, `enable_kitchen_pacing`, `enable_waiter_call_cooldown`, `cooldown_seconds`, `max_pacing_tables_per_slot`).
    - `kds`: 4 узла (`enable_kds_system`, `sound_alerts_enabled`, `notify_waiter_on_ready`, `alert_critical_delay_minutes`).
 
-## БЛОК 3. ГОТОВЫЕ ФАЙЛЫ ДЛЯ КОММИТА (Full Production Code)
-Предоставь полные, готовые к коммиту файлы:
+## БЛОК 3. Где Фиксить или добавить нововое
+Предоставь, где что изменить если там баг или чтото новое. Если нету файла из этого списка то также пиши:
 1. `backend/app/core/licensing.py` — функция проверки прав `require_module` для защиты API-маршрутов.
 2. `frontend/src/context/ModuleContext.jsx` — контекст лицензий с хуком `useModules()` и проверкой `hasModule(key)`.
 3. `frontend/src/context/UIConfigContext.jsx` — контекст гранулярного UI с глубоким слиянием дефолтов по всем 8 секциям.

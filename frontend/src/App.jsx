@@ -138,7 +138,7 @@ export default function App() {
       <ThemeProvider>
         <UIConfigProvider>
           <ModuleProvider>
-            <DashboardLayout />
+            <DashboardLayout defaultSlug={slug} />
           </ModuleProvider>
         </UIConfigProvider>
       </ThemeProvider>
@@ -254,14 +254,17 @@ function ModuleDisabledScreen({ moduleTitle, description, returnSlug }) {
       <p style={{ color: '#94a3b8', maxWidth: '460px', lineHeight: '1.6', fontSize: '14px', margin: '0 0 28px' }}>
         {description}
       </p>
-      <a
-        href={`/menu/${returnSlug}`}
+      <button
+        onClick={() => {
+          window.location.href = `/menu/${returnSlug}`;
+        }}
         style={{
           background: 'var(--accent-gold-gradient)',
           color: '#09090b',
+          border: 'none',
           padding: '13px 28px',
           borderRadius: '14px',
-          textDecoration: 'none',
+          cursor: 'pointer',
           fontWeight: '700',
           fontSize: '14px',
           boxShadow: '0 4px 18px rgba(212, 175, 55, 0.35)',
@@ -269,7 +272,7 @@ function ModuleDisabledScreen({ moduleTitle, description, returnSlug }) {
         }}
       >
         Открыть цифровое меню
-      </a>
+      </button>
     </div>
   );
 }

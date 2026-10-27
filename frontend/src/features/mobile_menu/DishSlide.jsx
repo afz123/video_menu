@@ -343,7 +343,9 @@ export const DishSlide = ({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {card.show_weight !== false && <span>{dish.weight || '300 г'}</span>}
+              {card.show_weight !== false && dish.weight && (
+                <span>{dish.weight}</span>
+              )}
               {card.show_details_toggle !== false && (
                 <span
                   onClick={(e) => {
@@ -370,7 +372,7 @@ export const DishSlide = ({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (onAddToCart) onAddToCart(dish);
+                  onAddToCart(dish);
                 }}
                 style={{
                   backgroundColor: 'var(--accent-gold)',

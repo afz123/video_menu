@@ -328,7 +328,7 @@ export const MobileFeed = ({ restaurantData }) => {
         badgeFilter={badgeFilter}
         onSelectBadgeFilter={handleSelectBadgeFilter}
         tableNumber={tableNumber}
-        onOpenBooking={canBook ? () => setIsBookingOpen(true) : null}
+        onOpenBooking={(canBook && ui?.header?.show_table_booking_btn !== false) ? () => setIsBookingOpen(true) : null}
         onChangeTable={() => {
           if (tableSignature) {
             alert('Номер стола верифицирован по оригинальному QR-коду и зафиксирован для защиты от ошибок.');
@@ -361,8 +361,8 @@ export const MobileFeed = ({ restaurantData }) => {
                   isSoundEnabled={isGlobalSoundOn}
                   onToggleSound={toggleGlobalSound}
                   categoryName={t(activeCategory.name)}
-                  onAddToCart={canOrder ? handleInitiateAddToCart : null}
-                  onAddPairingToCart={canOrder ? handleAddPairingToCart : null}
+                  onAddToCart={(canOrder && card.show_add_to_cart_btn !== false) ? handleInitiateAddToCart : null}
+                  onAddPairingToCart={(canOrder && card.show_add_to_cart_btn !== false) ? handleAddPairingToCart : null}
                   onDetailsToggle={setIsDetailExpanded}
                 />
               </section>

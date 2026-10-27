@@ -75,6 +75,12 @@ async def test_licensing_modules_isolation(client: AsyncClient, admin_headers):
     assert kiosk_res.status_code == 403
     assert "не активирован" in kiosk_res.json()["detail"]
 
+    # 8.1 Fail-safe verification: Core 'menu' is never blocked even if enabled_modules is empty
+    from app.core.licensing import require_module, ModuleAccess
+    class EmptyRestaurant:
+        enabled_modules = []
+    require_module(EmptyRestaurant(), ModuleAccess.MENU)
+
     # 9. Restore all modules for the demo restaurant
     restore_res = await client.put(
         f"/api/v1/restaurants/{slug}",

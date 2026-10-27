@@ -33,8 +33,12 @@ MODULE_TITLES = {
 def require_module(restaurant: Restaurant, module_name: str):
     """
     Проверяет, оплачен/включен ли данный коммерческий модуль у заведения.
-    Если нет — жестко прерывает выполнение с 403 Forbidden.
+    Базовый модуль 'menu' всегда активен.
+    Если модуль не активен — прерывает выполнение со статусом 403 Forbidden.
     """
+    if module_name == ModuleAccess.MENU:
+        return
+
     modules = restaurant.enabled_modules
     if modules is None:
         modules = DEFAULT_MODULES
@@ -45,3 +49,4 @@ def require_module(restaurant: Restaurant, module_name: str):
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Модуль '{title}' не активирован в тарифном плане данного заведения."
         )
+

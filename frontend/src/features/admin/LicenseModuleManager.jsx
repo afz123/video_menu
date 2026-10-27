@@ -95,6 +95,18 @@ export const LicenseModuleManager = ({ restaurant, onSaved }) => {
       await menuService.updateRestaurant(restaurant.slug, {
         enabled_modules: enabledModules
       });
+
+      // Очистка локального SWR-кеша для мгновенного применения на клиентах
+      if (typeof window !== 'undefined') {
+        try {
+          Object.keys(localStorage).forEach((key) => {
+            if (key.startsWith('luxury_menu_cache_')) {
+              localStorage.removeItem(key);
+            }
+          });
+        } catch (_) {}
+      }
+
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3500);
       if (onSaved) onSaved();

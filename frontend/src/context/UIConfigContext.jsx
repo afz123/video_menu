@@ -84,7 +84,7 @@ const UIConfigContext = createContext(DEFAULT_UI_CONFIG);
 
 export const UIConfigProvider = ({ customConfig, children }) => {
   const mergedConfig = useMemo(() => {
-    if (!customConfig) return DEFAULT_UI_CONFIG;
+    if (!customConfig || typeof customConfig !== 'object') return DEFAULT_UI_CONFIG;
 
     const result = {};
     const allSections = new Set([

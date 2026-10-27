@@ -75,7 +75,12 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
       const updatedSection = {};
       const template = DEFAULT_UI_CONFIG[section] || prev[section] || {};
       Object.keys(template).forEach((k) => {
-        updatedSection[k] = value;
+        // Admin Deadlock Prevention: вкладку конструктора запрещено выключать через групповую операцию
+        if (section === 'admin_tabs' && k === 'show_ui_config_tab' && !value) {
+          updatedSection[k] = true;
+        } else {
+          updatedSection[k] = value;
+        }
       });
       return { ...prev, [section]: updatedSection };
     });
@@ -389,6 +394,77 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
                   </div>
                 );
               })}
+
+              {sec.id === 'kitchen_pacing' && (
+                <div style={{
+                  gridColumn: '1 / -1',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                  gap: '14px',
+                  marginTop: '10px',
+                  padding: '16px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                  borderRadius: '14px',
+                  border: '1px solid rgba(255, 255, 255, 0.06)'
+                }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                      Задержка на повторный вызов официанта (секунд):
+                    </label>
+                    <input
+                      type="number"
+                      min="10"
+                      max="300"
+                      value={secConfig.cooldown_seconds ?? 45}
+                      onChange={(e) => setConfig(prev => ({
+                        ...prev,
+                        kitchen_pacing: {
+                          ...prev.kitchen_pacing,
+                          cooldown_seconds: parseInt(e.target.value, 10) || 45
+                        }
+                      }))}
+                      style={{
+                        width: '100%',
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        border: '1px solid rgba(255,255,255,0.12)',
+                        borderRadius: '8px',
+                        padding: '10px 12px',
+                        color: 'var(--accent-gold)',
+                        fontWeight: '700',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                      Лимит новых столов на один 30-мин слот (Pacing кухни):
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="20"
+                      value={secConfig.max_pacing_tables_per_slot ?? 3}
+                      onChange={(e) => setConfig(prev => ({
+                        ...prev,
+                        kitchen_pacing: {
+                          ...prev.kitchen_pacing,
+                          max_pacing_tables_per_slot: parseInt(e.target.value, 10) || 3
+                        }
+                      }))}
+                      style={{
+                        width: '100%',
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        border: '1px solid rgba(255,255,255,0.12)',
+                        borderRadius: '8px',
+                        padding: '10px 12px',
+                        color: 'var(--accent-gold)',
+                        fontWeight: '700',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </GlassCard>
         );
