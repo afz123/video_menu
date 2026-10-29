@@ -131,27 +131,15 @@ async def ensure_reservation_tables_seeded(db, restaurant: Restaurant):
     if existing_zones:
         # 1. Update existing zones to multi-floor specification
         for z in existing_zones:
-            name_lower = z.name.lower()
-            if "террас" in name_lower:
-                z.name = "Панорамная терраса"
-                z.floor = 1
-                z.display_order = 2
-                z.image_url = "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=1920&q=85"
-            elif "лаунж" in name_lower or "атриум" in name_lower:
-                z.name = "2-й этаж: Лаунж & Атриум"
-                z.floor = 2
-                z.display_order = 3
-                z.image_url = "https://images.unsplash.com/photo-1578474846511-04ba529f0b88?auto=format&fit=crop&w=1920&q=85"
-            elif "vip" in name_lower:
-                z.name = "2-й этаж: Приватные VIP-кабины"
-                z.floor = 2
-                z.display_order = 4
-                z.image_url = "https://images.unsplash.com/photo-1578474846511-04ba529f0b88?auto=format&fit=crop&w=1920&q=85"
-            else:
-                z.name = "Основной зал (Grand Hall)"
-                z.floor = 1
-                z.display_order = 1
-                z.image_url = "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1920&q=85"
+            # Сохраняем пользовательский этаж, если он уже задан в базе
+            if getattr(z, "floor", None) is None:
+                name_lower = z.name.lower()
+                if "террас" in name_lower:
+                    z.floor = 1
+                elif "лаунж" in name_lower or "атриум" in name_lower or "2" in name_lower:
+                    z.floor = 2
+                else:
+                    z.floor = 1
 
         # 2. If 2nd Floor Lounge is missing, create it
         lounge_zone = next((z for z in existing_zones if "лаунж" in z.name.lower() or "атриум" in z.name.lower()), None)

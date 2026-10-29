@@ -325,7 +325,14 @@ export const ModifierModal = ({ dish, onClose, onAddToCart }) => {
               Пожелание повару / официанту (опционально):
             </label>
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
-              {['Без лука', 'Без кинзы', 'Соус отдельно', 'Менее острое', 'Горячим к столу', 'Без сахара'].map((tag) => {
+              {(cardUI.cooking_notes_presets || [
+                'Без лука',
+                'Без кинзы',
+                'Соус отдельно',
+                'Менее острое',
+                'Горячим к столу',
+                'Без сахара'
+              ]).map((tag) => {
                 const isActive = comment.includes(tag);
                 return (
                   <button

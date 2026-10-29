@@ -32,11 +32,11 @@ export const InteractiveFloorPlan = ({
   const touchStartDistRef = useRef(0);
   const containerRef = useRef(null);
 
-  // 1. Группировка зон по этажам (Multi-Floor Engine)
+  // 1. Группировка зон по этажам (Multi-Floor Engine без хардкода)
   const floorMap = useMemo(() => {
     const map = {};
     zones.forEach((z) => {
-      const fNum = z.floor || (z.name?.toLowerCase().includes('2') ? 2 : 1);
+      const fNum = typeof z.floor === 'number' ? z.floor : (parseInt(z.floor, 10) || 1);
       if (!map[fNum]) map[fNum] = [];
       map[fNum].push(z);
     });
@@ -45,12 +45,12 @@ export const InteractiveFloorPlan = ({
 
   const availableFloors = useMemo(() => {
     const fNums = Object.keys(floorMap).map(Number);
-    return fNums.length > 0 ? fNums.sort((a, b) => b - a) : [1]; // 2F сверху, 1F снизу
+    return fNums.length > 0 ? fNums.sort((a, b) => b - a) : [1];
   }, [floorMap]);
 
-  // Выбранный текущий этаж
+  // Выбранный текущий этаж строго из активной зоны
   const currentZone = zones.find((z) => Number(z.id) === Number(selectedZoneId)) || zones[0];
-  const activeFloor = currentZone?.floor || (currentZone?.name?.toLowerCase().includes('2') ? 2 : 1);
+  const activeFloor = currentZone ? (typeof currentZone.floor === 'number' ? currentZone.floor : (parseInt(currentZone.floor, 10) || 1)) : 1;
 
   // Зоны текущего активного этажа
   const floorZones = floorMap[activeFloor] || (zones.length > 0 ? [zones[0]] : []);
@@ -91,12 +91,13 @@ export const InteractiveFloorPlan = ({
     setPan({ x: 0, y: 0 });
   }, [selectedZoneId]);
 
-  // Изображение плана/фотографии выбранного этажа
-  const masterFloorPlanUrl =
-    currentZone?.image_url ||
-    (activeFloor === 2
-      ? 'https://images.unsplash.com/photo-1578474846511-04ba529f0b88?auto=format&fit=crop&w=1920&q=85'
-      : 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1920&q=85');
+  // Изображение плана/фотографии выбранного этажа строго из данных зала
+  const masterFloorPlanUrl = useMemo(() => {
+    if (currentZone?.image_url) return currentZone.image_url;
+    const sameFloorZoneWithImage = (floorMap[activeFloor] || []).find((z) => z.image_url);
+    if (sameFloorZoneWithImage?.image_url) return sameFloorZoneWithImage.image_url;
+    return 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1920&q=85';
+  }, [currentZone, floorMap, activeFloor]);
 
   // Zoom Controls
   const handleZoomIn = () => setScale((s) => Math.min(3.0, Number((s + 0.3).toFixed(1))));

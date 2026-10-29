@@ -1338,37 +1338,53 @@ export const ReservationManager = ({ restaurantSlug }) => {
                 )}
               </div>
 
-              {/* Выбор этажа заведения */}
+              {/* Выбор этажа заведения (Полностью динамический ввод) */}
               <div>
                 <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                  Этаж заведения *
+                  Номер этажа / Уровень заведения *
                 </label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  {[
-                    { num: 1, label: '1-й этаж (Зал & Терраса)' },
-                    { num: 2, label: '2-й этаж (Лаунж & VIP)' },
-                    { num: 3, label: '3-й этаж / Крыша' }
-                  ].map((f) => (
-                    <button
-                      key={f.num}
-                      type="button"
-                      onClick={() => setZoneFloor(f.num)}
-                      style={{
-                        flex: 1,
-                        padding: '10px 8px',
-                        borderRadius: '10px',
-                        border: zoneFloor === f.num ? '1.5px solid var(--accent-gold)' : '1px solid rgba(255,255,255,0.1)',
-                        background: zoneFloor === f.num ? 'var(--accent-gold-gradient)' : 'rgba(255,255,255,0.04)',
-                        color: zoneFloor === f.num ? '#000' : '#fff',
-                        fontWeight: '700',
-                        fontSize: '12px',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <input
+                    type="number"
+                    required
+                    min="-2"
+                    max="99"
+                    value={zoneFloor}
+                    onChange={(e) => setZoneFloor(parseInt(e.target.value, 10) || 1)}
+                    style={{
+                      width: '100px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid var(--accent-gold)',
+                      borderRadius: '10px',
+                      padding: '10px 14px',
+                      color: 'var(--accent-gold)',
+                      fontSize: '16px',
+                      fontWeight: '800',
+                      outline: 'none',
+                      textAlign: 'center'
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {[-1, 1, 2, 3, 4, 5].map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => setZoneFloor(num)}
+                        style={{
+                          background: Number(zoneFloor) === num ? 'var(--accent-gold)' : 'rgba(255, 255, 255, 0.06)',
+                          color: Number(zoneFloor) === num ? '#000' : '#fff',
+                          border: '1px solid rgba(255, 255, 255, 0.12)',
+                          borderRadius: '8px',
+                          padding: '6px 10px',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {num === -1 ? 'Цоколь (-1)' : `${num}F`}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 

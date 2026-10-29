@@ -342,5 +342,69 @@
     ],
     "restaurant_id": 196,
     "restaurant_slug": "staff-bistro-20ad1f"
+  },
+  "bae5973761b8ffa833a62aee75c1e990ad33193babbcb284": {
+    "role": "superadmin",
+    "permissions": [
+      "*"
+    ],
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "072785a4d448c4510c937124d8fcd91458a92ded2cddeeed": {
+    "role": "manager",
+    "permissions": [
+      "view_menu",
+      "toggle_stop_list",
+      "resolve_requests"
+    ],
+    "restaurant_id": 101,
+    "restaurant_slug": "branch-a"
+  },
+  "7d76a839ff0fd09fa6588d11a68fa7ead1bb5c32b7480307": {
+    "role": "superadmin",
+    "permissions": [
+      "*"
+    ],
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "1df7f917b27fc7699a497f79615c7c091ac3c37e31b52ede": {
+    "role": "superadmin",
+    "permissions": [
+      "*"
+    ],
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "8ae9258c2e4cf7f73cd7a85db8337805e67137f7740840d5": {
+    "role": "manager",
+    "permissions": [
+      "view_menu",
+      "toggle_stop_list",
+      "resolve_requests"
+    ],
+    "restaurant_id": 1,
+    "restaurant_slug": "asr-royale"
+  },
+  "8ff9f3d4723698972495340ddd7e6197ae4bd9a4d5903d60": {
+    "role": "manager",
+    "permissions": [
+      "view_menu",
+      "toggle_stop_list",
+      "resolve_requests"
+    ],
+    "restaurant_id": 204,
+    "restaurant_slug": "steak-c26d28"
+  },
+  "4d4fb6c6f2b0c4d68360aaef7b445cc118badc86e428b244": {
+    "role": "waiter",
+    "permissions": [
+      "view_menu",
+      "toggle_stop_list",
+      "resolve_requests"
+    ],
+    "restaurant_id": 209,
+    "restaurant_slug": "staff-bistro-fd4005"
   }
 }

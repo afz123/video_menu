@@ -486,14 +486,20 @@ export const SmartServiceBar = ({
                   Кого пригласить к столу?
                 </label>
                 {(() => {
-                  const ALL_SPECIALISTS = [
-                    { id: 'waiter', label: 'Официант', icon: '🛎️', enabled: true },
-                    { id: 'sommelier', label: 'Сомелье', icon: '🍷', enabled: bar.allow_call_sommelier !== false },
-                    { id: 'hookah', label: 'Кальянщик', icon: '💨', enabled: bar.allow_call_hookah !== false },
-                    { id: 'admin', label: 'Управляющий', icon: '👔', enabled: bar.allow_call_admin !== false }
-                  ];
-                  const specialists = ALL_SPECIALISTS.filter((s) => s.enabled && callTypesEnabled.includes(s.id));
-                  const displaySpecialists = specialists.length > 0 ? specialists : [ALL_SPECIALISTS[0]];
+                  const SPECIALIST_PRESETS = {
+                    waiter: { label: 'Официант', icon: '🛎️' },
+                    sommelier: { label: 'Сомелье', icon: '🍷' },
+                    hookah: { label: 'Кальянщик', icon: '💨' },
+                    admin: { label: 'Управляющий', icon: '👔' }
+                  };
+                  const activeTypes = Array.isArray(callTypesEnabled) && callTypesEnabled.length > 0
+                    ? callTypesEnabled
+                    : ['waiter'];
+
+                  const displaySpecialists = activeTypes.map((typeKey) => {
+                    const preset = SPECIALIST_PRESETS[typeKey] || { label: typeKey, icon: '🛎️' };
+                    return { id: typeKey, label: preset.label, icon: preset.icon };
+                  });
                   return (
                     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(displaySpecialists.length, 4)}, 1fr)`, gap: '8px' }}>
                       {displaySpecialists.map((s) => {
@@ -622,7 +628,13 @@ export const SmartServiceBar = ({
 
                 {bar.show_quick_requests !== false && modalType === 'WAITER' && (
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
-                    {['🧊 Лёд и вода', '🥢 Приборы и салфетки', '🍋 Лимон к чаю', '🧂 Соль / перец', '🥫 Дополнительный соус'].map((req) => {
+                    {(bar.quick_requests_list || [
+                      '🧊 Лёд и вода',
+                      '🥢 Приборы и салфетки',
+                      '🍋 Лимон к чаю',
+                      '🧂 Соль / перец',
+                      '🥫 Дополнительный соус'
+                    ]).map((req) => {
                       const isSelected = guestNote.includes(req);
                       return (
                         <button
