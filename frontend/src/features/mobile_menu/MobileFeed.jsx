@@ -344,7 +344,9 @@ export const MobileFeed = ({ restaurantData }) => {
           if (newTbl && newTbl.trim()) {
             const trimmed = newTbl.trim();
             setTableNumber(trimmed);
+            setTableSignature('');
             sessionStorage.setItem(tableStorageKey, trimmed);
+            sessionStorage.removeItem(tableSignStorageKey);
           }
         }}
       />
@@ -508,6 +510,7 @@ export const MobileFeed = ({ restaurantData }) => {
         <BookingModal
           restaurantSlug={restaurantSlug}
           restaurantName={restaurantData.restaurant?.name || 'ASR Maison Royale'}
+          currency={restaurantData.restaurant?.currency || 'TJS'}
           onClose={() => setIsBookingOpen(false)}
         />
       )}

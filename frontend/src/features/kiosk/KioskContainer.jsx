@@ -183,6 +183,7 @@ export const KioskContainer = ({ restaurantData }) => {
           key={sessionResetKey}
           restaurantSlug={restaurantData.slug}
           restaurantName={restaurantData.name}
+          currency={restaurantData.currency || restaurantData.restaurant?.currency || 'TJS'}
           onClose={() => {
             setIsBookingOpen(false);
             resetTimer();

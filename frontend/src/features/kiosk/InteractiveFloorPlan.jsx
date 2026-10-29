@@ -411,8 +411,8 @@ export const InteractiveFloorPlan = ({
                     }}
                   >
                     <span>{fNum}F</span>
-                    <span style={{ fontSize: '8px', opacity: isSelectedFloor ? 0.9 : 0.6, marginTop: '-2px' }}>
-                      {fNum === 1 ? 'Зал' : 'Лаунж'}
+                    <span style={{ fontSize: '8px', opacity: isSelectedFloor ? 0.9 : 0.6, marginTop: '-2px', maxWidth: '40px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {floorMap[fNum]?.[0]?.name?.replace(/^(.*?:|\d+F\s*)/i, '').trim() || (fNum === 1 ? 'Зал' : fNum === 2 ? 'Лаунж' : 'Крыша')}
                     </span>
                   </button>
                 );

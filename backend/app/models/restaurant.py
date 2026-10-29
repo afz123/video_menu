@@ -109,4 +109,16 @@ class Restaurant(Base):
     @property
     def ui_config(self):
         from app.core.config import DEFAULT_UI_CONFIG
-        return (self.theme_config or {}).get("ui_config", DEFAULT_UI_CONFIG)
+        custom = (self.theme_config or {}).get("ui_config")
+        if not custom or not isinstance(custom, dict):
+            return DEFAULT_UI_CONFIG
+        merged = {}
+        for sec, defaults in DEFAULT_UI_CONFIG.items():
+            if isinstance(defaults, dict):
+                merged[sec] = {**defaults, **custom.get(sec, {})}
+            else:
+                merged[sec] = custom.get(sec, defaults)
+        for sec, val in custom.items():
+            if sec not in merged:
+                merged[sec] = val
+        return merged

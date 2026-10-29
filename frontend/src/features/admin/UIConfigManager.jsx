@@ -57,6 +57,10 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
   }, [initialConfig]);
 
   const toggle = (section, key) => {
+    if (section === 'admin_tabs' && key === 'show_ui_config_tab') {
+      alert('Вкладку «Конструктор UI» нельзя отключить, чтобы избежать самоблокировки панели управления.');
+      return;
+    }
     setConfig((prev) => {
       const currentSection = prev[section] || {};
       const currentValue = currentSection[key] !== false;

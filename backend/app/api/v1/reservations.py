@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, status
@@ -17,6 +18,13 @@ from app.core.licensing import require_module, ModuleAccess
 logger = logging.getLogger("video_menu.reservations")
 
 router = APIRouter(prefix="/reservations", tags=["Table Reservations"])
+_locks: Dict[asyncio.AbstractEventLoop, asyncio.Lock] = {}
+
+def get_reservation_lock() -> asyncio.Lock:
+    loop = asyncio.get_running_loop()
+    if loop not in _locks:
+        _locks[loop] = asyncio.Lock()
+    return _locks[loop]
 
 async def get_restaurant_by_slug(slug: str, db: AsyncSession) -> Restaurant:
     query = select(Restaurant).where(Restaurant.slug == slug)
@@ -197,20 +205,8 @@ async def create_reservation(
     raw_table = payload.get("table_id")
     preferred_table_id = int(raw_table) if raw_table is not None and str(raw_table).isdigit() else None
 
-    # Умный подбор свободного стола с защитой от пересечений
-    assigned_table = await ReservationService.assign_table_for_booking(
-        db=db,
-        restaurant_id=restaurant.id,
-        date_str=date_str,
-        start_time=start_time,
-        end_time=end_time,
-        guests_count=guests_count,
-        zone_id=zone_id,
-        preferred_table_id=preferred_table_id
-    )
-
-    if not assigned_table and preferred_table_id:
-        # Если запрошенный стол занят, попробуем любой другой подходящий
+    async with get_reservation_lock():
+        # Умный подбор свободного стола с защитой от пересечений
         assigned_table = await ReservationService.assign_table_for_booking(
             db=db,
             restaurant_id=restaurant.id,
@@ -219,31 +215,44 @@ async def create_reservation(
             end_time=end_time,
             guests_count=guests_count,
             zone_id=zone_id,
-            preferred_table_id=None
+            preferred_table_id=preferred_table_id
         )
 
-    code = ReservationService.generate_booking_code()
+        if not assigned_table and preferred_table_id:
+            # Если запрошенный стол занят, попробуем любой другой подходящий
+            assigned_table = await ReservationService.assign_table_for_booking(
+                db=db,
+                restaurant_id=restaurant.id,
+                date_str=date_str,
+                start_time=start_time,
+                end_time=end_time,
+                guests_count=guests_count,
+                zone_id=zone_id,
+                preferred_table_id=None
+            )
 
-    reservation = TableReservation(
-        booking_code=code,
-        restaurant_id=restaurant.id,
-        table_id=assigned_table.id if assigned_table else None,
-        zone_id=zone_id or (assigned_table.zone_id if assigned_table else None),
-        guest_name=guest_name,
-        guest_phone=guest_phone,
-        guest_email=payload.get("guest_email"),
-        guests_count=guests_count,
-        reservation_date=date_str,
-        start_time=start_time,
-        end_time=end_time,
-        duration_minutes=turnover_minutes,
-        source=payload.get("source", "MOBILE_QR"),
-        guest_wishes=payload.get("guest_wishes"),
-        status="PENDING"
-    )
-    db.add(reservation)
-    await db.commit()
-    await db.refresh(reservation)
+        code = ReservationService.generate_booking_code()
+
+        reservation = TableReservation(
+            booking_code=code,
+            restaurant_id=restaurant.id,
+            table_id=assigned_table.id if assigned_table else None,
+            zone_id=zone_id or (assigned_table.zone_id if assigned_table else None),
+            guest_name=guest_name,
+            guest_phone=guest_phone,
+            guest_email=payload.get("guest_email"),
+            guests_count=guests_count,
+            reservation_date=date_str,
+            start_time=start_time,
+            end_time=end_time,
+            duration_minutes=turnover_minutes,
+            source=payload.get("source", "MOBILE_QR"),
+            guest_wishes=payload.get("guest_wishes"),
+            status="PENDING"
+        )
+        db.add(reservation)
+        await db.commit()
+        await db.refresh(reservation)
 
     # Имя зоны и номер стола для уведомления
     zone_name = None
@@ -300,6 +309,7 @@ async def admin_list_reservations(
     """
     restaurant = await get_restaurant_by_slug(restaurant_slug, db)
     check_restaurant_access(current_admin, restaurant.id)
+    require_module(restaurant, ModuleAccess.RESERVATIONS)
 
     query = select(TableReservation).where(TableReservation.restaurant_id == restaurant.id)
     if date:

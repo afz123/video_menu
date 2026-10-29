@@ -127,7 +127,7 @@ export const SmartServiceBar = ({
         guest_session_id: guestSessionId || undefined,
         request_type: reqType,
         guest_comment: comment,
-        nps_score: modalType === 'BILL' ? npsRating : undefined
+        nps_score: (modalType === 'BILL' && bar.show_nps_rating !== false) ? npsRating : undefined
       });
 
       // Save cooldown timestamp for table

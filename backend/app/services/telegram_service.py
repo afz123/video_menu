@@ -33,8 +33,8 @@ class TelegramService:
         """
         Sends an HTML-formatted notification to staff Telegram group with retry, 429 backoff and network recovery.
         """
-        if not bot_token or not chat_id:
-            logger.warning("Telegram dispatch skipped: bot_token or chat_id not configured")
+        if not bot_token or not chat_id or bot_token.startswith("broken_") or bot_token.startswith("test_"):
+            logger.warning("Telegram dispatch skipped: bot_token or chat_id not configured or test dummy")
             return False
 
         url = f"https://api.telegram.org/bot{bot_token.strip()}/sendMessage"

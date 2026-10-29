@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { InteractiveFloorPlan } from './InteractiveFloorPlan';
 
-export const BookingModal = ({ restaurantSlug, restaurantName, onClose }) => {
+export const BookingModal = ({ restaurantSlug, restaurantName, currency = 'TJS', onClose }) => {
   const ui = useUI();
   const kioskUI = ui?.kiosk || {};
   const [step, setStep] = useState(1); // 1: Параметры и слоты, 2: Контакты, 3: Успех
@@ -19,10 +19,14 @@ export const BookingModal = ({ restaurantSlug, restaurantName, onClose }) => {
   const [selectedTime, setSelectedTime] = useState('');
   const [selectedSlotEnd, setSelectedSlotEnd] = useState('');
   const [suggestedTableId, setSuggestedTableId] = useState(null);
+
+  const defaultDialCode = {
+    RUB: '+7 ', KZT: '+7 ', UZS: '+998 ', AED: '+971 ', USD: '+1 ', EUR: '+49 ', TJS: '+992 '
+  }[currency] || '+992 ';
   
-  // Контакты
+  // Контакты с динамическим кодом страны
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState('+992 ');
+  const [phone, setPhone] = useState(defaultDialCode);
   const [wishes, setWishes] = useState('');
   const [bookingResult, setBookingResult] = useState(null);
 
@@ -34,13 +38,13 @@ export const BookingModal = ({ restaurantSlug, restaurantName, onClose }) => {
   useEffect(() => {
     return () => {
       setName('');
-      setPhone('+992 ');
+      setPhone(defaultDialCode);
       setWishes('');
       if (typeof window !== 'undefined' && window.crypto) {
         try { navigator.clipboard?.writeText(''); } catch (_) {}
       }
     };
-  }, []);
+  }, [defaultDialCode]);
 
   // Загрузка залов со столами
   useEffect(() => {
