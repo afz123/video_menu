@@ -118,3 +118,20 @@ async def test_licensing_modules_isolation(client: AsyncClient, admin_headers):
     # 10. Verify kiosk works again after restoring
     kiosk_restored = await client.get(f"/api/v1/kiosk/{slug}/config")
     assert kiosk_restored.status_code == 200
+
+    # 11. Verify wishlist_only_mode & allow_self_ordering UI config gating on orders
+    await client.put(
+        f"/api/v1/restaurants/{slug}",
+        json={"ui_config": {"cart": {"wishlist_only_mode": True, "allow_self_ordering": True}}},
+        headers=admin_headers
+    )
+    wishlist_order_res = await client.post(f"/api/v1/restaurants/{slug}/service-requests", json=fin_order_payload)
+    assert wishlist_order_res.status_code == 403
+    assert "Прямой заказ отключен ресторатором" in wishlist_order_res.json()["detail"]
+
+    # Restore default ui_config
+    await client.put(
+        f"/api/v1/restaurants/{slug}",
+        json={"ui_config": {"cart": {"wishlist_only_mode": False, "allow_self_ordering": True}}},
+        headers=admin_headers
+    )

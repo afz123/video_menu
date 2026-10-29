@@ -76,6 +76,7 @@ DEFAULT_UI_CONFIG = {
     },
     # 4. Корзина и заказ
     "cart": {
+        "wishlist_only_mode": False,      # Режим блокнота/витрины без прямой отправки
         "allow_self_ordering": True,      # Отправка заказа на кухню
         "show_service_charge": True,      # Строка "Обслуживание (10%)"
         "show_waiter_screen_btn": True,   # Кнопка "Показать экран официанту"

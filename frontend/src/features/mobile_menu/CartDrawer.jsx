@@ -578,7 +578,7 @@ export const CartDrawer = ({
               ))}
             </div>
 
-            {canFinance && ((cartUI.show_split_bill !== false) || (cartUI.show_tip_tiers !== false)) && (
+            {canFinance && !cartUI.wishlist_only_mode && ((cartUI.show_split_bill !== false) || (cartUI.show_tip_tiers !== false)) && (
               <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.02)', borderRadius: '12px', padding: '10px 12px', marginBottom: '12px', border: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {cartUI.show_split_bill !== false && (
                   <>
@@ -684,29 +684,32 @@ export const CartDrawer = ({
 
             <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
-                <span>Блюда:</span>
+                <span>{cartUI.wishlist_only_mode ? 'Выбранные блюда:' : 'Блюда:'}</span>
                 <span>{subtotal.toFixed(0)} {activeCurrency}</span>
               </div>
-              {cartUI.show_service_charge !== false && serviceCharge > 0 && (
+              {!cartUI.wishlist_only_mode && cartUI.show_service_charge !== false && serviceCharge > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'rgba(212, 175, 55, 0.9)' }}>
                   <span>Обслуживание ({serviceChargePercent}%):</span>
                   <span>+{serviceCharge.toFixed(1)} {activeCurrency}</span>
                 </div>
               )}
-              {cartUI.show_tip_tiers !== false && tipAmount > 0 && (
+              {!cartUI.wishlist_only_mode && cartUI.show_tip_tiers !== false && tipAmount > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#4ade80' }}>
                   <span>Чаевые ({tipPercent}%):</span>
                   <span>+{tipAmount.toFixed(1)} {activeCurrency}</span>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '2px 0 6px' }}>
-                <span style={{ fontSize: '14px', fontWeight: '600', color: '#fff' }}>Итого к оплате:</span>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: '#fff' }}>
+                  {cartUI.wishlist_only_mode ? 'Предварительная сумма:' : 'Итого к оплате:'}
+                </span>
                 <span style={{ fontSize: '24px', fontWeight: '800', color: 'var(--accent-gold)' }}>
-                  {grandTotal.toFixed(1)} {activeCurrency}
+                  {(cartUI.wishlist_only_mode ? subtotal : grandTotal).toFixed(1)} {activeCurrency}
                 </span>
               </div>
 
-              {(cartUI.show_waiter_screen_btn !== false || cartUI.allow_self_ordering !== false) && (
+              {/* Режим витрины / черновика: если включен wishlist_only_mode, скрываем отправку и финансовые обязательства */}
+              {!cartUI.wishlist_only_mode && (cartUI.show_waiter_screen_btn !== false || cartUI.allow_self_ordering !== false) && (
                 <div
                   style={{
                     display: 'grid',

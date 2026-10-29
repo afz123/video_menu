@@ -393,9 +393,17 @@ async def create_service_request(
     if not restaurant:
         raise HTTPException(status_code=404, detail="Ресторан не найден")
 
-    # Commercial License Feature-Gating (Pay-per-Module isolation)
+    # Commercial License Feature-Gating & UI Config Validation
+    ui_cfg = restaurant.ui_config or {}
+    cart_cfg = ui_cfg.get("cart", {})
+
     if data.request_type in ("order", "repeat_order"):
         require_module(restaurant, ModuleAccess.ORDERING)
+        if cart_cfg.get("wishlist_only_mode") is True or cart_cfg.get("allow_self_ordering") is False:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Прямой заказ отключен ресторатором. Корзина работает в режиме просмотра и выбора."
+            )
     else:
         require_module(restaurant, ModuleAccess.SERVICE_DISPATCH)
 

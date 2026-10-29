@@ -199,6 +199,7 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
       icon: ShoppingBag,
       color: '#10b981',
       items: [
+        { key: 'wishlist_only_mode', label: 'Режим «Список блюд / Блокнот»', desc: 'Корзина работает как список желаний гостя без фиксации чека и отправки на кухню' },
         { key: 'allow_self_ordering', label: 'Кнопка «Отправить заказ на кухню»', desc: 'Прямая отправка заказа в зал/цех' },
         { key: 'show_waiter_screen_btn', label: 'Кнопка «Показать официанту»', desc: 'Полноэкранный режим показа экрана при личном заказе' },
         { key: 'show_service_charge', label: 'Строка «Обслуживание (10%)»', desc: 'Отображение сервисного сбора в чеке' },

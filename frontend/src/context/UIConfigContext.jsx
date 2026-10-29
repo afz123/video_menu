@@ -49,6 +49,7 @@ export const DEFAULT_UI_CONFIG = {
     allow_call_admin: true
   },
   cart: {
+    wishlist_only_mode: false,
     allow_self_ordering: true,
     show_service_charge: true,
     show_waiter_screen_btn: true,
