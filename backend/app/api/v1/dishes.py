@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.security import get_current_admin, check_restaurant_access
+from app.core.security import get_current_admin, check_restaurant_access, check_permission
 from app.models.dish import Dish
 from app.models.media import MediaAsset
 from app.models.category import Category
@@ -80,6 +80,7 @@ async def create_dish(
     current_admin: str = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
+    check_permission(current_admin, "edit_dish")
     check_restaurant_access(current_admin, data.restaurant_id)
 
     # Verify category strictly belongs to the same restaurant
@@ -110,6 +111,7 @@ async def update_dish(
     current_admin: str = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
+    check_permission(current_admin, "edit_dish")
     dish = await db.get(Dish, dish_id)
     if not dish:
         raise HTTPException(status_code=404, detail="Блюдо не найдено")
@@ -143,6 +145,7 @@ async def delete_dish(
     current_admin: str = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
+    check_permission(current_admin, "edit_dish")
     dish = await db.get(Dish, dish_id)
     if not dish:
         raise HTTPException(status_code=404, detail="Блюдо не найдено")
@@ -163,6 +166,7 @@ async def toggle_stop_list(
     1-click instant stop-list toggle with row-level transaction lock (with_for_update).
     Eliminates race conditions and lost updates across simultaneous waitstaff/manager tablets.
     """
+    check_permission(current_admin, "toggle_stop_list")
     stmt = select(Dish).where(Dish.id == dish_id).with_for_update()
     res = await db.execute(stmt)
     dish = res.scalar_one_or_none()

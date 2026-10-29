@@ -399,7 +399,8 @@ async def seed_database():
                 "ALTER TABLE table_zones ADD COLUMN IF NOT EXISTS image_url VARCHAR(512);",
                 "ALTER TABLE table_zones ADD COLUMN IF NOT EXISTS floor INTEGER DEFAULT 1;",
                 "ALTER TABLE dining_tables ADD COLUMN IF NOT EXISTS photo_url VARCHAR(512);",
-                "ALTER TABLE dining_tables ADD COLUMN IF NOT EXISTS features JSON DEFAULT '[]'::json;"
+                "ALTER TABLE dining_tables ADD COLUMN IF NOT EXISTS features JSON DEFAULT '[]'::json;",
+                "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS permissions JSON DEFAULT '[\"view_menu\", \"toggle_stop_list\", \"resolve_requests\"]'::json;"
             ]
             for stmt in stmts:
                 try:
@@ -435,6 +436,9 @@ async def seed_database():
             # SQLite fallback migrations
             try:
                 await conn.execute(text("ALTER TABLE table_zones ADD COLUMN image_url VARCHAR(512);"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE admin_users ADD COLUMN permissions JSON DEFAULT '[\"view_menu\", \"toggle_stop_list\", \"resolve_requests\"]';"))
             except Exception: pass
             try:
                 await conn.execute(text("ALTER TABLE table_zones ADD COLUMN floor INTEGER DEFAULT 1;"))
@@ -516,6 +520,9 @@ async def seed_database():
             except Exception: pass
             try:
                 await conn.execute(text("ALTER TABLE table_zones ADD COLUMN image_url VARCHAR(512);"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE admin_users ADD COLUMN permissions JSON DEFAULT '[\"view_menu\", \"toggle_stop_list\", \"resolve_requests\"]';"))
             except Exception: pass
             try:
                 await conn.execute(text("ALTER TABLE dining_tables ADD COLUMN photo_url VARCHAR(512);"))

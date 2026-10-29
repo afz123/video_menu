@@ -5,6 +5,7 @@ import {
   X, CheckCircle, ChevronRight, AlertCircle, RefreshCw
 } from 'lucide-react';
 import { InteractiveFloorPlan } from './InteractiveFloorPlan';
+import { LuxuryDatePicker } from '../../components/ui/LuxuryDatePicker';
 
 export const BookingModal = ({ restaurantSlug, restaurantName, currency = 'TJS', onClose }) => {
   const ui = useUI();
@@ -337,26 +338,15 @@ export const BookingModal = ({ restaurantSlug, restaurantName, currency = 'TJS',
               </div>
             </div>
 
-            {/* 2. Дата */}
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '600' }}>
-                Дата визита:
-              </label>
-              <input
-                type="date"
+            {/* 2. Дата визита (Luxury Date Picker) */}
+            <div style={{ marginBottom: '18px' }}>
+              <LuxuryDatePicker
+                label="Дата визита:"
                 value={date}
-                min={new Date().toISOString().split('T')[0]}
-                onChange={(e) => setDate(e.target.value)}
-                style={{
-                  width: '100%',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  borderRadius: '12px',
-                  padding: '10px 12px',
-                  color: '#fff',
-                  fontSize: '14px',
-                  outline: 'none'
-                }}
+                minDate={new Date().toISOString().split('T')[0]}
+                onChange={(newDate) => setDate(newDate)}
+                showPills={true}
+                pillsCount={7}
               />
             </div>
 

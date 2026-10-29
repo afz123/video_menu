@@ -11,3 +11,4 @@ storage/tmp/*
 !storage/tmp/.gitkeep
 *.log
 .env
+*.md

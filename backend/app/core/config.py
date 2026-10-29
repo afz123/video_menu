@@ -99,6 +99,7 @@ DEFAULT_UI_CONFIG = {
         "show_dishes_tab": True,
         "show_reservations_tab": True,
         "show_service_requests_tab": True,
+        "show_staff_tab": True,
         "show_ui_config_tab": True,
         "show_categories_tab": True,
         "show_settings_tab": True,

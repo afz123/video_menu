@@ -109,9 +109,10 @@ def verify_table_signature(restaurant_id: int, table: str, token: Optional[str])
 class AdminSession(str):
     """
     Subclasses str so that any code expecting a string token continues
-    to work seamlessly, while exposing multi-tenant context attributes.
+    to work seamlessly, while exposing multi-tenant context attributes and permissions.
     """
     role: str = "superadmin"
+    permissions: list = []
     restaurant_id: Optional[int] = None
     restaurant_slug: Optional[str] = None
 
@@ -119,14 +120,30 @@ class AdminSession(str):
         cls,
         token: str,
         role: str = "superadmin",
+        permissions: Optional[list] = None,
         restaurant_id: Optional[int] = None,
         restaurant_slug: Optional[str] = None
     ):
         instance = super().__new__(cls, token)
         instance.role = role
+        instance.permissions = permissions or []
         instance.restaurant_id = restaurant_id
         instance.restaurant_slug = restaurant_slug
         return instance
+
+def check_permission(admin: Any, required_perm: str):
+    role = getattr(admin, "role", "superadmin")
+    if role in ("superadmin", "manager"):
+        return
+    perms = getattr(admin, "permissions", [])
+    if "*" in perms or required_perm in perms:
+        return
+    if required_perm in ("edit_dish", "edit_dishes") and any(p in perms for p in ("edit_dish", "edit_dishes")):
+        return
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail=f"Недостаточно прав: требуется разрешение '{required_perm}'"
+    )
 
 
 TOKEN_LOCK_FILE = settings.STORAGE_DIR / "admin_tokens.lock"
@@ -158,6 +175,7 @@ def _load_persisted_tokens() -> Dict[str, Dict[str, Any]]:
     if _is_dev_environment():
         tokens[MASTER_DEMO_TOKEN] = {
             "role": "superadmin",
+            "permissions": ["*"],
             "restaurant_id": None,
             "restaurant_slug": None
         }
@@ -172,6 +190,7 @@ def _load_persisted_tokens() -> Dict[str, Dict[str, Any]]:
                     for tok in data:
                         tokens[tok] = {
                             "role": "superadmin",
+                            "permissions": ["*"],
                             "restaurant_id": None,
                             "restaurant_slug": None
                         }
@@ -197,6 +216,7 @@ VALID_SESSIONS: Dict[str, Dict[str, Any]] = _load_persisted_tokens()
 
 def create_admin_token(
     role: str = "superadmin",
+    permissions: Optional[list] = None,
     restaurant_id: Optional[int] = None,
     restaurant_slug: Optional[str] = None
 ) -> str:
@@ -205,6 +225,7 @@ def create_admin_token(
         fresh = _load_persisted_tokens()
         fresh[token] = {
             "role": role,
+            "permissions": permissions or (["*"] if role == "superadmin" else ["view_menu", "toggle_stop_list", "resolve_requests"]),
             "restaurant_id": restaurant_id,
             "restaurant_slug": restaurant_slug
         }
@@ -245,6 +266,7 @@ def get_admin_session(token: str) -> Optional[AdminSession]:
     return AdminSession(
         token=token,
         role=info.get("role", "superadmin"),
+        permissions=info.get("permissions", []),
         restaurant_id=info.get("restaurant_id"),
         restaurant_slug=info.get("restaurant_slug")
     )

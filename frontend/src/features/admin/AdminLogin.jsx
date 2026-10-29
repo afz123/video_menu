@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { GoldButton } from '../../components/ui/GoldButton';
 import { menuService } from '../../services/menuService';
-import { Lock, Eye, EyeOff, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Lock, Eye, EyeOff, ArrowRight, ArrowLeft, User } from 'lucide-react';
 
 export const AdminLogin = ({ onAuthenticated, restaurantSlug = 'asr-royale' }) => {
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -13,7 +14,7 @@ export const AdminLogin = ({ onAuthenticated, restaurantSlug = 'asr-royale' }) =
   const handleLogin = async (e) => {
     if (e) e.preventDefault();
     if (!password.trim()) {
-      setError('Введите пароль администратора');
+      setError('Введите пароль для входа');
       return;
     }
 
@@ -21,16 +22,19 @@ export const AdminLogin = ({ onAuthenticated, restaurantSlug = 'asr-royale' }) =
     setError(null);
 
     try {
-      const res = await menuService.loginAdmin(password.trim(), restaurantSlug);
+      const res = await menuService.loginAdmin(password.trim(), restaurantSlug, username.trim() || undefined);
       if (res && res.token) {
         sessionStorage.setItem('admin_session_token', res.token);
         sessionStorage.setItem('admin_session_role', res.role || 'manager');
+        if (res.permissions) {
+          sessionStorage.setItem('admin_session_permissions', JSON.stringify(res.permissions));
+        }
         onAuthenticated(res.token);
       } else {
-        setError('Неверный пароль администратора');
+        setError('Неверный логин или пароль');
       }
     } catch (err) {
-      setError(err.message || 'Неверный пароль администратора');
+      setError(err.message || 'Неверный логин или пароль');
     } finally {
       setIsLoading(false);
     }
@@ -95,7 +99,7 @@ export const AdminLogin = ({ onAuthenticated, restaurantSlug = 'asr-royale' }) =
           </h2>
 
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: '0 0 28px', lineHeight: '1.5' }}>
-            Введите пароль администратора для входа в панель управления рестораном
+            Введите учетные данные для входа в панель управления рестораном
           </p>
 
           {error && (
@@ -115,13 +119,49 @@ export const AdminLogin = ({ onAuthenticated, restaurantSlug = 'asr-royale' }) =
             </div>
           )}
 
-          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Optional Staff Username input */}
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                placeholder="Логин сотрудника (необязательно для владельца)"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                style={{
+                  width: '100%',
+                  backgroundColor: 'rgba(15, 15, 20, 0.85)',
+                  border: '1px solid rgba(212, 175, 55, 0.35)',
+                  borderRadius: '14px',
+                  padding: '14px 44px 14px 18px',
+                  color: '#fff',
+                  fontSize: '15px',
+                  outline: 'none',
+                  boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.5)',
+                  transition: 'border-color 0.2s ease'
+                }}
+                onFocus={(e) => (e.target.style.borderColor = 'var(--accent-gold)')}
+                onBlur={(e) => (e.target.style.borderColor = 'rgba(212, 175, 55, 0.35)')}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  right: '16px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--text-muted)',
+                  pointerEvents: 'none'
+                }}
+              >
+                <User size={18} />
+              </div>
+            </div>
+
             {/* Password input with show/hide */}
             <div style={{ position: 'relative' }}>
               <input
                 type={showPassword ? 'text' : 'password'}
                 autoFocus
-                placeholder="Введите пароль..."
+                placeholder="Пароль..."
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 style={{

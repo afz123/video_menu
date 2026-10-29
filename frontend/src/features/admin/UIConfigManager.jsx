@@ -131,6 +131,7 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
         { key: 'show_dishes_tab', label: 'Вкладка «Позиции меню & Стоп-лист»', desc: 'Управление каталогом блюд, ценами и стоп-листом' },
         { key: 'show_reservations_tab', label: 'Вкладка «Бронирование столов»', desc: 'Журнал броней, шахматка и рассадка' },
         { key: 'show_service_requests_tab', label: 'Вкладка «Вызовы & Заказы»', desc: 'Монитор запросов гостей в реальном времени' },
+        { key: 'show_staff_tab', label: 'Вкладка «Сотрудники & Роли (RBAC)»', desc: 'Управление официантами, хостес, поварами и их правами' },
         { key: 'show_ui_config_tab', label: 'Вкладка «Конструктор UI»', desc: 'Переключатели интерфейса и визуальных блоков' },
         { key: 'show_categories_tab', label: 'Вкладка «Управление разделами»', desc: 'Структура разделов кухни и бара' },
         { key: 'show_settings_tab', label: 'Вкладка «Настройки заведения»', desc: 'Реквизиты, контакты, Telegram и пароли' },

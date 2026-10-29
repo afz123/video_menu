@@ -11,6 +11,7 @@ import { TableQrGenerator } from './TableQrGenerator';
 import { UIConfigManager } from './UIConfigManager';
 import { ReservationManager } from './ReservationManager';
 import { LicenseModuleManager } from './LicenseModuleManager';
+import { StaffManager } from './StaffManager';
 import { useUI } from '../../context/UIConfigContext';
 import { MODULES } from '../../context/ModuleContext';
 import { menuService } from '../../services/menuService';
@@ -41,7 +42,8 @@ import {
   Sliders,
   Calendar,
   ChefHat,
-  ShieldCheck
+  ShieldCheck,
+  Users
 } from 'lucide-react';
 
 export const DashboardLayout = ({ defaultSlug = 'asr-royale' } = {}) => {
@@ -211,6 +213,12 @@ export const DashboardLayout = ({ defaultSlug = 'asr-royale' } = {}) => {
       count: pendingRequestsCount,
       highlight: pendingRequestsCount > 0,
       enabled: (hasModule('service_dispatch') || hasModule('ordering')) && adminTabsUI.show_service_requests_tab !== false
+    },
+    {
+      id: 'staff',
+      label: 'Сотрудники & Роли (RBAC)',
+      icon: Users,
+      enabled: adminTabsUI.show_staff_tab !== false
     },
     {
       id: 'ui_config',
@@ -1094,6 +1102,10 @@ export const DashboardLayout = ({ defaultSlug = 'asr-royale' } = {}) => {
 
       {activeTab === 'reservations' && adminTabsUI.show_reservations_tab !== false && (
         <ReservationManager restaurantSlug={selectedSlug} />
+      )}
+
+      {activeTab === 'staff' && adminTabsUI.show_staff_tab !== false && (
+        <StaffManager restaurantSlug={selectedSlug} />
       )}
 
       {activeTab === 'licenses' && isSuperAdmin && (

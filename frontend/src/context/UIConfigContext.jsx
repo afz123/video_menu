@@ -5,6 +5,7 @@ export const DEFAULT_UI_CONFIG = {
     show_dishes_tab: true,
     show_reservations_tab: true,
     show_service_requests_tab: true,
+    show_staff_tab: true,
     show_ui_config_tab: true,
     show_categories_tab: true,
     show_settings_tab: true,

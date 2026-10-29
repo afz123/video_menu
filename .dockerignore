@@ -1,0 +1,15 @@
+.git
+.gitignore
+*.md
+draft.md
+promt.md
+promt_business.md
+__pycache__
+*.pyc
+*.pyo
+venv
+.venv
+node_modules
+dist
+deploy
+

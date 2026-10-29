@@ -142,8 +142,13 @@ export const menuService = {
   deleteTable: (tableId) => api.delete(`/reservations/admin/tables/${tableId}`),
 
 
-  // Admin Auth
-  loginAdmin: (password, slug = 'asr-royale') => api.post('/auth/login', { password, slug }),
+  // Admin Auth & Staff Management
+  loginAdmin: (password, slug = 'asr-royale', username = undefined) =>
+    api.post('/auth/login', { password, slug, username }),
+  getStaffMembers: (slug) => api.get(`/auth/staff?restaurant_slug=${encodeURIComponent(slug)}`),
+  createStaffMember: (data) => api.post('/auth/staff', data),
+  updateStaffMember: (id, data) => api.put(`/auth/staff/${id}`, data),
+  deleteStaffMember: (id) => api.delete(`/auth/staff/${id}`),
   verifyAdminToken: (token) => api.post('/auth/verify', { token }),
   changeAdminPassword: (data) => api.post('/auth/change-password', data),
   logoutAdmin: (token) => api.post('/auth/logout', { token })

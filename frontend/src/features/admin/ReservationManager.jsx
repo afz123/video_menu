@@ -9,6 +9,7 @@ import {
   Move, Image as ImageIcon
 } from 'lucide-react';
 import { InteractiveFloorPlan } from '../kiosk/InteractiveFloorPlan';
+import { LuxuryDatePicker } from '../../components/ui/LuxuryDatePicker';
 
 export const ReservationManager = ({ restaurantSlug }) => {
   const [activeView, setActiveView] = useState('floor_editor'); // 'floor_editor' | 'reservations' | 'tables_and_zones'
@@ -574,35 +575,11 @@ export const ReservationManager = ({ restaurantSlug }) => {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.06)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    color: '#fff',
-                    borderRadius: '10px',
-                    padding: '8px 12px',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Сегодня
-                </button>
-                <input
-                  type="date"
+                <LuxuryDatePicker
                   value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(212, 175, 55, 0.35)',
-                    borderRadius: '10px',
-                    padding: '8px 12px',
-                    color: '#fff',
-                    fontSize: '13px',
-                    outline: 'none'
-                  }}
+                  onChange={(d) => setSelectedDate(d)}
+                  compact={true}
+                  minDate={null}
                 />
                 <button
                   type="button"
