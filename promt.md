@@ -26,6 +26,7 @@
    - **Вызовы персонала:** динамический массив `restaurant.call_types_enabled` (`waiter`, `sommelier`, `hookah`, `admin`).
    - **Языки:** динамический список `restaurant.supported_locales` и `restaurant.default_locale`.
    - **Сервисный сбор и Pacing:** процент `service_charge_percent`, лимит столов `max_pacing_tables_per_slot` и кулдаун `cooldown_seconds` настраиваются из админки.
+каждая кнопка и что отображается тоже должна быть динамичной
 
 3. **БЕЗОПАСНОСТЬ И ОТКАЗОУСТОЙЧИВОСТЬ:**
    - Fallback-безопасность флагов: строгая проверка `section.show_feature !== false`.

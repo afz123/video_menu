@@ -58,7 +58,11 @@ def verify_password(password: str, password_hash: Optional[str]) -> bool:
         test_hash = hashlib.pbkdf2_hmac(
             "sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000
         ).hex()
-        return secrets.compare_digest(hashed, test_hash)
+        if secrets.compare_digest(hashed, test_hash):
+            return True
+        if secrets.compare_digest(hashed, hashlib.sha256(password.encode("utf-8")).hexdigest()):
+            return True
+        return False
     except Exception:
         return False
 
@@ -73,7 +77,11 @@ async def verify_password_async(password: str, password_hash: Optional[str]) -> 
             test_hash = hashlib.pbkdf2_hmac(
                 "sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000
             ).hex()
-            return secrets.compare_digest(hashed, test_hash)
+            if secrets.compare_digest(hashed, test_hash):
+                return True
+            if secrets.compare_digest(hashed, hashlib.sha256(password.encode("utf-8")).hexdigest()):
+                return True
+            return False
         except Exception:
             return False
     return await asyncio.to_thread(_compute)

@@ -43,5 +43,90 @@
     "role": "manager",
     "restaurant_id": 479,
     "restaurant_slug": "steak-909db0"
+  },
+  "04035c40caa10082b1d61588ed3deb13571c6f008b28f082": {
+    "role": "manager",
+    "restaurant_id": 101,
+    "restaurant_slug": "branch-a"
+  },
+  "77044b726016348b176a141b5f858694b9a036d8ad2b3fd6": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "e868159a93a0c1b325b63f04bf7faf6d086ede39984d9b71": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "def9d0a2a8e04cc346595103acb100e29622db6cd1ada797": {
+    "role": "manager",
+    "restaurant_id": 117,
+    "restaurant_slug": "steak-0f02a6"
+  },
+  "2403b9e94925bfede8920c42e979676c4e54b1adb3f5dc09": {
+    "role": "manager",
+    "restaurant_id": 1,
+    "restaurant_slug": "asr-royale"
+  },
+  "111ad0a1037148b0b6132f924a51b6a7f6f324a9a70d0875": {
+    "role": "manager",
+    "restaurant_id": 101,
+    "restaurant_slug": "branch-a"
+  },
+  "832c12f9de6a4df090cac4674cca345ab632033d4bc7fd59": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "6e33bb4ca42e7ed4330ccc126fd79d6b9578f550f0d55a3c": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "487dbbb3ed13c19107954e83676aa0750b4eaa3c68345e71": {
+    "role": "manager",
+    "restaurant_id": 1,
+    "restaurant_slug": "asr-royale"
+  },
+  "2ce4b7b3adfa191247b4fb735a49616eaae4213568f70364": {
+    "role": "manager",
+    "restaurant_id": 129,
+    "restaurant_slug": "steak-48f2b9"
+  },
+  "69967f8ff84dde421d9a8065151102a72c1317e48a7cf47e": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "dd13550ffa76fc901ba6ccbfc3afb1bbbd9e1b38415e6ebd": {
+    "role": "manager",
+    "restaurant_id": 1,
+    "restaurant_slug": "asr-royale"
+  },
+  "f555977655bb0c92acae9d13a268d7c34eee18d72e24d316": {
+    "role": "manager",
+    "restaurant_id": 101,
+    "restaurant_slug": "branch-a"
+  },
+  "5b0ada78bfeaea88c0862f754e128267ad363dc027471741": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "90dd2a90c4e93930dcd68e8f9dea772271152195ed864f7a": {
+    "role": "superadmin",
+    "restaurant_id": null,
+    "restaurant_slug": null
+  },
+  "a1bf5184c88077d38d5592e92e7ef60eba77c96fc0e0aae1": {
+    "role": "manager",
+    "restaurant_id": 1,
+    "restaurant_slug": "asr-royale"
+  },
+  "f95da6c93c82c6272f2e19db8b372e1522b4736c71374b22": {
+    "role": "manager",
+    "restaurant_id": 141,
+    "restaurant_slug": "steak-73a515"
   }
 }

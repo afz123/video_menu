@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: video_menu_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-videomenu}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-videomenu_secure_pass_99}
+      POSTGRES_DB: ${POSTGRES_DB:-videomenu}
+    ports:
+      - "5435:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-videomenu}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: videomenu-backend:latest
+    container_name: video_menu_backend
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-videomenu}:${POSTGRES_PASSWORD:-videomenu_secure_pass_99}@db:5432/${POSTGRES_DB:-videomenu}
+      - API_V1_STR=/api/v1
+    ports:
+      - "8088:8088"
+    volumes:
+      - ./storage:/app/storage
+
+  frontend:
+    image: videomenu-frontend:latest
+    container_name: video_menu_frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "3033:80"
+
+volumes:
+  pgdata:
+

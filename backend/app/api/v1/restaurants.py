@@ -25,6 +25,7 @@ from app.models.category import Category
 from app.models.dish import Dish
 from app.models.media import MediaAsset
 from app.models.service_request import ServiceRequest
+from app.models.admin_user import AdminUser
 from app.schemas.restaurant import RestaurantCreate, RestaurantUpdate, RestaurantResponse
 from sqlalchemy import text
 from app.services.telegram_service import TelegramService
@@ -109,6 +110,18 @@ async def create_restaurant(
     db.add(restaurant)
     await db.commit()
     await db.refresh(restaurant)
+
+    if data.admin_password:
+        mgr_user = AdminUser(
+            username=f"manager_{restaurant.slug}",
+            password_hash=restaurant.admin_password_hash,
+            role="manager",
+            restaurant_id=restaurant.id,
+            is_active=True
+        )
+        db.add(mgr_user)
+        await db.commit()
+
     return restaurant
 
 @router.get("/{slug}", response_model=RestaurantResponse)
@@ -149,6 +162,20 @@ async def update_restaurant(
         raw_pwd = update_dict.pop("admin_password")
         if raw_pwd and raw_pwd.strip():
             restaurant.admin_password_hash = await hash_password_async(raw_pwd.strip())
+            mgr_res = await db.execute(select(AdminUser).where(AdminUser.restaurant_id == restaurant.id))
+            mgr_user = mgr_res.scalars().first()
+            if not mgr_user:
+                mgr_user = AdminUser(
+                    username=f"manager_{restaurant.slug}",
+                    password_hash=restaurant.admin_password_hash,
+                    role="manager",
+                    restaurant_id=restaurant.id,
+                    is_active=True
+                )
+                db.add(mgr_user)
+            else:
+                mgr_user.password_hash = restaurant.admin_password_hash
+                mgr_user.username = f"manager_{restaurant.slug}"
 
     if "ui_config" in update_dict:
         ui_cfg = update_dict.pop("ui_config")
@@ -157,11 +184,21 @@ async def update_restaurant(
         restaurant.theme_config = current_theme
         flag_modified(restaurant, "theme_config")
 
+    # Коммерческие модули разрешено переключать ТОЛЬКО владельцу платформы (superadmin)
+    if "enabled_modules" in update_dict:
+        admin_role = getattr(current_admin, "role", "manager")
+        if admin_role == "superadmin":
+            flag_modified(restaurant, "enabled_modules")
+        else:
+            update_dict.pop("enabled_modules")
+            logger.warning(
+                f"IDOR SECURITY: Manager of restaurant {restaurant.id} "
+                f"attempted unauthorized mutation of enabled_modules!"
+            )
+
     for key, value in update_dict.items():
         setattr(restaurant, key, value)
 
-    if "enabled_modules" in update_dict:
-        flag_modified(restaurant, "enabled_modules")
     if "call_types_enabled" in update_dict:
         flag_modified(restaurant, "call_types_enabled")
 

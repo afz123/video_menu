@@ -135,3 +135,59 @@ async def test_licensing_modules_isolation(client: AsyncClient, admin_headers):
         json={"ui_config": {"cart": {"wishlist_only_mode": False, "allow_self_ordering": True}}},
         headers=admin_headers
     )
+
+
+@pytest.mark.asyncio
+async def test_manager_cannot_mutate_enabled_modules(client: AsyncClient, admin_headers):
+    """
+    IDOR Security: Manager of a restaurant branch cannot mutate commercial enabled_modules.
+    Only SuperAdmin (vendor) can change enabled_modules.
+    """
+    from app.core.security import create_admin_token
+
+    slug = "asr-royale"
+
+    # 1. Superadmin sets initial modules to menu and ordering
+    init_res = await client.put(
+        f"/api/v1/restaurants/{slug}",
+        json={"enabled_modules": ["menu", "ordering"]},
+        headers=admin_headers
+    )
+    assert init_res.status_code == 200
+    rest_data = init_res.json()
+    assert set(rest_data["enabled_modules"]) == {"menu", "ordering"}
+    restaurant_id = rest_data["id"]
+
+    # 2. Branch manager tries to escalate privileges and enable KDS and kiosk
+    manager_token = create_admin_token(
+        role="manager",
+        restaurant_id=restaurant_id,
+        restaurant_slug=slug
+    )
+    manager_headers = {"Authorization": f"Bearer {manager_token}"}
+
+    mgr_hack_res = await client.put(
+        f"/api/v1/restaurants/{slug}",
+        json={"name": "ASR Royale Luxe", "enabled_modules": ["menu", "ordering", "kds", "kiosk"]},
+        headers=manager_headers
+    )
+    assert mgr_hack_res.status_code == 200
+    mgr_data = mgr_hack_res.json()
+    # Name updated, but enabled_modules ignored / rejected
+    assert mgr_data["name"] == "ASR Royale Luxe"
+    assert set(mgr_data["enabled_modules"]) == {"menu", "ordering"}
+
+    # 3. Verify in database that enabled_modules was NOT modified
+    verify_res = await client.get(f"/api/v1/restaurants/{slug}")
+    assert verify_res.status_code == 200
+    assert set(verify_res.json()["enabled_modules"]) == {"menu", "ordering"}
+
+    # 4. Superadmin restores all modules
+    restore_res = await client.put(
+        f"/api/v1/restaurants/{slug}",
+        json={"enabled_modules": ["menu", "ordering", "service_dispatch", "guest_finance", "reservations", "kiosk", "kds"]},
+        headers=admin_headers
+    )
+    assert restore_res.status_code == 200
+    assert len(restore_res.json()["enabled_modules"]) == 7
+

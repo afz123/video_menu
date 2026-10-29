@@ -5,6 +5,7 @@ from app.models.dish import Dish
 from app.models.media import MediaAsset
 from app.models.service_request import ServiceRequest
 from app.models.reservation import TableZone, DiningTable, TableReservation
+from app.models.admin_user import AdminUser
 
 __all__ = [
     "Base",
@@ -16,4 +17,6 @@ __all__ = [
     "TableZone",
     "DiningTable",
     "TableReservation",
+    "AdminUser",
 ]
+

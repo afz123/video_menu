@@ -501,7 +501,7 @@ export const CartDrawer = ({
                     <div style={{ fontSize: '14px', fontWeight: '600', color: '#fff' }}>
                       {t(item.dish.name)}
                     </div>
-                    {coursesEnabled && (
+                    {coursesEnabled && !cartUI.wishlist_only_mode && (
                       <button
                         type="button"
                         onClick={() => handleCycleCourse(idx)}

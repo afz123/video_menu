@@ -24,6 +24,7 @@ export const AdminLogin = ({ onAuthenticated, restaurantSlug = 'asr-royale' }) =
       const res = await menuService.loginAdmin(password.trim(), restaurantSlug);
       if (res && res.token) {
         sessionStorage.setItem('admin_session_token', res.token);
+        sessionStorage.setItem('admin_session_role', res.role || 'manager');
         onAuthenticated(res.token);
       } else {
         setError('Неверный пароль администратора');

@@ -67,14 +67,14 @@ export const DashboardLayout = ({ defaultSlug = 'asr-royale' } = {}) => {
     try {
       const data = await menuService.getServiceRequests(selectedSlug);
       setServiceRequests(data || []);
-    } catch (_) {}
+    } catch (_) { }
   };
 
   const loadPendingReservationsCount = async () => {
     try {
       const data = await menuService.getAdminReservations(selectedSlug, null, 'PENDING');
       setPendingReservationsCount(Array.isArray(data) ? data.length : 0);
-    } catch (_) {}
+    } catch (_) { }
   };
 
   const loadMenu = async () => {
@@ -171,12 +171,18 @@ export const DashboardLayout = ({ defaultSlug = 'asr-royale' } = {}) => {
   const kdsUrl = `${window.location.origin}/kds/${selectedSlug}`;
 
   const handleLogout = async () => {
+    sessionStorage.removeItem('admin_session_role');
+    sessionStorage.removeItem('admin_session_token');
     await menuService.logoutAdmin();
     setIsAuthenticated(false);
   };
 
   const enabledModules = restaurant?.enabled_modules || Object.values(MODULES);
   const hasModule = (key) => enabledModules.includes(key);
+
+  // Права доступа: вкладка лицензий доступна только владельцу платформы (SuperAdmin)
+  const currentAdminRole = sessionStorage.getItem('admin_session_role') || 'manager';
+  const isSuperAdmin = currentAdminRole === 'superadmin';
 
   const ui = useUI();
   const effectiveUI = restaurant?.theme_config?.ui_config || restaurant?.ui_config || ui || {};
@@ -227,9 +233,9 @@ export const DashboardLayout = ({ defaultSlug = 'asr-royale' } = {}) => {
     },
     {
       id: 'licenses',
-      label: 'Коммерческие модули',
+      label: 'Модули & Тариф (Вендор)',
       icon: ShieldCheck,
-      enabled: true // Лицензионная вкладка всегда доступна владельцу
+      enabled: isSuperAdmin // Скрыто от ресторатора, видно только тебе по мастер-паролю
     },
     {
       id: 'theme',
@@ -526,13 +532,13 @@ export const DashboardLayout = ({ defaultSlug = 'asr-royale' } = {}) => {
                     backgroundColor: tab.highlight
                       ? '#ef4444'
                       : isActive
-                      ? 'var(--accent-gold)'
-                      : 'rgba(255, 255, 255, 0.08)',
+                        ? 'var(--accent-gold)'
+                        : 'rgba(255, 255, 255, 0.08)',
                     color: tab.highlight
                       ? '#fff'
                       : isActive
-                      ? '#09090b'
-                      : 'var(--text-muted)',
+                        ? '#09090b'
+                        : 'var(--text-muted)',
                     borderRadius: '10px',
                     padding: '2px 8px',
                     fontSize: '11px',
@@ -839,9 +845,9 @@ export const DashboardLayout = ({ defaultSlug = 'asr-royale' } = {}) => {
 
       {activeTab === 'preview' && adminTabsUI.show_preview_tab !== false && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-          <TableQrGenerator 
-            restaurant={restaurant} 
-            availableTables={restaurant?.available_tables || []} 
+          <TableQrGenerator
+            restaurant={restaurant}
+            availableTables={restaurant?.available_tables || []}
           />
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px' }} className="no-print">
@@ -1090,7 +1096,7 @@ export const DashboardLayout = ({ defaultSlug = 'asr-royale' } = {}) => {
         <ReservationManager restaurantSlug={selectedSlug} />
       )}
 
-      {activeTab === 'licenses' && (
+      {activeTab === 'licenses' && isSuperAdmin && (
         <LicenseModuleManager restaurant={restaurant} onSaved={loadMenu} />
       )}
 

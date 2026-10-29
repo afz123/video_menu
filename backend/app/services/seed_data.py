@@ -11,9 +11,17 @@ from app.models.dish import Dish
 from app.models.media import MediaAsset
 from app.models.service_request import ServiceRequest
 from app.models.reservation import TableZone, DiningTable, TableReservation
+from app.models.admin_user import AdminUser
 from app.services.video_transcoder import get_ffmpeg_path
 
 logger = logging.getLogger("video_menu.seeder")
+
+# Хэш мастер-пароля вендора (по умолчанию от "admin123", заменяется на твой)
+DEFAULT_SUPERADMIN_HASH = os.getenv(
+    "SUPERADMIN_PASSWORD_HASH",
+    "0123456789abcdef0123456789abcdef$81099d818b89c8bd6eb98a94698e053edfb59a092363020a6e25e790a33710d7"
+)
+
 
 def create_sample_video_clip(output_mp4: str, title: str, color_gradient: str, duration: int = 4):
     """
@@ -94,6 +102,26 @@ SAMPLE_MODIFIERS_LAMB = [
         ]
     }
 ]
+
+async def ensure_superadmin_seeded(db):
+    """Создание нестираемого аккаунта SuperAdmin в базе данных."""
+    admin_res = await db.execute(select(AdminUser).where(AdminUser.role == "superadmin"))
+    master_user = admin_res.scalars().first()
+    if not master_user:
+        master_user = AdminUser(
+            username="superadmin",
+            password_hash=DEFAULT_SUPERADMIN_HASH,
+            role="superadmin",
+            restaurant_id=None,
+            is_active=True
+        )
+        db.add(master_user)
+        await db.commit()
+        logger.info("Master SuperAdmin account seeded into database successfully.")
+    elif not master_user.password_hash:
+        master_user.password_hash = DEFAULT_SUPERADMIN_HASH
+        await db.commit()
+
 
 async def ensure_reservation_tables_seeded(db, restaurant: Restaurant):
     """Creates multi-floor zones and tables (1st floor: Grand Hall & Terrace, 2nd floor: Lounge & VIP cabins)."""
@@ -548,6 +576,7 @@ async def seed_database():
             if updated:
                 await db.commit()
                 logger.info("Enriched existing dishes with modifiers, badges, and pairings.")
+            await ensure_superadmin_seeded(db)
             await ensure_reservation_tables_seeded(db, existing_rest)
             return
 
@@ -829,6 +858,8 @@ async def seed_database():
             db.add(dish)
             order_idx += 1
 
+        # Создание нестираемого аккаунта SuperAdmin в базе данных
+        await ensure_superadmin_seeded(db)
         await db.commit()
         await ensure_reservation_tables_seeded(db, restaurant)
         logger.info("Database seeding completed successfully!")

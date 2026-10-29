@@ -107,7 +107,7 @@ export const ModifierModal = ({ dish, onClose, onAddToCart }) => {
       totalPrice,
       chosenOptions,
       comment: comment.trim(),
-      course: coursesEnabled ? selectedCourse : null
+      course: (coursesEnabled && !ui?.cart?.wishlist_only_mode) ? selectedCourse : null
     });
     onClose();
   };
@@ -255,8 +255,8 @@ export const ModifierModal = ({ dish, onClose, onAddToCart }) => {
             );
           })}
 
-          {/* F&B Course Selection (Pacing/Firing Courses) */}
-          {coursesEnabled && (
+          {/* F&B Course Selection (Pacing/Firing Courses) — рендерится только при включенном pacing и не в wishlist-режиме */}
+          {coursesEnabled && !ui?.cart?.wishlist_only_mode && (
             <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: '14px', padding: '14px', border: '1px solid rgba(212, 175, 55, 0.2)' }}>
               <div style={{ fontSize: '12px', color: 'var(--accent-gold)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span>⏱️ Порядок подачи (Курс кухни)</span>
