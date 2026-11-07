@@ -115,6 +115,17 @@ export const SmartServiceBar = ({
         } else if (specialistType === 'admin') {
           reqType = 'call_admin';
           comment = `👔 Вызов администратора / управляющего залом. ${guestNote.trim()}`;
+        } else if (specialistType && specialistType !== 'waiter') {
+          // Dynamic custom specialist / call button
+          const customBtn = (bar.custom_call_buttons || []).find((b) => b.id === specialistType);
+          if (customBtn) {
+            reqType = `custom_${customBtn.id}`;
+            const btnName = `${customBtn.icon ? customBtn.icon + ' ' : ''}${customBtn.label}`;
+            comment = `🔔 Запрос: ${btnName}. ${guestNote.trim()}`;
+          } else {
+            reqType = 'call_waiter';
+            comment = guestNote.trim() || 'Гость вызвал персонал к столу';
+          }
         } else {
           reqType = 'call_waiter';
           comment = guestNote.trim() || 'Гость вызвал официанта к столу';
@@ -496,13 +507,35 @@ export const SmartServiceBar = ({
                     ? callTypesEnabled
                     : ['waiter'];
 
-                  const displaySpecialists = activeTypes.map((typeKey) => {
+                  // Filter built-in specialists according to UI config flags
+                  const filteredBuiltIns = activeTypes.filter((t) => {
+                    if (t === 'sommelier') return bar.allow_call_sommelier !== false;
+                    if (t === 'hookah') return bar.allow_call_hookah !== false;
+                    if (t === 'admin') return bar.allow_call_admin !== false;
+                    return true;
+                  });
+
+                  const displaySpecialists = filteredBuiltIns.map((typeKey) => {
                     const preset = SPECIALIST_PRESETS[typeKey] || { label: typeKey, icon: '🛎️' };
                     return { id: typeKey, label: preset.label, icon: preset.icon };
                   });
+
+                  // Append dynamic custom buttons from UI configuration (if enabled)
+                  const customButtons = Array.isArray(bar.custom_call_buttons)
+                    ? bar.custom_call_buttons
+                        .filter((b) => b && b.enabled !== false && b.label)
+                        .map((b) => ({
+                          id: b.id,
+                          label: b.label,
+                          icon: b.icon || '🛎️'
+                        }))
+                    : [];
+
+                  const allButtons = [...displaySpecialists, ...customButtons];
+
                   return (
-                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(displaySpecialists.length, 4)}, 1fr)`, gap: '8px' }}>
-                      {displaySpecialists.map((s) => {
+                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(Math.max(allButtons.length, 1), 4)}, 1fr)`, gap: '8px' }}>
+                      {allButtons.map((s) => {
                         const isSelected = specialistType === s.id;
                         return (
                           <button

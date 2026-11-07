@@ -2,7 +2,7 @@ import asyncio
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Body, BackgroundTasks, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
 from typing import List, Dict, Any, Optional
 
@@ -521,11 +521,14 @@ async def create_service_request(
     has_finance = ModuleAccess.GUEST_FINANCE in modules
 
     svc_percent = float(restaurant.service_charge_percent if restaurant.service_charge_percent is not None else 10.0)
-    svc_charge = (subtotal * (svc_percent / 100.0)) if has_finance else 0.0
+    svc_charge = (subtotal * (svc_percent / 100.0)) if (has_finance and subtotal > 0) else 0.0
     
+    tip_pct = float(data.tip_percent or 0.0) if has_finance else 0.0
     tip_amt = float(data.tip_amount or 0.0) if has_finance else 0.0
-    if has_finance and not tip_amt and data.tip_percent and subtotal > 0:
-        tip_amt = subtotal * (float(data.tip_percent) / 100.0)
+    if has_finance and not tip_amt and tip_pct > 0 and subtotal > 0:
+        tip_amt = subtotal * (tip_pct / 100.0)
+    elif has_finance and tip_amt > 0 and not tip_pct and subtotal > 0:
+        tip_pct = round((tip_amt / subtotal) * 100.0, 1)
         
     grand_total = subtotal + svc_charge + tip_amt
 
@@ -539,6 +542,8 @@ async def create_service_request(
         cart_items=data.cart_items or [],
         subtotal_amount=round(subtotal, 2),
         service_charge_amount=round(svc_charge, 2),
+        tip_percent=round(tip_pct, 1),
+        tip_amount=round(tip_amt, 2),
         total_amount=round(grand_total, 2),
         currency=restaurant.currency or "TJS",
         nps_score=data.nps_score,
@@ -622,6 +627,62 @@ async def update_service_request_status(
     return req
 
 
+@router.post("/{slug}/service-requests/close-shift")
+async def close_service_shift(
+    slug: str,
+    current_admin: str = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Закрыть смену: переводит все активные заказы и вызовы (PENDING, COOKING, READY) в статус COMPLETED.
+    """
+    restaurant = await find_restaurant_by_slug(slug, db)
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Ресторан не найден")
+
+    check_restaurant_access(current_admin, restaurant.id)
+
+    query = select(ServiceRequest).where(
+        ServiceRequest.restaurant_id == restaurant.id,
+        ServiceRequest.status.in_(["PENDING", "COOKING", "READY"])
+    )
+    result = await db.execute(query)
+    items = result.scalars().all()
+    count = len(items)
+    for item in items:
+        item.status = "COMPLETED"
+    
+    await db.commit()
+    return {"message": f"Смена успешно закрыта. Завершено запросов: {count}", "updated_count": count}
+
+
+@router.delete("/{slug}/service-requests/clear-all")
+async def clear_all_service_requests(
+    slug: str,
+    scope: Optional[str] = "all", # 'all' (удалить всё) или 'completed' (удалить только завершенные)
+    current_admin: str = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Очистка заказов и вызовов. 
+    scope='all' полностью удаляет все записи для этого ресторана.
+    scope='completed' удаляет только архивные (COMPLETED / CANCELLED).
+    """
+    restaurant = await find_restaurant_by_slug(slug, db)
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Ресторан не найден")
+
+    check_restaurant_access(current_admin, restaurant.id)
+
+    del_query = delete(ServiceRequest).where(ServiceRequest.restaurant_id == restaurant.id)
+    if scope == "completed":
+        del_query = del_query.where(ServiceRequest.status.in_(["COMPLETED", "CANCELLED"]))
+    
+    result = await db.execute(del_query)
+    await db.commit()
+    return {"message": "История вызовов и заказов успешно очищена", "deleted_count": result.rowcount}
+
+
 # -------------------------------------------------------------
 # KDS (Kitchen Display System) Endpoints
 # -------------------------------------------------------------
@@ -652,12 +713,18 @@ async def get_kds_orders(
 
     ui_cfg = restaurant.ui_config or {}
     kds_cfg = ui_cfg.get("kds", {})
-    kds_enabled = bool(kds_cfg.get("enable_kds_system", False))
+    # Если модуль KDS включен в лицензиях ресторана, то KDS доступен,
+    # если только он явно не отключен в ui_config ("enable_kds_system": false)
+    kds_enabled = kds_cfg.get("enable_kds_system")
+    if kds_enabled is None:
+        kds_enabled = True
+    else:
+        kds_enabled = bool(kds_enabled)
 
     if not kds_enabled:
         return {
             "kds_enabled": False,
-            "message": "Модуль KDS выключен в настройках заведения",
+            "message": "Экран кухни (KDS) отключен в настройках интерфейса",
             "orders": []
         }
 

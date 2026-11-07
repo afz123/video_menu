@@ -525,7 +525,7 @@ export const CategoryManager = ({
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ width: '100%', maxWidth: '520px' }}
+            style={{ width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto' }}
           >
             <GlassCard style={{ padding: '28px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>

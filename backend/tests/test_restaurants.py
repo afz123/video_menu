@@ -181,6 +181,13 @@ async def test_service_charge_and_telegram_settings(client, admin_headers):
     unauth_test = await client.post("/api/v1/restaurants/asr-royale/test-telegram")
     assert unauth_test.status_code == 401
 
+    # Restore restaurant service charge and telegram status
+    await client.put(
+        "/api/v1/restaurants/asr-royale",
+        json={"service_charge_percent": 10.0, "telegram_enabled": False},
+        headers=admin_headers
+    )
+
 
 @pytest.mark.asyncio
 async def test_order_stop_list_validation(client, admin_headers):
@@ -300,6 +307,13 @@ async def test_dynamic_service_charge_calculation_in_telegram(client, admin_head
         assert "200.0 TJS" in sent_text
         assert "30.0 TJS" in sent_text
         assert "230.0 TJS" in sent_text
+
+    # Restore restaurant service charge to 10.0% so test suite does not pollute production DB
+    await client.put(
+        "/api/v1/restaurants/asr-royale",
+        json={"service_charge_percent": 10.0},
+        headers=admin_headers
+    )
 
 
 @pytest.mark.asyncio

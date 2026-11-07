@@ -565,8 +565,11 @@ export const StaffManager = ({ restaurantSlug }) => {
             if (e.target === e.currentTarget) setIsModalOpen(false);
           }}
         >
-          <div style={{ width: '100%', maxWidth: '540px' }}>
-            <GlassCard style={{ padding: '32px', position: 'relative' }}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto' }}
+          >
+            <GlassCard style={{ padding: '28px 24px', position: 'relative' }}>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}

@@ -15,13 +15,14 @@ export const ModifierModal = ({ dish, onClose, onAddToCart }) => {
   const modifiers = dish.modifiers || [];
 
   // Initialize selections:
-  // For 'single' choice: pre-select first option (or required default)
+  // For 'single' choice: pre-select first option ONLY if required
+  // If optional (required === false), default to empty string so user isn't forced to choose it
   // For 'multiple' choice: empty array
   const [selections, setSelections] = useState(() => {
     const initial = {};
     modifiers.forEach((group) => {
       if (group.type === 'single') {
-        initial[group.id] = group.options?.[0]?.name || '';
+        initial[group.id] = group.required ? (group.options?.[0]?.name || '') : '';
       } else {
         initial[group.id] = [];
       }
@@ -63,8 +64,14 @@ export const ModifierModal = ({ dish, onClose, onAddToCart }) => {
     return basePrice + extra;
   }, [basePrice, modifiers, selections]);
 
-  const handleSingleSelect = (groupId, optName) => {
-    setSelections((prev) => ({ ...prev, [groupId]: optName }));
+  const handleSingleSelect = (groupId, optName, isRequired) => {
+    setSelections((prev) => {
+      // If optional and clicked again, allow deselecting
+      if (!isRequired && prev[groupId] === optName) {
+        return { ...prev, [groupId]: '' };
+      }
+      return { ...prev, [groupId]: optName };
+    });
   };
 
   const handleMultipleToggle = (groupId, optName) => {
@@ -203,7 +210,7 @@ export const ModifierModal = ({ dish, onClose, onAddToCart }) => {
                         key={idx}
                         onClick={() => {
                           if (isSingle) {
-                            handleSingleSelect(group.id, opt.name);
+                            handleSingleSelect(group.id, opt.name, group.required);
                           } else {
                             handleMultipleToggle(group.id, opt.name);
                           }

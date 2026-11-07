@@ -3,7 +3,7 @@ import { VideoPlayer } from '../../components/video/VideoPlayer';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { useLanguage } from '../../context/LanguageContext';
 import { useUI } from '../../context/UIConfigContext';
-import { Info, Sparkles, AlertCircle, ChevronUp, ChevronDown, Plus, Wine } from 'lucide-react';
+import { Info, Sparkles, AlertCircle, ChevronUp, ChevronDown, Plus, Wine, Volume2, VolumeX } from 'lucide-react';
 
 export const DishSlide = ({ 
   dish, 
@@ -64,7 +64,7 @@ export const DishSlide = ({
           isCurrent={isCurrent}
           isSoundEnabled={isSoundEnabled}
           onToggleSound={onToggleSound}
-          enableSoundToggle={card.show_sound_toggle !== false}
+          enableSoundToggle={false}
         />
       ) : (
         <img
@@ -74,46 +74,7 @@ export const DishSlide = ({
         />
       )}
 
-      {card.show_badges !== false && badges.length > 0 && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 'calc(110px + env(safe-area-inset-top))',
-            left: '16px',
-            zIndex: 25,
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '6px'
-          }}
-        >
-          {badges.map((badge, bIdx) => (
-            <span
-              key={bIdx}
-              style={{
-                background: badge.includes('Шеф') || badge.includes('Хит')
-                  ? 'var(--accent-gold-gradient)'
-                  : badge.includes('Острое')
-                  ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)'
-                  : 'rgba(15, 15, 20, 0.75)',
-                color: badge.includes('Шеф') || badge.includes('Хит') ? '#09090b' : '#fff',
-                border: badge.includes('Шеф') || badge.includes('Хит') ? 'none' : '1px solid rgba(255, 255, 255, 0.25)',
-                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.4)',
-                backdropFilter: 'blur(8px)',
-                WebkitBackdropFilter: 'blur(8px)',
-                padding: '4px 10px',
-                borderRadius: '20px',
-                fontSize: '11px',
-                fontWeight: '700',
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase'
-              }}
-            >
-              {badge}
-            </span>
-          ))}
-        </div>
-      )}
-
+      {/* Cinematic bottom gradient */}
       <div
         style={{
           position: 'absolute',
@@ -136,6 +97,91 @@ export const DishSlide = ({
           zIndex: 20
         }}
       >
+        {/* Row above description card: Dish Badges & Sound ASMR Toggle */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
+            marginBottom: '8px',
+            pointerEvents: 'auto'
+          }}
+        >
+          {/* Badges on the left */}
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '6px',
+              alignItems: 'center'
+            }}
+          >
+            {card.show_badges !== false && badges.map((badge, bIdx) => (
+              <span
+                key={bIdx}
+                style={{
+                  background: badge.includes('Шеф') || badge.includes('Хит')
+                    ? 'var(--accent-gold-gradient)'
+                    : badge.includes('Острое')
+                    ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)'
+                    : 'rgba(15, 15, 20, 0.85)',
+                  color: badge.includes('Шеф') || badge.includes('Хит') ? '#09090b' : '#fff',
+                  border: badge.includes('Шеф') || badge.includes('Хит') ? 'none' : '1px solid rgba(255, 255, 255, 0.25)',
+                  boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5)',
+                  backdropFilter: 'blur(10px)',
+                  WebkitBackdropFilter: 'blur(10px)',
+                  padding: '4px 10px',
+                  borderRadius: '16px',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase'
+                }}
+              >
+                {badge}
+              </span>
+            ))}
+          </div>
+
+          {/* ASMR Sound button directly above card on the right */}
+          {card.show_sound_toggle !== false && dish.media?.video_mobile && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onToggleSound) onToggleSound();
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '5px 11px',
+                borderRadius: '16px',
+                fontSize: '11px',
+                fontWeight: '600',
+                background: isSoundEnabled
+                  ? 'var(--accent-gold-gradient)'
+                  : 'rgba(15, 15, 20, 0.85)',
+                color: isSoundEnabled ? '#09090b' : 'rgba(255, 255, 255, 0.85)',
+                border: isSoundEnabled ? 'none' : '1px solid rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                boxShadow: isSoundEnabled
+                  ? '0 4px 14px rgba(212, 175, 55, 0.4)'
+                  : '0 4px 12px rgba(0, 0, 0, 0.4)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                flexShrink: 0,
+                marginLeft: 'auto'
+              }}
+              title={isSoundEnabled ? 'Выключить звук блюда' : 'Включить ASMR звук'}
+            >
+              {isSoundEnabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
+              <span>{isSoundEnabled ? 'Звук ВКЛ' : 'Звук'}</span>
+            </button>
+          )}
+        </div>
         <GlassCard
           onClick={card.show_details_toggle !== false ? toggleDetails : undefined}
           style={{

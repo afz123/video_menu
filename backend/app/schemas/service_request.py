@@ -28,6 +28,8 @@ class ServiceRequestResponse(BaseModel):
     cart_items: Optional[List[Any]] = []
     subtotal_amount: Optional[float] = 0.0
     service_charge_amount: Optional[float] = 0.0
+    tip_percent: Optional[float] = 0.0
+    tip_amount: Optional[float] = 0.0
     total_amount: Optional[float] = 0.0
     currency: Optional[str] = "TJS"
     nps_score: Optional[int] = None

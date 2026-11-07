@@ -380,6 +380,8 @@ async def seed_database():
                 "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS table_signature VARCHAR(64);",
                 "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS subtotal_amount FLOAT DEFAULT 0.0;",
                 "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS service_charge_amount FLOAT DEFAULT 0.0;",
+                "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS tip_percent FLOAT DEFAULT 0.0;",
+                "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS tip_amount FLOAT DEFAULT 0.0;",
                 "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS total_amount FLOAT DEFAULT 0.0;",
                 "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS currency VARCHAR(8) DEFAULT 'TJS';",
                 "ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS nps_score INTEGER;",
@@ -481,6 +483,12 @@ async def seed_database():
             except Exception: pass
             try:
                 await conn.execute(text("ALTER TABLE service_requests ADD COLUMN service_charge_amount FLOAT DEFAULT 0.0;"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE service_requests ADD COLUMN tip_percent FLOAT DEFAULT 0.0;"))
+            except Exception: pass
+            try:
+                await conn.execute(text("ALTER TABLE service_requests ADD COLUMN tip_amount FLOAT DEFAULT 0.0;"))
             except Exception: pass
             try:
                 await conn.execute(text("ALTER TABLE service_requests ADD COLUMN total_amount FLOAT DEFAULT 0.0;"))

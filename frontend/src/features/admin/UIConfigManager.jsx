@@ -15,7 +15,9 @@ import {
   Utensils,
   LayoutGrid,
   Flame,
-  ChefHat
+  ChefHat,
+  Plus,
+  Trash2
 } from 'lucide-react';
 
 export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
@@ -37,6 +39,8 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
 
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [newBtnLabel, setNewBtnLabel] = useState('');
+  const [newBtnIcon, setNewBtnIcon] = useState('🛎️');
 
   useEffect(() => {
     if (initialConfig) {
@@ -400,6 +404,241 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
                   </div>
                 );
               })}
+
+              {sec.id === 'service_bar' && (
+                <div style={{
+                  gridColumn: '1 / -1',
+                  marginTop: '12px',
+                  padding: '18px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                  borderRadius: '14px',
+                  border: '1px solid rgba(212, 175, 55, 0.15)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div>
+                      <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>✨ Произвольные кнопки вызова персонала</span>
+                        <span style={{ fontSize: '11px', color: 'var(--accent-gold)', background: 'rgba(212,175,55,0.15)', padding: '2px 8px', borderRadius: '10px' }}>
+                          {(secConfig.custom_call_buttons || []).length} создано
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        Создайте уникальные кнопки для гостей (например: «Детский стульчик», «Плед», «Бармен», «Специи»). Гость сможет выбрать их при вызове к столу.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Existing custom call buttons list */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+                    {(secConfig.custom_call_buttons || []).length === 0 ? (
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic', padding: '10px 0' }}>
+                        Пока нет добавленных кнопок. Добавьте свою первую кнопку ниже.
+                      </div>
+                    ) : (
+                      (secConfig.custom_call_buttons || []).map((btn, bIdx) => {
+                        const isBtnActive = btn.enabled !== false;
+                        return (
+                          <div
+                            key={btn.id || bIdx}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '10px 14px',
+                              backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                              borderRadius: '10px',
+                              border: isBtnActive ? '1px solid rgba(212,175,55,0.2)' : '1px solid rgba(255, 255, 255, 0.08)'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ fontSize: '20px' }}>{btn.icon || '🛎️'}</span>
+                              <div>
+                                <div style={{ fontSize: '13px', fontWeight: '600', color: isBtnActive ? '#fff' : 'var(--text-muted)' }}>
+                                  {btn.label}
+                                </div>
+                                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                  Статус: {isBtnActive ? 'Активна в меню' : 'Скрыта гостям'}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = (secConfig.custom_call_buttons || []).map((b, i) =>
+                                    i === bIdx ? { ...b, enabled: !isBtnActive } : b
+                                  );
+                                  setConfig((prev) => ({
+                                    ...prev,
+                                    service_bar: {
+                                      ...prev.service_bar,
+                                      custom_call_buttons: updated
+                                    }
+                                  }));
+                                }}
+                                style={{
+                                  background: isBtnActive ? 'rgba(212, 175, 55, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                  color: isBtnActive ? 'var(--accent-gold)' : 'var(--text-muted)',
+                                  border: isBtnActive ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
+                                  borderRadius: '6px',
+                                  padding: '4px 10px',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                {isBtnActive ? 'Включено' : 'Выключено'}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = (secConfig.custom_call_buttons || []).filter((_, i) => i !== bIdx);
+                                  setConfig((prev) => ({
+                                    ...prev,
+                                    service_bar: {
+                                      ...prev.service_bar,
+                                      custom_call_buttons: updated
+                                    }
+                                  }));
+                                }}
+                                style={{
+                                  background: 'rgba(239, 68, 68, 0.1)',
+                                  color: '#f87171',
+                                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                                  borderRadius: '6px',
+                                  padding: '4px 8px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center'
+                                }}
+                                title="Удалить кнопку"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Add new custom call button form */}
+                  <div style={{
+                    display: 'flex',
+                    gap: '8px',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    padding: '12px',
+                    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(255, 255, 255, 0.08)'
+                  }}>
+                    {/* Emoji picker quick list */}
+                    <select
+                      value={newBtnIcon}
+                      onChange={(e) => setNewBtnIcon(e.target.value)}
+                      style={{
+                        backgroundColor: 'rgba(20, 20, 25, 0.9)',
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        color: '#fff',
+                        borderRadius: '8px',
+                        padding: '8px 10px',
+                        fontSize: '16px',
+                        cursor: 'pointer',
+                        outline: 'none'
+                      }}
+                    >
+                      <option value="🛎️">🛎️ Звонок</option>
+                      <option value="🪑">🪑 Детский стул</option>
+                      <option value="🧣">🧣 Плед</option>
+                      <option value="🍸">🍸 Бармен</option>
+                      <option value="☕">☕ Бариста</option>
+                      <option value="🧊">🧊 Доп. лёд</option>
+                      <option value="🥢">🥢 Палочки / Приборы</option>
+                      <option value="🧂">🧂 Специи / Соль</option>
+                      <option value="🔌">🔌 Зарядка / Powerbank</option>
+                      <option value="🚕">🚕 Вызов такси</option>
+                      <option value="🧼">🧼 Салфетки</option>
+                      <option value="⭐">⭐ Особая просьба</option>
+                    </select>
+
+                    <input
+                      type="text"
+                      placeholder="Название кнопки (например: «Детский стульчик»)"
+                      value={newBtnLabel}
+                      onChange={(e) => setNewBtnLabel(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (newBtnLabel.trim()) {
+                            const newId = `btn_${Date.now()}`;
+                            const newBtn = {
+                              id: newId,
+                              label: newBtnLabel.trim(),
+                              icon: newBtnIcon,
+                              enabled: true
+                            };
+                            setConfig((prev) => ({
+                              ...prev,
+                              service_bar: {
+                                ...prev.service_bar,
+                                custom_call_buttons: [
+                                  ...(prev.service_bar?.custom_call_buttons || []),
+                                  newBtn
+                                ]
+                              }
+                            }));
+                            setNewBtnLabel('');
+                          }
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        minWidth: '200px',
+                        backgroundColor: 'rgba(20, 20, 25, 0.9)',
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        color: '#fff',
+                        borderRadius: '8px',
+                        padding: '8px 12px',
+                        fontSize: '13px',
+                        outline: 'none'
+                      }}
+                    />
+
+                    <GoldButton
+                      variant="primary"
+                      type="button"
+                      icon={Plus}
+                      onClick={() => {
+                        if (!newBtnLabel.trim()) return;
+                        const newId = `btn_${Date.now()}`;
+                        const newBtn = {
+                          id: newId,
+                          label: newBtnLabel.trim(),
+                          icon: newBtnIcon,
+                          enabled: true
+                        };
+                        setConfig((prev) => ({
+                          ...prev,
+                          service_bar: {
+                            ...prev.service_bar,
+                            custom_call_buttons: [
+                              ...(prev.service_bar?.custom_call_buttons || []),
+                              newBtn
+                            ]
+                          }
+                        }));
+                        setNewBtnLabel('');
+                      }}
+                      style={{ padding: '8px 14px', fontSize: '12px' }}
+                    >
+                      Добавить кнопку
+                    </GoldButton>
+                  </div>
+                </div>
+              )}
 
               {sec.id === 'kitchen_pacing' && (
                 <div style={{

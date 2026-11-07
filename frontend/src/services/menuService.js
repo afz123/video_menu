@@ -103,6 +103,10 @@ export const menuService = {
     api.get(`/restaurants/${slug}/service-requests${status ? `?status=${status}` : ''}`),
   updateServiceRequestStatus: (slug, reqId, status) => 
     api.patch(`/restaurants/${slug}/service-requests/${reqId}/status`, { status }),
+  closeServiceShift: (slug) =>
+    api.post(`/restaurants/${slug}/service-requests/close-shift`),
+  clearServiceRequests: (slug, scope = 'all') =>
+    api.delete(`/restaurants/${slug}/service-requests/clear-all?scope=${scope}`),
   testTelegram: (slug) => api.post(`/restaurants/${slug}/test-telegram`),
   getTableSignature: (slug, table) => 
     api.get(`/restaurants/${slug}/table-signature?table=${encodeURIComponent(table)}`),

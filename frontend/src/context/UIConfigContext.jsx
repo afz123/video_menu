@@ -47,7 +47,8 @@ export const DEFAULT_UI_CONFIG = {
     show_comment_input: true,
     allow_call_sommelier: true,
     allow_call_hookah: true,
-    allow_call_admin: true
+    allow_call_admin: true,
+    custom_call_buttons: []
   },
   cart: {
     wishlist_only_mode: false,

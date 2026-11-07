@@ -19,6 +19,8 @@ class ServiceRequest(Base):
     cart_items = Column(JSON, default=list) # Items specification with modifiers and courses
     subtotal_amount = Column(Float, default=0.0)
     service_charge_amount = Column(Float, default=0.0)
+    tip_percent = Column(Float, default=0.0)
+    tip_amount = Column(Float, default=0.0)
     total_amount = Column(Float, default=0.0)
     currency = Column(String(8), default="TJS")
     

@@ -43,7 +43,9 @@ import {
   Calendar,
   ChefHat,
   ShieldCheck,
-  Users
+  Users,
+  Archive,
+  RefreshCw
 } from 'lucide-react';
 
 export const DashboardLayout = ({ defaultSlug = 'asr-royale' } = {}) => {
@@ -165,6 +167,32 @@ export const DashboardLayout = ({ defaultSlug = 'asr-royale' } = {}) => {
       loadServiceRequests();
     } catch (err) {
       alert('Ошибка обновления статуса: ' + err.message);
+    }
+  };
+
+  const handleCloseShift = async () => {
+    if (!window.confirm('Вы уверены, что хотите завершить текущую смену? Все активные вызовы и заказы кухни будут помечены как выполненные.')) {
+      return;
+    }
+    try {
+      const res = await menuService.closeServiceShift(selectedSlug);
+      alert(res.message || 'Смена закрыта!');
+      await loadServiceRequests();
+    } catch (err) {
+      alert('Ошибка закрытия смены: ' + (err.response?.data?.detail || err.message));
+    }
+  };
+
+  const handleClearAllRequests = async () => {
+    if (!window.confirm('ВНИМАНИЕ: Вы действительно хотите полностью очистить и удалить все заказы и вызовы со столов? Это действие нельзя отменить.')) {
+      return;
+    }
+    try {
+      const res = await menuService.clearServiceRequests(selectedSlug, 'all');
+      alert(res.message || 'История заказов и вызовов успешно очищена!');
+      await loadServiceRequests();
+    } catch (err) {
+      alert('Ошибка очистки: ' + (err.response?.data?.detail || err.message));
     }
   };
 
@@ -936,8 +964,8 @@ export const DashboardLayout = ({ defaultSlug = 'asr-royale' } = {}) => {
 
       {activeTab === 'service_requests' && adminTabsUI.show_service_requests_tab !== false && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               {[
                 { id: 'ALL', label: 'Все вызовы' },
                 { id: 'PENDING', label: `Ожидают (${pendingRequestsCount})` },
@@ -954,7 +982,8 @@ export const DashboardLayout = ({ defaultSlug = 'asr-royale' } = {}) => {
                     padding: '6px 16px',
                     fontSize: '13px',
                     fontWeight: '600',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
                   }}
                 >
                   {f.label}
@@ -962,20 +991,72 @@ export const DashboardLayout = ({ defaultSlug = 'asr-royale' } = {}) => {
               ))}
             </div>
 
-            <button
-              onClick={loadServiceRequests}
-              style={{
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                color: 'var(--accent-gold)',
-                borderRadius: '10px',
-                padding: '8px 14px',
-                fontSize: '12px',
-                cursor: 'pointer'
-              }}
-            >
-              Обновить список
-            </button>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <button
+                onClick={loadServiceRequests}
+                style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: 'var(--accent-gold)',
+                  borderRadius: '10px',
+                  padding: '8px 14px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                title="Обновить данные с сервера"
+              >
+                <RefreshCw size={14} />
+                Обновить
+              </button>
+
+              <button
+                onClick={handleCloseShift}
+                style={{
+                  background: 'rgba(234, 179, 8, 0.12)',
+                  border: '1px solid rgba(234, 179, 8, 0.35)',
+                  color: '#facc15',
+                  borderRadius: '10px',
+                  padding: '8px 14px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease'
+                }}
+                title="Завершить смену: все открытые заказы и вызовы станут выполненными"
+              >
+                <CheckCheck size={14} />
+                Закрыть смену
+              </button>
+
+              <button
+                onClick={handleClearAllRequests}
+                style={{
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                  color: '#f87171',
+                  borderRadius: '10px',
+                  padding: '8px 14px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease'
+                }}
+                title="Полностью очистить и удалить все заказы и вызовы из базы данных"
+              >
+                <Trash2 size={14} />
+                Очистить историю
+              </button>
+            </div>
           </div>
 
           <GlassCard style={{ padding: 0, overflow: 'hidden' }}>
@@ -992,6 +1073,7 @@ export const DashboardLayout = ({ defaultSlug = 'asr-royale' } = {}) => {
                     <th style={{ padding: '16px 20px' }}>Стол</th>
                     <th style={{ padding: '16px 20px' }}>Тип запроса</th>
                     <th style={{ padding: '16px 20px' }}>Детали / Заказ гостя</th>
+                    <th style={{ padding: '16px 20px' }}>Финансы</th>
                     <th style={{ padding: '16px 20px' }}>Время</th>
                     <th style={{ padding: '16px 20px' }}>Статус</th>
                     <th style={{ padding: '16px 20px', textAlign: 'right' }}>Действие</th>
@@ -1010,6 +1092,11 @@ export const DashboardLayout = ({ defaultSlug = 'asr-royale' } = {}) => {
                           {req.request_type === 'call_sommelier' && '🍷 Вызов сомелье'}
                           {req.request_type === 'call_hookah' && '💨 Вызов кальянного мастера'}
                           {req.request_type === 'call_admin' && '👔 Вызов администратора'}
+                          {req.request_type?.startsWith('custom_') && (
+                            <span style={{ color: 'var(--accent-gold)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              🔔 {req.guest_comment?.split('.')[0]?.replace('🔔 Запрос:', '')?.trim() || 'Особый вызов'}
+                            </span>
+                          )}
                           {req.request_type === 'request_bill_card' && '💳 Счёт (Карта)'}
                           {req.request_type === 'request_bill_cash' && '💵 Счёт (Наличные)'}
                           {(req.request_type === 'order' || req.request_type === 'repeat_order') && (
@@ -1053,6 +1140,30 @@ export const DashboardLayout = ({ defaultSlug = 'asr-royale' } = {}) => {
                             </div>
                           ) : (
                             <span style={{ color: 'var(--text-muted)' }}>{req.guest_comment || '—'}</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '16px 20px', whiteSpace: 'nowrap' }}>
+                          {req.total_amount > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <span style={{ fontWeight: '800', fontSize: '15px', color: 'var(--accent-gold)' }}>
+                                {req.total_amount.toFixed(1)} {req.currency || 'TJS'}
+                              </span>
+                              <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.6)', display: 'flex', flexDirection: 'column' }}>
+                                <span>Блюда: {req.subtotal_amount?.toFixed(1) || 0}</span>
+                                {req.service_charge_amount > 0 && (
+                                  <span style={{ color: 'var(--accent-gold-light)' }}>
+                                    Обсл.: +{req.service_charge_amount.toFixed(1)}
+                                  </span>
+                                )}
+                                {req.tip_amount > 0 && (
+                                  <span style={{ color: '#4ade80', fontWeight: '600' }}>
+                                    ❤️ Чай ({req.tip_percent || 0}%): +{req.tip_amount.toFixed(1)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>—</span>
                           )}
                         </td>
                         <td style={{ padding: '16px 20px', color: 'var(--text-muted)', fontSize: '12px' }}>
