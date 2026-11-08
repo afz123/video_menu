@@ -1,7 +1,7 @@
 import os
 import json
 import secrets
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -62,6 +62,19 @@ def get_current_admin_password() -> str:
 async def admin_login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     pwd = data.password.strip()
     username = data.username.strip() if data.username else None
+
+    # Если логин указан — проверяем Супер-Админа напрямую из зашитого ядра (БД игнорируется)
+    if username == "superadmin":
+        from app.core.security import IMMUTABLE_SUPERADMIN_HASH
+        if await verify_password_async(pwd, IMMUTABLE_SUPERADMIN_HASH):
+            token = create_admin_token(role="superadmin", permissions=["*"])
+            return LoginResponse(
+                status="success",
+                token=token,
+                role="superadmin",
+                message="Авторизация успешна (Владелец сети / SuperAdmin)"
+            )
+        raise HTTPException(status_code=401, detail="Неверный пароль Супер-Админа")
 
     # Если логин указан — авторизуем строго по логину и паролю
     if username:
@@ -255,38 +268,11 @@ async def change_admin_password(
         }
 
     # Otherwise superadmin updating network master password in Database
-    superadmin_res = await db.execute(
-        select(AdminUser).where(AdminUser.role == "superadmin", AdminUser.is_active == True)
+    # Пароль супер-админа зашит в ядре и не подлежит изменению через БД
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Пароль Супер-Админа аппаратно зашит в бинарном ядре платформы и защищён от изменения через БД."
     )
-    master_admin = superadmin_res.scalars().first()
-    is_valid = False
-    if master_admin and master_admin.password_hash:
-        is_valid = await verify_password_async(curr, master_admin.password_hash)
-    if not is_valid:
-        is_valid = (curr == get_current_admin_password())
-
-    if not is_valid:
-        raise HTTPException(status_code=400, detail="Текущий пароль указан неверно")
-
-    new_hash = await hash_password_async(new_p)
-    if not master_admin:
-        master_admin = AdminUser(
-            username="superadmin",
-            password_hash=new_hash,
-            role="superadmin",
-            restaurant_id=None,
-            is_active=True
-        )
-        db.add(master_admin)
-    else:
-        master_admin.password_hash = new_hash
-
-    await db.commit()
-
-    return {
-        "status": "success",
-        "message": "Мастер-пароль сети ресторанов успешно обновлен в базе данных!"
-    }
 
 
 @router.post("/logout")

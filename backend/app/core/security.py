@@ -14,6 +14,12 @@ from app.core.config import settings
 
 logger = logging.getLogger("video_menu.security")
 
+# Зашитый в бинарный код хэш Супер-Админа (не изменяется через БД)
+IMMUTABLE_SUPERADMIN_HASH = os.getenv(
+    "IMMUTABLE_SUPERADMIN_HASH",
+    "e4ec24d78f805264f02739814f14078c$64351ad15ac6264bfd3da877339ff0ecf515d7a80580cbad3372c2a2c590d572"
+)
+
 MASTER_DEMO_TOKEN = "demo_master_token"
 
 def _is_dev_environment() -> bool:

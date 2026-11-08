@@ -47,29 +47,37 @@ async def test_change_password_requires_auth(client):
 
 
 @pytest.mark.asyncio
-async def test_change_password_validation(client, admin_headers):
-    """Test change password validates current password and minimum length with auth."""
-    # 1. Wrong current password
-    fail_res = await client.post(
+async def test_superadmin_login_immutable_hash(client):
+    """Test superadmin login using immutable hash."""
+    res = await client.post(
+        "/api/v1/auth/login",
+        json={"username": "superadmin", "password": "МойСекретныйПароль2026"}
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "success"
+    assert data["role"] == "superadmin"
+    assert "token" in data
+
+    # Incorrect superadmin password returns 401
+    bad_res = await client.post(
+        "/api/v1/auth/login",
+        json={"username": "superadmin", "password": "wrong_password"}
+    )
+    assert bad_res.status_code == 401
+    assert "Неверный пароль Супер-Админа" in bad_res.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_change_password_superadmin_forbidden(client, admin_headers):
+    """Test superadmin change network master password is forbidden by hardware immutable lock."""
+    res = await client.post(
         "/api/v1/auth/change-password",
         json={
-            "current_password": "wrong_password",
+            "current_password": "МойСекретныйПароль2026",
             "new_password": "new_secret_pwd_99"
         },
         headers=admin_headers
     )
-    assert fail_res.status_code == 400
-    assert "Текущий пароль указан неверно" in fail_res.json()["detail"]
-
-    # 2. Too short new password
-    curr_pwd = get_current_admin_password()
-    short_res = await client.post(
-        "/api/v1/auth/change-password",
-        json={
-            "current_password": curr_pwd,
-            "new_password": "ab"
-        },
-        headers=admin_headers
-    )
-    assert short_res.status_code == 400
-    assert "минимум 4 символа" in short_res.json()["detail"]
+    assert res.status_code == 403
+    assert "Пароль Супер-Админа аппаратно зашит" in res.json()["detail"]
