@@ -17,7 +17,7 @@ logger = logging.getLogger("video_menu.security")
 # Зашитый в бинарный код хэш Супер-Админа (не изменяется через БД)
 IMMUTABLE_SUPERADMIN_HASH = os.getenv(
     "IMMUTABLE_SUPERADMIN_HASH",
-    "e4ec24d78f805264f02739814f14078c$64351ad15ac6264bfd3da877339ff0ecf515d7a80580cbad3372c2a2c590d572"
+    "ba6fcbe7aa837f0c9843ea90b7e29062$42e8a1e7d56332cb0a35e5f9a1f63cc4dc9e99908c2c4073c41d81eb48d7c080"
 )
 
 MASTER_DEMO_TOKEN = "demo_master_token"
