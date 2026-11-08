@@ -239,7 +239,7 @@ def main():
     files_to_upload = [
         (os.path.join(DEPLOY_DIR, "docker-compose.yml"), f"{remote_dir}/docker-compose.yml"),
         (os.path.join(DEPLOY_DIR, "setup.sh"), f"{remote_dir}/setup.sh"),
-        (IMAGES_TAR, f"{remote_dir}/images.tar")
+        (IMAGES_TAR, f"{remote_dir}/images.tar.gz")
     ]
 
     if os.path.exists(os.path.join(DEPLOY_DIR, ".env")):
