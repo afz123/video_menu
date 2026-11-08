@@ -25,7 +25,7 @@ except ImportError:
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 DEPLOY_DIR = os.path.join(PROJECT_ROOT, "deploy")
-IMAGES_TAR = os.path.join(DEPLOY_DIR, "images.tar")
+IMAGES_TAR = os.path.join(DEPLOY_DIR, "images.tar.gz")
 ENV_DEPLOY_FILE = os.path.join(PROJECT_ROOT, ".env.deploy")
 
 # ==========================================
@@ -72,7 +72,7 @@ def load_config():
 # ==========================================
 # 2. СБОРКА И ЭКСПОРТ DOCKER-ОБРАЗОВ
 # ==========================================
-def build_and_pack_images(include_postgres=True, skip_build=False):
+def build_and_pack_images(include_postgres=True, skip_build=False, use_cython=False):
     os.makedirs(DEPLOY_DIR, exist_ok=True)
 
     if skip_build and os.path.exists(IMAGES_TAR):
@@ -80,17 +80,27 @@ def build_and_pack_images(include_postgres=True, skip_build=False):
         print(f"📦 Пропуск локальной сборки: найден существующий {IMAGES_TAR} ({size_mb:.1f} MB)")
         return
 
-    print("\n🔨 Шаг 2: Локальная сборка контейнеров Docker (frontend & backend)...")
+    dockerfile = "Dockerfile.cython" if use_cython else "Dockerfile"
+    mode_text = "🔒 С CYTHON (защита кода, долгая компиляция)" if use_cython else "⚡ БЫСТРЫЙ РЕЖИМ (чистый Python, моментальная сборка)"
+    print(f"\n🔨 Шаг 2: Локальная сборка контейнеров Docker [{mode_text}]...")
     env = os.environ.copy()
     env["DOCKER_BUILDKIT"] = "1"
     env["COMPOSE_DOCKER_CLI_BUILD"] = "1"
-    res = subprocess.run(
-        ["docker", "compose", "build"],
-        cwd=PROJECT_ROOT,
-        env=env
-    )
-    if res.returncode != 0:
-        print("❌ Ошибка сборки docker compose build!")
+
+    # Сборка бэкенда с выбранным Dockerfile
+    backend_build_cmd = ["docker", "build", "-t", "video_menu-backend:latest", "-f", f"backend/{dockerfile}", "backend"]
+    print(f"  -> Сборка Backend: {' '.join(backend_build_cmd)}")
+    res_b = subprocess.run(backend_build_cmd, cwd=PROJECT_ROOT, env=env)
+    if res_b.returncode != 0:
+        print("❌ Ошибка сборки backend!")
+        sys.exit(1)
+
+    # Сборка фронтенда
+    frontend_build_cmd = ["docker", "build", "-t", "video_menu-frontend:latest", "frontend"]
+    print(f"  -> Сборка Frontend: {' '.join(frontend_build_cmd)}")
+    res_f = subprocess.run(frontend_build_cmd, cwd=PROJECT_ROOT, env=env)
+    if res_f.returncode != 0:
+        print("❌ Ошибка сборки frontend!")
         sys.exit(1)
 
     images_to_save = [
@@ -105,7 +115,7 @@ def build_and_pack_images(include_postgres=True, skip_build=False):
     else:
         print("⚡ Пропуск PostgreSQL: образ уже готов на сервере. Упаковываем ТОЛЬКО frontend и backend!")
 
-    print(f"\n📦 Шаг 3: Сохранение образов в {IMAGES_TAR}...")
+    print(f"\n📦 Шаг 3: Сохранение и ультра-сжатие образов в {IMAGES_TAR} (gzip)...")
     inspect_proc = subprocess.run(["docker", "images", "--format", "{{.Repository}}:{{.Tag}}"], capture_output=True, text=True)
     available_images = inspect_proc.stdout.splitlines()
 
@@ -122,15 +132,20 @@ def build_and_pack_images(include_postgres=True, skip_build=False):
         else:
             target_images.append(img)
 
-    save_cmd = ["docker", "save", "-o", IMAGES_TAR] + target_images
-    print(f"  -> Выполняю: {' '.join(save_cmd)}")
-    save_res = subprocess.run(save_cmd)
-    if save_res.returncode != 0:
-        print("❌ Ошибка сохранения образов в images.tar!")
-        sys.exit(1)
+    save_cmd = ["docker", "save"] + target_images
+    print(f"  -> Выполняю экспорт со сжатием gzip: {' '.join(save_cmd)} | gzip -1 > {IMAGES_TAR}")
+    
+    with open(IMAGES_TAR, "wb") as f_out:
+        p_save = subprocess.Popen(save_cmd, stdout=subprocess.PIPE)
+        p_gzip = subprocess.Popen(["gzip", "-1"], stdin=p_save.stdout, stdout=f_out)
+        p_save.stdout.close()
+        p_gzip.communicate()
+        if p_save.wait() != 0 or p_gzip.returncode != 0:
+            print("❌ Ошибка сохранения и сжатия образов в images.tar.gz!")
+            sys.exit(1)
 
     size_mb = os.path.getsize(IMAGES_TAR) / (1024 * 1024)
-    print(f"✅ Образы успешно упакованы: {IMAGES_TAR} ({size_mb:.1f} MB)")
+    print(f"✅ Образы успешно упакованы и сжаты: {IMAGES_TAR} ({size_mb:.1f} MB)")
 
 # ==========================================
 # 3. SSH ХЕЛПЕРЫ
@@ -158,7 +173,8 @@ def print_progress(transferred, total):
 def main():
     parser = argparse.ArgumentParser(description="Автодеплой Video Menu на удаленный сервер")
     parser.add_argument("--build", action="store_true", help="Принудительно пересобрать Docker образы")
-    parser.add_argument("--skip-build", action="store_true", help="Пропустить сборку, если images.tar уже есть")
+    parser.add_argument("--skip-build", action="store_true", help="Пропустить сборку, если images.tar.gz уже есть")
+    parser.add_argument("--cython", action="store_true", help="Использовать Cython сборку в .so бинарники (защита кода)")
     parser.add_argument("--force-postgres", action="store_true", help="Принудительно отправить postgres:16-alpine")
     args = parser.parse_args()
 
@@ -213,7 +229,7 @@ def main():
 
     # 3. Сборка и упаковка образов
     skip_b = args.skip_build and not args.build
-    build_and_pack_images(include_postgres=include_postgres, skip_build=skip_b)
+    build_and_pack_images(include_postgres=include_postgres, skip_build=skip_b, use_cython=args.cython)
 
     # 4. Подготовка папки на сервере и передача файлов
     run_ssh(client, f"mkdir -p {remote_dir}")
@@ -247,8 +263,8 @@ def main():
     run_ssh(client, f"cd {remote_dir} && sudo bash setup.sh")
 
     # 6. Загрузка образов
-    print("\n📦 Шаг 6: Импорт Docker-образов на сервере...")
-    run_ssh(client, f"cd {remote_dir} && docker load -i images.tar", timeout=900)
+    print("\n📦 Шаг 6: Импорт и распаковка Docker-образов на сервере...")
+    run_ssh(client, f"cd {remote_dir} && gzip -dc images.tar.gz | docker load", timeout=900)
 
     # 7. Запуск контейнеров
     print("\n🔄 Шаг 7: Запуск сервисов Video Menu...")

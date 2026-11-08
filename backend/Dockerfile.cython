@@ -1,0 +1,53 @@
+# ==========================================
+# ЭТАП 1: Компиляция Python -> C -> .so бинарники (Защита кода)
+# ==========================================
+FROM python:3.11-slim AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    python3-dev \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir cython>=3.0.8 setuptools>=69.0.0
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+COPY . .
+
+# Компилируем весь Python код в бинарные .so библиотеки
+RUN python setup_cython.py build_ext --inplace
+
+# Удаляем исходные .py (кроме __init__.py) и промежуточные .c файлы
+RUN find app -name "*.py" ! -name "__init__.py" -delete && \
+    find app -name "*.c" -delete && \
+    rm -rf build setup_cython.py
+
+# ==========================================
+# ЭТАП 2: Чистый продакшн-образ БЕЗ исходного кода
+# ==========================================
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=builder /install /usr/local
+
+RUN FFMPEG_BIN=$(find /usr/local/lib/python3.11/site-packages/imageio_ffmpeg/binaries -name "ffmpeg*" -type f -perm /111 | head -n 1) && \
+    if [ -n "$FFMPEG_BIN" ]; then ln -s "$FFMPEG_BIN" /usr/local/bin/ffmpeg; fi
+
+COPY --from=builder /app/app /app/app
+COPY --from=builder /app/storage /app/storage
+
+RUN mkdir -p storage/videos storage/tmp
+
+EXPOSE 8088
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8088"]
+

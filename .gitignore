@@ -74,3 +74,6 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+.env.deploy
+images.tar.gz
