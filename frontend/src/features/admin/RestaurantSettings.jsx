@@ -579,7 +579,7 @@ export const RestaurantSettings = ({
         </div>
       </GlassCard>
 
-      {/* SECTION 4: Restaurant Economics, Currency & Staff Call Dispatchers */}
+      {/* SECTION 4: Restaurant Economics & Currency */}
       <GlassCard style={{ padding: '28px 32px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '14px' }}>
           <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: 'rgba(212, 175, 55, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-gold)' }}>
@@ -587,10 +587,10 @@ export const RestaurantSettings = ({
           </div>
           <div>
             <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', margin: 0 }}>
-              Экономика, Валюта и Вызовы Персонала
+              Экономика и Валюта заведения
             </h3>
             <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '2px 0 0' }}>
-              Валюта заведения, процент за обслуживание (Service Charge) и активные типы вызова персонала
+              Основная валюта заведения и процент за обслуживание (Service Charge)
             </p>
           </div>
         </div>
@@ -637,71 +637,6 @@ export const RestaurantSettings = ({
           <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0 }}>
             Выбранная валюта <b style={{ color: 'var(--accent-gold)' }}>{formData.currency}</b> автоматически подставляется в меню, корзину гостя, уличный киоск и чеки Telegram.
           </p>
-        </div>
-
-        {/* Staff Call Dispatchers */}
-        <div style={{ marginBottom: '22px', borderTop: '1px solid rgba(255, 255, 255, 0.06)', paddingTop: '18px' }}>
-          <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '600' }}>
-            Кнопки вызова персонала для гостей (Staff Call Dispatchers):
-          </label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
-            {[
-              { id: 'waiter', label: 'Вызов официанта', icon: '🛎️' },
-              { id: 'sommelier', label: 'Вызов сомелье', icon: '🍷' },
-              { id: 'hookah', label: 'Вызов кальянщика', icon: '💨' },
-              { id: 'admin', label: 'Вызов администратора', icon: '👔' }
-            ].map((btn) => {
-              const isEnabled = (formData.call_types_enabled || []).includes(btn.id);
-              return (
-                <button
-                  key={btn.id}
-                  type="button"
-                  onClick={() => {
-                    const current = formData.call_types_enabled || [];
-                    const updated = current.includes(btn.id)
-                      ? current.filter((x) => x !== btn.id)
-                      : [...current, btn.id];
-                    setFormData({ ...formData, call_types_enabled: updated });
-                  }}
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: '12px',
-                    border: isEnabled ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.08)',
-                    backgroundColor: isEnabled ? 'rgba(212, 175, 55, 0.12)' : 'rgba(255, 255, 255, 0.02)',
-                    color: isEnabled ? '#fff' : 'var(--text-dim)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    fontSize: '13px',
-                    fontWeight: isEnabled ? '600' : '400',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '16px' }}>{btn.icon}</span>
-                    <span>{btn.label}</span>
-                  </div>
-                  <span
-                    style={{
-                      width: '18px',
-                      height: '18px',
-                      borderRadius: '50%',
-                      backgroundColor: isEnabled ? 'var(--accent-gold)' : 'rgba(255, 255, 255, 0.1)',
-                      color: '#09090b',
-                      fontSize: '11px',
-                      fontWeight: '800',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    {isEnabled ? '✓' : ''}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
         </div>
 
         {/* Service Charge Sub-section */}

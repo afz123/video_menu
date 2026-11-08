@@ -112,7 +112,7 @@ export const ReservationManager = ({ restaurantSlug }) => {
   };
 
   // Zone handlers
-  const handleOpenZoneModal = (zone = null) => {
+  const handleOpenZoneModal = (zone = null, defaultFloor = null) => {
     if (zone) {
       setEditingZone(zone);
       setZoneName(zone.name);
@@ -125,7 +125,7 @@ export const ReservationManager = ({ restaurantSlug }) => {
       setZoneName('');
       setZoneDesc('');
       setZoneImage('');
-      setZoneFloor(1);
+      setZoneFloor(defaultFloor !== null ? defaultFloor : 1);
       setZoneOrder(zones.length + 1);
     }
     setIsZoneModalOpen(true);
@@ -309,6 +309,18 @@ export const ReservationManager = ({ restaurantSlug }) => {
   };
 
   // Floor stats
+  const existingFloors = Array.from(
+    new Set(zones.map((z) => (typeof z.floor === 'number' ? z.floor : parseInt(z.floor, 10) || 1)))
+  ).sort((a, b) => a - b);
+  const quickFloorOptions = existingFloors.length > 0 ? existingFloors : [1];
+  const nextSuggestedFloor = existingFloors.length > 0 ? Math.max(...existingFloors) + 1 : 2;
+
+  const handleCreateNewFloor = () => {
+    // Открывает модалку создания зоны, сразу предзаполняя новый этаж
+    handleOpenZoneModal(null, nextSuggestedFloor);
+    setZoneName(`Зал (${nextSuggestedFloor}-й этаж)`);
+  };
+
   const totalTables = zones.reduce((acc, z) => acc + (z.tables?.length || 0), 0);
   const totalCapacity = zones.reduce(
     (acc, z) => acc + (z.tables || []).reduce((tAcc, t) => tAcc + (t.max_capacity || 0), 0),
@@ -414,6 +426,28 @@ export const ReservationManager = ({ restaurantSlug }) => {
                     <span>{editorNotice}</span>
                   </div>
                 )}
+
+                <button
+                  type="button"
+                  onClick={handleCreateNewFloor}
+                  style={{
+                    background: 'rgba(212, 175, 55, 0.12)',
+                    border: '1px solid var(--accent-gold)',
+                    color: 'var(--accent-gold)',
+                    borderRadius: '12px',
+                    padding: '10px 18px',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                  title="Создать новый этаж в заведении"
+                >
+                  <Layers size={16} />
+                  <span>+ Добавить этаж</span>
+                </button>
 
                 <button
                   type="button"
@@ -948,6 +982,28 @@ export const ReservationManager = ({ restaurantSlug }) => {
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
+                  onClick={handleCreateNewFloor}
+                  style={{
+                    background: 'rgba(212, 175, 55, 0.12)',
+                    border: '1px solid var(--accent-gold)',
+                    color: 'var(--accent-gold)',
+                    borderRadius: '12px',
+                    padding: '10px 18px',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                  title="Создать новый этаж в заведении"
+                >
+                  <Layers size={16} />
+                  <span>+ Добавить этаж</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => handleOpenZoneModal(null)}
                   style={{
                     background: 'rgba(255, 255, 255, 0.08)',
@@ -1365,17 +1421,19 @@ export const ReservationManager = ({ restaurantSlug }) => {
                     }}
                   />
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                    {[-1, 1, 2, 3, 4, 5].map((num) => (
+                    {/* Кнопки созданных в заведении этажей */}
+                    {quickFloorOptions.map((num) => (
                       <button
                         key={num}
                         type="button"
                         onClick={() => setZoneFloor(num)}
+                        title={`Выбрать этаж ${num}`}
                         style={{
                           background: Number(zoneFloor) === num ? 'var(--accent-gold)' : 'rgba(255, 255, 255, 0.06)',
                           color: Number(zoneFloor) === num ? '#000' : '#fff',
-                          border: '1px solid rgba(255, 255, 255, 0.12)',
+                          border: Number(zoneFloor) === num ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.12)',
                           borderRadius: '8px',
-                          padding: '6px 10px',
+                          padding: '6px 12px',
                           fontSize: '12px',
                           fontWeight: '700',
                           cursor: 'pointer'
@@ -1384,6 +1442,27 @@ export const ReservationManager = ({ restaurantSlug }) => {
                         {num === -1 ? 'Цоколь (-1)' : `${num}F`}
                       </button>
                     ))}
+
+                    {/* Кнопка создания следующего этажа */}
+                    {!quickFloorOptions.includes(nextSuggestedFloor) && (
+                      <button
+                        type="button"
+                        onClick={() => setZoneFloor(nextSuggestedFloor)}
+                        title={`Задать следующий этаж: ${nextSuggestedFloor}F`}
+                        style={{
+                          background: Number(zoneFloor) === nextSuggestedFloor ? 'var(--accent-gold)' : 'rgba(212, 175, 55, 0.1)',
+                          color: Number(zoneFloor) === nextSuggestedFloor ? '#000' : 'var(--accent-gold)',
+                          border: '1px dashed var(--accent-gold)',
+                          borderRadius: '8px',
+                          padding: '6px 10px',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        + {nextSuggestedFloor}F
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

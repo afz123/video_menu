@@ -106,7 +106,21 @@ export const SmartServiceBar = ({
           comment = `⚠️ ВНИМАНИЕ: Гость оценил визит на ${npsRating}/5 звёзд! Требуется внимание управляющего.\n` + comment;
         }
       } else {
-        if (specialistType === 'sommelier') {
+        const staffButtons = Array.isArray(bar.staff_call_buttons)
+          ? bar.staff_call_buttons
+          : (bar.custom_call_buttons || []);
+
+        const matchedBtn = staffButtons.find((b) => b.id === specialistType);
+
+        if (matchedBtn) {
+          reqType = specialistType === 'waiter' ? 'call_waiter'
+            : specialistType === 'sommelier' ? 'call_sommelier'
+            : specialistType === 'hookah' ? 'call_hookah'
+            : specialistType === 'admin' ? 'call_admin'
+            : `custom_${matchedBtn.id}`;
+          const btnName = `${matchedBtn.icon ? matchedBtn.icon + ' ' : ''}${matchedBtn.label}`;
+          comment = guestNote.trim() ? `${btnName}. ${guestNote.trim()}` : `Гость вызвал: ${btnName}`;
+        } else if (specialistType === 'sommelier') {
           reqType = 'call_sommelier';
           comment = `🍷 Вызов сомелье для винной консультации. ${guestNote.trim()}`;
         } else if (specialistType === 'hookah') {
@@ -115,17 +129,6 @@ export const SmartServiceBar = ({
         } else if (specialistType === 'admin') {
           reqType = 'call_admin';
           comment = `👔 Вызов администратора / управляющего залом. ${guestNote.trim()}`;
-        } else if (specialistType && specialistType !== 'waiter') {
-          // Dynamic custom specialist / call button
-          const customBtn = (bar.custom_call_buttons || []).find((b) => b.id === specialistType);
-          if (customBtn) {
-            reqType = `custom_${customBtn.id}`;
-            const btnName = `${customBtn.icon ? customBtn.icon + ' ' : ''}${customBtn.label}`;
-            comment = `🔔 Запрос: ${btnName}. ${guestNote.trim()}`;
-          } else {
-            reqType = 'call_waiter';
-            comment = guestNote.trim() || 'Гость вызвал персонал к столу';
-          }
         } else {
           reqType = 'call_waiter';
           comment = guestNote.trim() || 'Гость вызвал официанта к столу';
@@ -497,41 +500,35 @@ export const SmartServiceBar = ({
                   Кого пригласить к столу?
                 </label>
                 {(() => {
-                  const SPECIALIST_PRESETS = {
-                    waiter: { label: 'Официант', icon: '🛎️' },
-                    sommelier: { label: 'Сомелье', icon: '🍷' },
-                    hookah: { label: 'Кальянщик', icon: '💨' },
-                    admin: { label: 'Управляющий', icon: '👔' }
-                  };
-                  const activeTypes = Array.isArray(callTypesEnabled) && callTypesEnabled.length > 0
-                    ? callTypesEnabled
-                    : ['waiter'];
+                  let allButtons = [];
 
-                  // Filter built-in specialists according to UI config flags
-                  const filteredBuiltIns = activeTypes.filter((t) => {
-                    if (t === 'sommelier') return bar.allow_call_sommelier !== false;
-                    if (t === 'hookah') return bar.allow_call_hookah !== false;
-                    if (t === 'admin') return bar.allow_call_admin !== false;
-                    return true;
-                  });
+                  if (Array.isArray(bar.staff_call_buttons)) {
+                    allButtons = bar.staff_call_buttons.filter((b) => b && b.enabled !== false && b.label);
+                  } else {
+                    const BUILTIN_SPECIALISTS = [
+                      { id: 'waiter', label: 'Официант', icon: '🛎️', enabled: bar.allow_call_waiter !== false },
+                      { id: 'sommelier', label: 'Сомелье', icon: '🍷', enabled: bar.allow_call_sommelier !== false },
+                      { id: 'hookah', label: 'Кальянщик', icon: '💨', enabled: bar.allow_call_hookah !== false },
+                      { id: 'admin', label: 'Управляющий', icon: '👔', enabled: bar.allow_call_admin !== false }
+                    ];
 
-                  const displaySpecialists = filteredBuiltIns.map((typeKey) => {
-                    const preset = SPECIALIST_PRESETS[typeKey] || { label: typeKey, icon: '🛎️' };
-                    return { id: typeKey, label: preset.label, icon: preset.icon };
-                  });
+                    const displaySpecialists = BUILTIN_SPECIALISTS.filter((s) => s.enabled);
+                    const customButtons = Array.isArray(bar.custom_call_buttons)
+                      ? bar.custom_call_buttons
+                          .filter((b) => b && b.enabled !== false && b.label)
+                          .map((b) => ({
+                            id: b.id,
+                            label: b.label,
+                            icon: b.icon || '🛎️'
+                          }))
+                      : [];
 
-                  // Append dynamic custom buttons from UI configuration (if enabled)
-                  const customButtons = Array.isArray(bar.custom_call_buttons)
-                    ? bar.custom_call_buttons
-                        .filter((b) => b && b.enabled !== false && b.label)
-                        .map((b) => ({
-                          id: b.id,
-                          label: b.label,
-                          icon: b.icon || '🛎️'
-                        }))
-                    : [];
+                    allButtons = [...displaySpecialists, ...customButtons];
+                  }
 
-                  const allButtons = [...displaySpecialists, ...customButtons];
+                  if (allButtons.length === 0) {
+                    return null;
+                  }
 
                   return (
                     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(Math.max(allButtons.length, 1), 4)}, 1fr)`, gap: '8px' }}>
@@ -748,38 +745,52 @@ export const SmartServiceBar = ({
             )}
 
             {/* Submit button */}
-            <button
-              onClick={handleSendServiceRequest}
-              disabled={isSubmitting || (modalType === 'WAITER' && isCooldownEnabled && remainingCooldown > 0)}
-              style={{
-                width: '100%',
-                background: (modalType === 'WAITER' && isCooldownEnabled && remainingCooldown > 0)
-                  ? 'rgba(255, 255, 255, 0.1)'
-                  : 'var(--accent-gold-gradient)',
-                border: 'none',
-                borderRadius: '14px',
-                padding: '14px',
-                color: (modalType === 'WAITER' && isCooldownEnabled && remainingCooldown > 0) ? '#888' : '#09090b',
-                fontWeight: '700',
-                fontSize: '15px',
-                cursor: (modalType === 'WAITER' && isCooldownEnabled && remainingCooldown > 0) ? 'not-allowed' : 'pointer',
-                marginTop: '4px'
-              }}
-            >
-              {isSubmitting
+            {(() => {
+              const staffButtons = Array.isArray(bar.staff_call_buttons)
+                ? bar.staff_call_buttons
+                : (bar.custom_call_buttons || []);
+              const matchedBtn = staffButtons.find((b) => b.id === specialistType);
+              const matchedLabel = matchedBtn ? `${matchedBtn.icon ? matchedBtn.icon + ' ' : ''}Вызвать: ${matchedBtn.label}` : null;
+
+              const actionButtonText = isSubmitting
                 ? 'Отправка...'
                 : (modalType === 'WAITER' && isCooldownEnabled && remainingCooldown > 0)
-                ? `⏳ Официант уже в пути (${remainingCooldown}с)`
+                ? `⏳ Вызов уже отправлен (${remainingCooldown}с)`
                 : modalType === 'BILL'
                 ? 'Запросить счёт'
+                : matchedLabel
+                ? matchedLabel
                 : specialistType === 'sommelier'
                 ? '🍷 Пригласить сомелье'
                 : specialistType === 'hookah'
                 ? '💨 Пригласить кальянщика'
                 : specialistType === 'admin'
                 ? '👔 Пригласить управляющего'
-                : '🛎️ Позвать официанта'}
-            </button>
+                : '🛎️ Позвать официанта';
+
+              return (
+                <button
+                  onClick={handleSendServiceRequest}
+                  disabled={isSubmitting || (modalType === 'WAITER' && isCooldownEnabled && remainingCooldown > 0)}
+                  style={{
+                    width: '100%',
+                    background: (modalType === 'WAITER' && isCooldownEnabled && remainingCooldown > 0)
+                      ? 'rgba(255, 255, 255, 0.1)'
+                      : 'var(--accent-gold-gradient)',
+                    border: 'none',
+                    borderRadius: '14px',
+                    padding: '14px',
+                    color: (modalType === 'WAITER' && isCooldownEnabled && remainingCooldown > 0) ? '#888' : '#09090b',
+                    fontWeight: '700',
+                    fontSize: '15px',
+                    cursor: (modalType === 'WAITER' && isCooldownEnabled && remainingCooldown > 0) ? 'not-allowed' : 'pointer',
+                    marginTop: '4px'
+                  }}
+                >
+                  {actionButtonText}
+                </button>
+              );
+            })()}
           </div>
         </div>
       )}

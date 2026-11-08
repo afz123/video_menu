@@ -41,6 +41,7 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [newBtnLabel, setNewBtnLabel] = useState('');
   const [newBtnIcon, setNewBtnIcon] = useState('🛎️');
+  const [newQuickReqText, setNewQuickReqText] = useState('');
 
   useEffect(() => {
     if (initialConfig) {
@@ -185,17 +186,26 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
       title: 'Нижняя сервисная планка (Вызовы & Счёт)',
       icon: Bell,
       color: '#eab308',
-      items: [
-        { key: 'show_service_bar', label: 'Вся нижняя планка целиком', desc: 'Главный рубильник сервисной панели' },
-        { key: 'show_call_waiter_btn', label: 'Кнопка «Позвать официанта»', desc: 'Вызов официанта к номеру стола' },
-        { key: 'show_request_bill_btn', label: 'Кнопка «Счёт»', desc: 'Запрос расчета (карта / наличные)' },
-        { key: 'show_cart_btn', label: 'Кнопка «Заказ (Корзина)»', desc: 'Отображение кнопки корзины с количеством' },
-        { key: 'show_quick_requests', label: 'Быстрые просьбы (Лёд, Приборы...)', desc: 'Готовые чипсы частых просьб' },
-        { key: 'show_nps_rating', label: 'Оценка визита 1-5 звезд', desc: 'NPS-оценка перед запросом счёта' },
-        { key: 'show_comment_input', label: 'Поле ввода пожелания к вызову', desc: 'Текстовый комментарий официанту' },
-        { key: 'allow_call_sommelier', label: 'Вызов сомелье (🍷)', desc: 'Разрешить гостям звать винного консультанта' },
-        { key: 'allow_call_hookah', label: 'Вызов кальянного мастера (💨)', desc: 'Разрешить гостям звать кальянщика' },
-        { key: 'allow_call_admin', label: 'Вызов управляющего (👔)', desc: 'Разрешить гостям звать администратора зала' }
+      groups: [
+        {
+          title: '1. Основные кнопки планки',
+          desc: 'Кнопки, которые видит гость внизу экрана на мобильном телефоне',
+          items: [
+            { key: 'show_service_bar', label: 'Вся нижняя планка целиком', desc: 'Главный мастер-переключатель нижней панели' },
+            { key: 'show_call_waiter_btn', label: 'Кнопка «Позвать официанта»', desc: 'Открывает окно выбора специалиста и быстрых просьб' },
+            { key: 'show_request_bill_btn', label: 'Кнопка «Счёт»', desc: 'Открывает выбор оплаты (карта/наличные) и оценку визита' },
+            { key: 'show_cart_btn', label: 'Кнопка «Заказ (Корзина)»', desc: 'Отображение кнопки корзины со счетчиком блюд' }
+          ]
+        },
+        {
+          title: '2. Дополнительные опции в окне вызова и счёта',
+          desc: 'Элементы внутри всплывающего окна гостя',
+          items: [
+            { key: 'show_quick_requests', label: 'Быстрые просьбы в 1 тап', desc: 'Чипсы: «Лёд и вода», «Приборы и салфетки», «Лимон»...' },
+            { key: 'show_comment_input', label: 'Поле текстового комментария', desc: 'Поле для ввода произвольного текста или пожелания' },
+            { key: 'show_nps_rating', label: 'Оценка визита 1-5 звезд', desc: 'NPS-оценка перед запросом счёта' }
+          ]
+        }
       ]
     },
     {
@@ -346,233 +356,382 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '14px' }}>
-              {sec.items.map((item) => {
-                const isEnabled = secConfig[item.key] !== false;
-
-                return (
+            {/* If section has structured sub-groups (e.g. Service Bar) */}
+            {sec.groups ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {sec.groups.map((grp, gIdx) => (
                   <div
-                    key={item.key}
-                    onClick={() => toggle(sec.id, item.key)}
+                    key={gIdx}
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '14px 16px',
-                      borderRadius: '14px',
-                      backgroundColor: isEnabled ? 'rgba(212, 175, 55, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-                      border: isEnabled ? '1px solid rgba(212, 175, 55, 0.3)' : '1px solid rgba(255, 255, 255, 0.06)',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease'
+                      backgroundColor: 'rgba(255, 255, 255, 0.015)',
+                      border: '1px solid rgba(255, 255, 255, 0.06)',
+                      borderRadius: '16px',
+                      padding: '18px 20px'
                     }}
                   >
-                    <div style={{ flex: 1, paddingRight: '12px' }}>
-                      <div style={{ fontSize: '13px', fontWeight: '600', color: isEnabled ? '#fff' : 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {isEnabled ? <Eye size={14} color="var(--accent-gold)" /> : <EyeOff size={14} color="var(--text-dim)" />}
-                        <span>{item.label}</span>
+                    <div style={{ marginBottom: '14px' }}>
+                      <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>
+                        {grp.title}
                       </div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                        {item.desc}
-                      </div>
+                      {grp.desc && (
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          {grp.desc}
+                        </div>
+                      )}
                     </div>
 
-                    <div
-                      style={{
-                        width: '44px',
-                        height: '24px',
-                        borderRadius: '12px',
-                        backgroundColor: isEnabled ? 'var(--accent-gold)' : 'rgba(255, 255, 255, 0.15)',
-                        position: 'relative',
-                        transition: 'background-color 0.2s ease',
-                        flexShrink: 0
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: '20px',
-                          height: '20px',
-                          borderRadius: '50%',
-                          backgroundColor: isEnabled ? '#000' : '#fff',
-                          position: 'absolute',
-                          top: '2px',
-                          left: isEnabled ? '22px' : '2px',
-                          transition: 'left 0.2s ease',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.4)'
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-
-              {sec.id === 'service_bar' && (
-                <div style={{
-                  gridColumn: '1 / -1',
-                  marginTop: '12px',
-                  padding: '18px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                  borderRadius: '14px',
-                  border: '1px solid rgba(212, 175, 55, 0.15)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-                    <div>
-                      <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>✨ Произвольные кнопки вызова персонала</span>
-                        <span style={{ fontSize: '11px', color: 'var(--accent-gold)', background: 'rgba(212,175,55,0.15)', padding: '2px 8px', borderRadius: '10px' }}>
-                          {(secConfig.custom_call_buttons || []).length} создано
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                        Создайте уникальные кнопки для гостей (например: «Детский стульчик», «Плед», «Бармен», «Специи»). Гость сможет выбрать их при вызове к столу.
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Existing custom call buttons list */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
-                    {(secConfig.custom_call_buttons || []).length === 0 ? (
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic', padding: '10px 0' }}>
-                        Пока нет добавленных кнопок. Добавьте свою первую кнопку ниже.
-                      </div>
-                    ) : (
-                      (secConfig.custom_call_buttons || []).map((btn, bIdx) => {
-                        const isBtnActive = btn.enabled !== false;
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '12px' }}>
+                      {grp.items.map((item) => {
+                        const isEnabled = secConfig[item.key] !== false;
                         return (
                           <div
-                            key={btn.id || bIdx}
+                            key={item.key}
+                            onClick={() => toggle(sec.id, item.key)}
                             style={{
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'space-between',
-                              padding: '10px 14px',
-                              backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                              borderRadius: '10px',
-                              border: isBtnActive ? '1px solid rgba(212,175,55,0.2)' : '1px solid rgba(255, 255, 255, 0.08)'
+                              padding: '12px 14px',
+                              borderRadius: '12px',
+                              backgroundColor: isEnabled ? 'rgba(212, 175, 55, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                              border: isEnabled ? '1px solid rgba(212, 175, 55, 0.3)' : '1px solid rgba(255, 255, 255, 0.06)',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
                             }}
                           >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <span style={{ fontSize: '20px' }}>{btn.icon || '🛎️'}</span>
-                              <div>
-                                <div style={{ fontSize: '13px', fontWeight: '600', color: isBtnActive ? '#fff' : 'var(--text-muted)' }}>
-                                  {btn.label}
-                                </div>
-                                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                  Статус: {isBtnActive ? 'Активна в меню' : 'Скрыта гостям'}
-                                </div>
+                            <div style={{ flex: 1, paddingRight: '12px' }}>
+                              <div style={{ fontSize: '13px', fontWeight: '600', color: isEnabled ? '#fff' : 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                {isEnabled ? <Eye size={14} color="var(--accent-gold)" /> : <EyeOff size={14} color="var(--text-dim)" />}
+                                <span>{item.label}</span>
+                              </div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                {item.desc}
                               </div>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const updated = (secConfig.custom_call_buttons || []).map((b, i) =>
-                                    i === bIdx ? { ...b, enabled: !isBtnActive } : b
-                                  );
-                                  setConfig((prev) => ({
-                                    ...prev,
-                                    service_bar: {
-                                      ...prev.service_bar,
-                                      custom_call_buttons: updated
-                                    }
-                                  }));
-                                }}
+                            <div
+                              style={{
+                                width: '40px',
+                                height: '22px',
+                                borderRadius: '11px',
+                                backgroundColor: isEnabled ? 'var(--accent-gold)' : 'rgba(255, 255, 255, 0.15)',
+                                position: 'relative',
+                                transition: 'background-color 0.2s ease',
+                                flexShrink: 0
+                              }}
+                            >
+                              <div
                                 style={{
-                                  background: isBtnActive ? 'rgba(212, 175, 55, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                                  color: isBtnActive ? 'var(--accent-gold)' : 'var(--text-muted)',
-                                  border: isBtnActive ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
-                                  borderRadius: '6px',
-                                  padding: '4px 10px',
-                                  fontSize: '11px',
-                                  fontWeight: '600',
-                                  cursor: 'pointer'
+                                  width: '18px',
+                                  height: '18px',
+                                  borderRadius: '50%',
+                                  backgroundColor: isEnabled ? '#000' : '#fff',
+                                  position: 'absolute',
+                                  top: '2px',
+                                  left: isEnabled ? '20px' : '2px',
+                                  transition: 'left 0.2s ease',
+                                  boxShadow: '0 2px 4px rgba(0,0,0,0.4)'
                                 }}
-                              >
-                                {isBtnActive ? 'Включено' : 'Выключено'}
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const updated = (secConfig.custom_call_buttons || []).filter((_, i) => i !== bIdx);
-                                  setConfig((prev) => ({
-                                    ...prev,
-                                    service_bar: {
-                                      ...prev.service_bar,
-                                      custom_call_buttons: updated
-                                    }
-                                  }));
-                                }}
-                                style={{
-                                  background: 'rgba(239, 68, 68, 0.1)',
-                                  color: '#f87171',
-                                  border: '1px solid rgba(239, 68, 68, 0.25)',
-                                  borderRadius: '6px',
-                                  padding: '4px 8px',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center'
-                                }}
-                                title="Удалить кнопку"
-                              >
-                                <Trash2 size={13} />
-                              </button>
+                              />
                             </div>
                           </div>
                         );
-                      })
-                    )}
+                      })}
+                    </div>
                   </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '14px' }}>
+                {sec.items.map((item) => {
+                  const isEnabled = secConfig[item.key] !== false;
 
-                  {/* Add new custom call button form */}
-                  <div style={{
-                    display: 'flex',
-                    gap: '8px',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    padding: '12px',
-                    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-                    borderRadius: '10px',
-                    border: '1px solid rgba(255, 255, 255, 0.08)'
-                  }}>
-                    {/* Emoji picker quick list */}
-                    <select
-                      value={newBtnIcon}
-                      onChange={(e) => setNewBtnIcon(e.target.value)}
+                  return (
+                    <div
+                      key={item.key}
+                      onClick={() => toggle(sec.id, item.key)}
                       style={{
-                        backgroundColor: 'rgba(20, 20, 25, 0.9)',
-                        border: '1px solid rgba(255,255,255,0.15)',
-                        color: '#fff',
-                        borderRadius: '8px',
-                        padding: '8px 10px',
-                        fontSize: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '14px 16px',
+                        borderRadius: '14px',
+                        backgroundColor: isEnabled ? 'rgba(212, 175, 55, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                        border: isEnabled ? '1px solid rgba(212, 175, 55, 0.3)' : '1px solid rgba(255, 255, 255, 0.06)',
                         cursor: 'pointer',
-                        outline: 'none'
+                        transition: 'all 0.15s ease'
                       }}
                     >
-                      <option value="🛎️">🛎️ Звонок</option>
-                      <option value="🪑">🪑 Детский стул</option>
-                      <option value="🧣">🧣 Плед</option>
-                      <option value="🍸">🍸 Бармен</option>
-                      <option value="☕">☕ Бариста</option>
-                      <option value="🧊">🧊 Доп. лёд</option>
-                      <option value="🥢">🥢 Палочки / Приборы</option>
-                      <option value="🧂">🧂 Специи / Соль</option>
-                      <option value="🔌">🔌 Зарядка / Powerbank</option>
-                      <option value="🚕">🚕 Вызов такси</option>
-                      <option value="🧼">🧼 Салфетки</option>
-                      <option value="⭐">⭐ Особая просьба</option>
-                    </select>
+                      <div style={{ flex: 1, paddingRight: '12px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: '600', color: isEnabled ? '#fff' : 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {isEnabled ? <Eye size={14} color="var(--accent-gold)" /> : <EyeOff size={14} color="var(--text-dim)" />}
+                          <span>{item.label}</span>
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          {item.desc}
+                        </div>
+                      </div>
 
-                    <input
-                      type="text"
-                      placeholder="Название кнопки (например: «Детский стульчик»)"
-                      value={newBtnLabel}
-                      onChange={(e) => setNewBtnLabel(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          if (newBtnLabel.trim()) {
+                      <div
+                        style={{
+                          width: '44px',
+                          height: '24px',
+                          borderRadius: '12px',
+                          backgroundColor: isEnabled ? 'var(--accent-gold)' : 'rgba(255, 255, 255, 0.15)',
+                          position: 'relative',
+                          transition: 'background-color 0.2s ease',
+                          flexShrink: 0
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            backgroundColor: isEnabled ? '#000' : '#fff',
+                            position: 'absolute',
+                            top: '2px',
+                            left: isEnabled ? '22px' : '2px',
+                            transition: 'left 0.2s ease',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.4)'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {sec.id === 'service_bar' && (
+              <>
+                {/* Manage Staff Call Buttons (Динамический список кнопок вызова: Официант, Сомелье, Кальянщик...) */}
+                {(() => {
+                  const staffList = secConfig.staff_call_buttons || (
+                    secConfig.custom_call_buttons && secConfig.custom_call_buttons.length > 0
+                      ? secConfig.custom_call_buttons
+                      : [
+                          { id: 'waiter', label: 'Официант', icon: '🛎️', enabled: true },
+                          { id: 'sommelier', label: 'Сомелье', icon: '🍷', enabled: true },
+                          { id: 'hookah', label: 'Кальянщик', icon: '💨', enabled: true },
+                          { id: 'admin', label: 'Управляющий', icon: '👔', enabled: true }
+                        ]
+                  );
+
+                  return (
+                    <div style={{
+                      marginTop: '20px',
+                      padding: '20px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                      borderRadius: '16px',
+                      border: '1px solid rgba(212, 175, 55, 0.25)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                        <div>
+                          <div style={{ fontSize: '15px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>🛎️ Кнопки вызова («Кого пригласить к столу»)</span>
+                            <span style={{ fontSize: '11px', color: 'var(--accent-gold)', background: 'rgba(212,175,55,0.15)', padding: '2px 8px', borderRadius: '10px' }}>
+                              {staffList.length} кнопок
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            Полный контроль над кнопками: удаляйте ненужные (кальянщик, сомелье или официант), временно скрывайте или создавайте любые свои («Детский стул», «Бармен», «Плед»).
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Buttons list */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+                        {staffList.length === 0 ? (
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic', padding: '10px 0' }}>
+                            Все кнопки удалены. Добавьте нужные кнопки ниже.
+                          </div>
+                        ) : (
+                          staffList.map((btn, bIdx) => {
+                            const isBtnActive = btn.enabled !== false;
+                            return (
+                              <div
+                                key={btn.id || bIdx}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  padding: '12px 16px',
+                                  backgroundColor: 'rgba(0, 0, 0, 0.35)',
+                                  borderRadius: '12px',
+                                  border: isBtnActive ? '1px solid rgba(212,175,55,0.25)' : '1px solid rgba(255, 255, 255, 0.08)'
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                  <span style={{ fontSize: '22px' }}>{btn.icon || '🛎️'}</span>
+                                  <div>
+                                    <div style={{ fontSize: '14px', fontWeight: '600', color: isBtnActive ? '#fff' : 'var(--text-muted)' }}>
+                                      {btn.label}
+                                    </div>
+                                    <div style={{ fontSize: '11px', color: isBtnActive ? 'var(--accent-gold)' : 'var(--text-dim)', marginTop: '1px' }}>
+                                      {isBtnActive ? '✓ Активна на экране гостя' : '✕ Скрыта от гостей'}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updated = staffList.map((b, i) =>
+                                        i === bIdx ? { ...b, enabled: !isBtnActive } : b
+                                      );
+                                      setConfig((prev) => ({
+                                        ...prev,
+                                        service_bar: {
+                                          ...prev.service_bar,
+                                          staff_call_buttons: updated,
+                                          custom_call_buttons: updated
+                                        }
+                                      }));
+                                    }}
+                                    style={{
+                                      background: isBtnActive ? 'rgba(212, 175, 55, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                      color: isBtnActive ? 'var(--accent-gold)' : 'var(--text-muted)',
+                                      border: isBtnActive ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
+                                      borderRadius: '8px',
+                                      padding: '6px 12px',
+                                      fontSize: '11px',
+                                      fontWeight: '600',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    {isBtnActive ? 'Включено' : 'Выключено'}
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updated = staffList.filter((_, i) => i !== bIdx);
+                                      setConfig((prev) => ({
+                                        ...prev,
+                                        service_bar: {
+                                          ...prev.service_bar,
+                                          staff_call_buttons: updated,
+                                          custom_call_buttons: updated
+                                        }
+                                      }));
+                                    }}
+                                    style={{
+                                      background: 'rgba(239, 68, 68, 0.12)',
+                                      color: '#f87171',
+                                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                                      borderRadius: '8px',
+                                      padding: '6px 10px',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      fontSize: '11px',
+                                      fontWeight: '600'
+                                    }}
+                                    title="Удалить кнопку навсегда"
+                                  >
+                                    <Trash2 size={13} />
+                                    <span>Удалить</span>
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      {/* Add new call button form */}
+                      <div style={{
+                        display: 'flex',
+                        gap: '8px',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        padding: '14px',
+                        backgroundColor: 'rgba(0, 0, 0, 0.45)',
+                        borderRadius: '12px',
+                        border: '1px dashed rgba(212, 175, 55, 0.3)'
+                      }}>
+                        <select
+                          value={newBtnIcon}
+                          onChange={(e) => setNewBtnIcon(e.target.value)}
+                          style={{
+                            backgroundColor: 'rgba(20, 20, 25, 0.95)',
+                            border: '1px solid rgba(255,255,255,0.15)',
+                            color: '#fff',
+                            borderRadius: '8px',
+                            padding: '8px 10px',
+                            fontSize: '16px',
+                            cursor: 'pointer',
+                            outline: 'none'
+                          }}
+                        >
+                          <option value="🛎️">🛎️ Официант / Звонок</option>
+                          <option value="🍷">🍷 Сомелье</option>
+                          <option value="💨">💨 Кальянщик</option>
+                          <option value="👔">👔 Управляющий</option>
+                          <option value="🪑">🪑 Детский стул</option>
+                          <option value="🧣">🧣 Плед</option>
+                          <option value="🍸">🍸 Бармен</option>
+                          <option value="☕">☕ Бариста</option>
+                          <option value="🧊">🧊 Доп. лёд</option>
+                          <option value="🥢">🥢 Палочки / Приборы</option>
+                          <option value="🧂">🧂 Специи / Соль</option>
+                          <option value="🔌">🔌 Зарядка / Powerbank</option>
+                          <option value="🚕">🚕 Вызов такси</option>
+                          <option value="🧼">🧼 Салфетки</option>
+                          <option value="⭐">⭐ Особая просьба</option>
+                        </select>
+
+                        <input
+                          type="text"
+                          placeholder="Название кнопки (например: «Кальянщик» или «Детский стул»)"
+                          value={newBtnLabel}
+                          onChange={(e) => setNewBtnLabel(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (newBtnLabel.trim()) {
+                                const newId = `btn_${Date.now()}`;
+                                const newBtn = {
+                                  id: newId,
+                                  label: newBtnLabel.trim(),
+                                  icon: newBtnIcon,
+                                  enabled: true
+                                };
+                                const updated = [...staffList, newBtn];
+                                setConfig((prev) => ({
+                                  ...prev,
+                                  service_bar: {
+                                    ...prev.service_bar,
+                                    staff_call_buttons: updated,
+                                    custom_call_buttons: updated
+                                  }
+                                }));
+                                setNewBtnLabel('');
+                              }
+                            }
+                          }}
+                          style={{
+                            flex: 1,
+                            minWidth: '220px',
+                            backgroundColor: 'rgba(20, 20, 25, 0.95)',
+                            border: '1px solid rgba(255,255,255,0.15)',
+                            color: '#fff',
+                            borderRadius: '8px',
+                            padding: '8px 12px',
+                            fontSize: '13px',
+                            outline: 'none'
+                          }}
+                        />
+
+                        <GoldButton
+                          variant="primary"
+                          type="button"
+                          icon={Plus}
+                          onClick={() => {
+                            if (!newBtnLabel.trim()) return;
                             const newId = `btn_${Date.now()}`;
                             const newBtn = {
                               id: newId,
@@ -580,23 +739,143 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
                               icon: newBtnIcon,
                               enabled: true
                             };
+                            const updated = [...staffList, newBtn];
                             setConfig((prev) => ({
                               ...prev,
                               service_bar: {
                                 ...prev.service_bar,
-                                custom_call_buttons: [
-                                  ...(prev.service_bar?.custom_call_buttons || []),
-                                  newBtn
-                                ]
+                                staff_call_buttons: updated,
+                                custom_call_buttons: updated
                               }
                             }));
                             setNewBtnLabel('');
+                          }}
+                          style={{ padding: '8px 16px', fontSize: '13px' }}
+                        >
+                          Добавить кнопку
+                        </GoldButton>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Manage Quick Requests chips (Быстрые просьбы) */}
+                <div style={{
+                  marginTop: '16px',
+                  padding: '20px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(212, 175, 55, 0.2)'
+                }}>
+                  <div style={{ marginBottom: '14px' }}>
+                    <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>🧊 5. Список быстрых просьб к столу</span>
+                      <span style={{ fontSize: '11px', color: 'var(--accent-gold)', background: 'rgba(212,175,55,0.15)', padding: '2px 8px', borderRadius: '10px' }}>
+                        {(secConfig.quick_requests_list || [
+                          '🧊 Лёд и вода',
+                          '🥢 Приборы и салфетки',
+                          '🍋 Лимон к чаю',
+                          '🧂 Соль / перец',
+                          '🥫 Дополнительный соус'
+                        ]).length} просьб
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Управляйте готовыми кнопками-просьбами для гостя. Ненужные можно удалить нажатием на крестик.
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
+                    {(secConfig.quick_requests_list || [
+                      '🧊 Лёд и вода',
+                      '🥢 Приборы и салфетки',
+                      '🍋 Лимон к чаю',
+                      '🧂 Соль / перец',
+                      '🥫 Дополнительный соус'
+                    ]).map((req, rIdx) => (
+                      <div
+                        key={rIdx}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          backgroundColor: 'rgba(212, 175, 55, 0.1)',
+                          border: '1px solid rgba(212, 175, 55, 0.3)',
+                          borderRadius: '20px',
+                          padding: '6px 12px',
+                          fontSize: '12px',
+                          color: '#fff'
+                        }}
+                      >
+                        <span>{req}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const currentList = secConfig.quick_requests_list || [
+                              '🧊 Лёд и вода',
+                              '🥢 Приборы и салфетки',
+                              '🍋 Лимон к чаю',
+                              '🧂 Соль / перец',
+                              '🥫 Дополнительный соус'
+                            ];
+                            const updated = currentList.filter((_, i) => i !== rIdx);
+                            setConfig((prev) => ({
+                              ...prev,
+                              service_bar: {
+                                ...prev.service_bar,
+                                quick_requests_list: updated
+                              }
+                            }));
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#f87171',
+                            cursor: 'pointer',
+                            padding: '0 2px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            fontSize: '14px',
+                            fontWeight: '700'
+                          }}
+                          title="Удалить просьбу"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', maxWidth: '480px' }}>
+                    <input
+                      type="text"
+                      placeholder="Новая просьба (например: 🧻 Влажные салфетки)"
+                      value={newQuickReqText}
+                      onChange={(e) => setNewQuickReqText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (newQuickReqText.trim()) {
+                            const currentList = secConfig.quick_requests_list || [
+                              '🧊 Лёд и вода',
+                              '🥢 Приборы и салфетки',
+                              '🍋 Лимон к чаю',
+                              '🧂 Соль / перец',
+                              '🥫 Дополнительный соус'
+                            ];
+                            setConfig((prev) => ({
+                              ...prev,
+                              service_bar: {
+                                ...prev.service_bar,
+                                quick_requests_list: [...currentList, newQuickReqText.trim()]
+                              }
+                            }));
+                            setNewQuickReqText('');
                           }
                         }
                       }}
                       style={{
                         flex: 1,
-                        minWidth: '200px',
                         backgroundColor: 'rgba(20, 20, 25, 0.9)',
                         border: '1px solid rgba(255,255,255,0.15)',
                         color: '#fff',
@@ -606,39 +885,36 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
                         outline: 'none'
                       }}
                     />
-
                     <GoldButton
-                      variant="primary"
+                      variant="outline"
                       type="button"
                       icon={Plus}
                       onClick={() => {
-                        if (!newBtnLabel.trim()) return;
-                        const newId = `btn_${Date.now()}`;
-                        const newBtn = {
-                          id: newId,
-                          label: newBtnLabel.trim(),
-                          icon: newBtnIcon,
-                          enabled: true
-                        };
+                        if (!newQuickReqText.trim()) return;
+                        const currentList = secConfig.quick_requests_list || [
+                          '🧊 Лёд и вода',
+                          '🥢 Приборы и салфетки',
+                          '🍋 Лимон к чаю',
+                          '🧂 Соль / перец',
+                          '🥫 Дополнительный соус'
+                        ];
                         setConfig((prev) => ({
                           ...prev,
                           service_bar: {
                             ...prev.service_bar,
-                            custom_call_buttons: [
-                              ...(prev.service_bar?.custom_call_buttons || []),
-                              newBtn
-                            ]
+                            quick_requests_list: [...currentList, newQuickReqText.trim()]
                           }
                         }));
-                        setNewBtnLabel('');
+                        setNewQuickReqText('');
                       }}
                       style={{ padding: '8px 14px', fontSize: '12px' }}
                     >
-                      Добавить кнопку
+                      Добавить
                     </GoldButton>
                   </div>
                 </div>
-              )}
+              </>
+            )}
 
               {sec.id === 'kitchen_pacing' && (
                 <div style={{
@@ -710,7 +986,6 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
                   </div>
                 </div>
               )}
-            </div>
           </GlassCard>
         );
       })}

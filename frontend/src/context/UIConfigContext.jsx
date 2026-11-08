@@ -45,10 +45,19 @@ export const DEFAULT_UI_CONFIG = {
     show_quick_requests: true,
     show_nps_rating: true,
     show_comment_input: true,
-    allow_call_sommelier: true,
-    allow_call_hookah: true,
-    allow_call_admin: true,
-    custom_call_buttons: []
+    staff_call_buttons: [
+      { id: 'waiter', label: 'Официант', icon: '🛎️', enabled: true },
+      { id: 'sommelier', label: 'Сомелье', icon: '🍷', enabled: true },
+      { id: 'hookah', label: 'Кальянщик', icon: '💨', enabled: true },
+      { id: 'admin', label: 'Управляющий', icon: '👔', enabled: true }
+    ],
+    quick_requests_list: [
+      '🧊 Лёд и вода',
+      '🥢 Приборы и салфетки',
+      '🍋 Лимон к чаю',
+      '🧂 Соль / перец',
+      '🥫 Дополнительный соус'
+    ]
   },
   cart: {
     wishlist_only_mode: false,
