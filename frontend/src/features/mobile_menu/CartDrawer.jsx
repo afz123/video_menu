@@ -687,13 +687,13 @@ export const CartDrawer = ({
                 <span>{cartUI.wishlist_only_mode ? 'Выбранные блюда:' : 'Блюда:'}</span>
                 <span>{subtotal.toFixed(0)} {activeCurrency}</span>
               </div>
-              {!cartUI.wishlist_only_mode && cartUI.show_service_charge !== false && serviceCharge > 0 && (
+              {cartUI.show_service_charge !== false && serviceCharge > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'rgba(212, 175, 55, 0.9)' }}>
                   <span>Обслуживание ({serviceChargePercent}%):</span>
                   <span>+{serviceCharge.toFixed(1)} {activeCurrency}</span>
                 </div>
               )}
-              {!cartUI.wishlist_only_mode && cartUI.show_tip_tiers !== false && tipAmount > 0 && (
+              {cartUI.show_tip_tiers !== false && tipAmount > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#4ade80' }}>
                   <span>Чаевые ({tipPercent}%):</span>
                   <span>+{tipAmount.toFixed(1)} {activeCurrency}</span>
@@ -701,10 +701,10 @@ export const CartDrawer = ({
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '2px 0 6px' }}>
                 <span style={{ fontSize: '14px', fontWeight: '600', color: '#fff' }}>
-                  {cartUI.wishlist_only_mode ? 'Предварительная сумма:' : 'Итого к оплате:'}
+                  {cartUI.wishlist_only_mode ? 'Предварительная сумма к заказу:' : 'Итого к оплате:'}
                 </span>
                 <span style={{ fontSize: '24px', fontWeight: '800', color: 'var(--accent-gold)' }}>
-                  {(cartUI.wishlist_only_mode ? subtotal : grandTotal).toFixed(1)} {activeCurrency}
+                  {grandTotal.toFixed(1)} {activeCurrency}
                 </span>
               </div>
 

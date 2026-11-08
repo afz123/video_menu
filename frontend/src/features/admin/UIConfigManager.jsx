@@ -20,7 +20,7 @@ import {
   Trash2
 } from 'lucide-react';
 
-export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
+export const UIConfigManager = ({ restaurantSlug, initialConfig, serviceChargePercent, onSaved }) => {
   const [config, setConfig] = useState(() => {
     const base = {};
     const allSections = new Set([
@@ -126,6 +126,8 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
     }
   };
 
+  const currentSvcPercent = serviceChargePercent ?? 10;
+
   const SECTIONS = [
     {
       id: 'admin_tabs',
@@ -217,11 +219,19 @@ export const UIConfigManager = ({ restaurantSlug, initialConfig, onSaved }) => {
         { key: 'wishlist_only_mode', label: 'Режим «Список блюд / Блокнот»', desc: 'Корзина работает как список желаний гостя без фиксации чека и отправки на кухню' },
         { key: 'allow_self_ordering', label: 'Кнопка «Отправить заказ на кухню»', desc: 'Прямая отправка заказа в зал/цех' },
         { key: 'show_waiter_screen_btn', label: 'Кнопка «Показать официанту»', desc: 'Полноэкранный режим показа экрана при личном заказе' },
-        { key: 'show_service_charge', label: 'Строка «Обслуживание (10%)»', desc: 'Отображение сервисного сбора в чеке' },
+        { 
+          key: 'show_service_charge', 
+          label: `Сервисный сбор за обслуживание (${currentSvcPercent}%)`, 
+          desc: `Обязательный сбор заведения в чеке гостя (настраивается в «Настройки заведения»). При выключении — сбор не начисляется.` 
+        },
+        { 
+          key: 'show_tip_tiers', 
+          label: 'Добровольные чаевые официанту (10%, 15%, 20%)', 
+          desc: 'Кнопки быстрой благодарности персоналу по желанию гостя в корзине' 
+        },
         { key: 'show_live_status_tracker', label: 'Живой трекер статуса заказа', desc: 'Индикатор: Принят -> Готовится -> Подача' },
         { key: 'show_split_bill', label: 'Калькулятор разделения счета (Split-Bill)', desc: 'Разделение суммы между гостями на 1–6 персон' },
         { key: 'show_smart_item_split', label: 'Умный расчет «Кто что ел + Общий стол»', desc: 'Позволяет отметить личные блюда и разделить общие позиции' },
-        { key: 'show_tip_tiers', label: 'Шкала чаевых официанту (10%, 15%, 20%)', desc: 'Быстрые кнопки чаевых команде зала' }
       ]
     },
     {

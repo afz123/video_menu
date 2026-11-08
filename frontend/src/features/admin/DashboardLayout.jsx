@@ -875,6 +875,7 @@ export const DashboardLayout = ({ defaultSlug = 'asr-royale' } = {}) => {
         <UIConfigManager
           restaurantSlug={selectedSlug}
           initialConfig={restaurant?.ui_config || restaurant?.theme?.ui_config}
+          serviceChargePercent={restaurant?.service_charge_percent}
           onSaved={loadMenu}
         />
       )}
