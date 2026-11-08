@@ -3,12 +3,13 @@ import { VideoPlayer } from '../../components/video/VideoPlayer';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { useLanguage } from '../../context/LanguageContext';
 import { useUI } from '../../context/UIConfigContext';
-import { Info, Sparkles, AlertCircle, ChevronUp, ChevronDown, Plus, Wine, Volume2, VolumeX } from 'lucide-react';
+import { Sparkles, Plus, Volume2, VolumeX, Info } from 'lucide-react';
+import { DishDetailModal } from './DishDetailModal';
 
 export const DishSlide = ({ 
   dish, 
   isCurrent, 
-  shouldMountMedia = true,
+  shouldMountMedia = true, 
   isSoundEnabled, 
   onToggleSound, 
   categoryName, 
@@ -19,32 +20,20 @@ export const DishSlide = ({
   const { t } = useLanguage();
   const ui = useUI();
   const card = ui?.dish_card || {};
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
-  const toggleDetails = () => {
-    if (card.show_details_toggle === false) return;
-    const next = !isDetailsOpen;
-    setIsDetailsOpen(next);
-    if (onDetailsToggle) onDetailsToggle(next);
+  const openDetails = () => {
+    setIsDetailModalOpen(true);
+    if (onDetailsToggle) onDetailsToggle(true);
+  };
+
+  const closeDetails = () => {
+    setIsDetailModalOpen(false);
+    if (onDetailsToggle) onDetailsToggle(false);
   };
 
   const name = t(dish.name);
-  const rawDesc = t(dish.description);
-
-  let shortDesc = '';
-  let ingredients = '';
-  let serving = '';
-
-  if (typeof rawDesc === 'string') {
-    shortDesc = rawDesc;
-  } else if (rawDesc && typeof rawDesc === 'object') {
-    shortDesc = rawDesc.description || rawDesc.text || '';
-    ingredients = rawDesc.ingredients || '';
-    serving = rawDesc.serving || '';
-  }
-
   const badges = dish.badges || [];
-  const pairings = dish.pairings || [];
   const hasModifiers = dish.modifiers && dish.modifiers.length > 0;
 
   return (
@@ -81,30 +70,31 @@ export const DishSlide = ({
           bottom: 0,
           left: 0,
           right: 0,
-          height: '55%',
-          background: 'linear-gradient(to top, rgba(9, 9, 11, 0.96) 0%, rgba(9, 9, 11, 0.65) 50%, transparent 100%)',
+          height: '45%',
+          background: 'linear-gradient(to top, rgba(9, 9, 11, 0.95) 0%, rgba(9, 9, 11, 0.5) 50%, transparent 100%)',
           pointerEvents: 'none',
           zIndex: 15
         }}
       />
 
+      {/* Compact Instagram Reels overlay */}
       <div
         style={{
           position: 'absolute',
           bottom: 'calc(65px + env(safe-area-inset-bottom))',
-          left: '14px',
-          right: '14px',
+          left: '12px',
+          right: '12px',
           zIndex: 20
         }}
       >
-        {/* Row above description card: Dish Badges & Sound ASMR Toggle */}
+        {/* Row above card: Badges & Sound Toggle */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: '8px',
-            marginBottom: '8px',
+            marginBottom: '6px',
             pointerEvents: 'auto'
           }}
         >
@@ -131,9 +121,9 @@ export const DishSlide = ({
                   boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5)',
                   backdropFilter: 'blur(10px)',
                   WebkitBackdropFilter: 'blur(10px)',
-                  padding: '4px 10px',
-                  borderRadius: '16px',
-                  fontSize: '11px',
+                  padding: '3px 8px',
+                  borderRadius: '14px',
+                  fontSize: '10px',
                   fontWeight: '700',
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase'
@@ -156,8 +146,8 @@ export const DishSlide = ({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '5px',
-                padding: '5px 11px',
-                borderRadius: '16px',
+                padding: '4px 10px',
+                borderRadius: '14px',
                 fontSize: '11px',
                 fontWeight: '600',
                 background: isSoundEnabled
@@ -177,243 +167,118 @@ export const DishSlide = ({
               }}
               title={isSoundEnabled ? 'Выключить звук блюда' : 'Включить ASMR звук'}
             >
-              {isSoundEnabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
+              {isSoundEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
               <span>{isSoundEnabled ? 'Звук ВКЛ' : 'Звук'}</span>
             </button>
           )}
         </div>
+
+        {/* Minimalist Instagram-like Glass Card */}
         <GlassCard
-          onClick={card.show_details_toggle !== false ? toggleDetails : undefined}
+          onClick={openDetails}
           style={{
-            cursor: card.show_details_toggle !== false ? 'pointer' : 'default',
-            padding: '16px 18px',
-            backgroundColor: 'rgba(15, 15, 20, 0.82)',
-            border: '1px solid rgba(212, 175, 55, 0.3)',
-            boxShadow: '0 12px 36px rgba(0, 0, 0, 0.75)'
+            cursor: 'pointer',
+            padding: '12px 14px',
+            backgroundColor: 'rgba(15, 15, 20, 0.78)',
+            border: '1px solid rgba(212, 175, 55, 0.28)',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.65)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px'
           }}
         >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              marginBottom: '8px',
-              gap: '12px'
-            }}
-          >
-            <div>
-              {dish.is_featured && card.show_badges !== false && (
-                <div
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '11px',
-                    color: 'var(--accent-gold)',
-                    fontWeight: '700',
-                    letterSpacing: '0.08em',
-                    textTransform: 'uppercase',
-                    marginBottom: '3px'
-                  }}
-                >
-                  <Sparkles size={12} />
-                  <span>Шедевр Шефа</span>
-                </div>
-              )}
-              <h2
-                style={{
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: '24px',
-                  lineHeight: '1.15',
-                  fontWeight: '600',
-                  color: 'var(--text-main)',
-                  letterSpacing: '0.01em',
-                  margin: 0
-                }}
-              >
-                {name}
-              </h2>
-            </div>
-
-            {card.show_price !== false && (
+          {/* Left side: Dish Name, Weight & tap hint */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {dish.is_featured && card.show_badges !== false && (
               <div
                 style={{
-                  textAlign: 'right',
-                  flexShrink: 0
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  fontSize: '10px',
+                  color: 'var(--accent-gold)',
+                  fontWeight: '700',
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  marginBottom: '2px'
                 }}
               >
-                <div
-                  style={{
-                    fontSize: '22px',
-                    fontWeight: '700',
-                    color: 'var(--accent-gold)',
-                    fontFamily: 'var(--font-sans)',
-                    letterSpacing: '0.02em'
-                  }}
-                >
-                  {dish.price} <span style={{ fontSize: '15px' }}>{dish.currency}</span>
-                </div>
+                <Sparkles size={11} />
+                <span>Шедевр Шефа</span>
               </div>
             )}
-          </div>
-
-          {card.show_short_description !== false && shortDesc && (
-            <p
-              className={isDetailsOpen ? '' : 'line-clamp-2'}
+            <h2
               style={{
-                fontSize: '13px',
-                lineHeight: '1.45',
-                color: 'rgba(244, 244, 246, 0.88)',
-                marginBottom: '10px',
-                fontWeight: '400',
-                margin: '0 0 10px 0'
+                fontFamily: 'var(--font-serif)',
+                fontSize: '19px',
+                lineHeight: '1.2',
+                fontWeight: '600',
+                color: 'var(--text-main)',
+                letterSpacing: '0.01em',
+                margin: 0,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
               }}
+              title={name}
             >
-              {shortDesc}
-            </p>
-          )}
+              {name}
+            </h2>
 
-          {card.show_sommelier_pairing !== false && pairings.length > 0 && (pairings[0]?.text || pairings[0]?.name || typeof pairings[0] === 'string') && (
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
                 gap: '8px',
-                backgroundColor: 'rgba(212, 175, 55, 0.12)',
-                border: '1px solid rgba(212, 175, 55, 0.35)',
-                borderRadius: '12px',
-                padding: '8px 12px',
-                marginBottom: '10px'
+                marginTop: '4px',
+                fontSize: '11px',
+                color: 'var(--text-muted)'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--accent-gold)', overflow: 'hidden' }}>
-                <Wine size={16} style={{ flexShrink: 0 }} />
-                <span style={{ lineHeight: '1.3', fontWeight: '500' }}>
-                  {pairings[0].text || pairings[0].name || (typeof pairings[0] === 'string' ? pairings[0] : '')}
-                </span>
-              </div>
-              {card.show_add_to_cart_btn !== false && !ui?.cart?.wishlist_only_mode && onAddPairingToCart && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onAddPairingToCart) {
-                      onAddPairingToCart(pairings[0], dish);
-                    }
-                  }}
-                  style={{
-                    background: 'var(--accent-gold-gradient)',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#09090b',
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    padding: '5px 10px',
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '3px',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                    transition: 'transform 0.15s ease'
-                  }}
-                  onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
-                  onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                >
-                  <Plus size={12} strokeWidth={3} />
-                  <span>В заказ</span>
-                </button>
-              )}
-            </div>
-          )}
-
-          {isDetailsOpen && (
-            <div
-              className="animate-fade-in"
-              style={{
-                borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-                paddingTop: '12px',
-                marginTop: '6px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '10px',
-                fontSize: '13px'
-              }}
-            >
-              {card.show_ingredients !== false && ingredients && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                  <span style={{ color: 'var(--accent-gold)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    🌿 Состав и ингредиенты:
-                  </span>
-                  <span style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: '1.45' }}>
-                    {ingredients}
-                  </span>
-                </div>
-              )}
-
-              {card.show_serving_details !== false && serving && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                  <span style={{ color: 'var(--accent-gold)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    🍽️ Особенности подачи:
-                  </span>
-                  <span style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: '1.45' }}>
-                    {serving}
-                  </span>
-                </div>
-              )}
-
-              {card.show_calories !== false && dish.calories && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
-                  <span>Энергетическая ценность:</span>
-                  <span style={{ color: 'var(--text-main)', fontWeight: '600' }}>{dish.calories}</span>
-                </div>
-              )}
-
-              {card.show_allergens !== false && dish.allergens && dish.allergens.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b' }}>
-                  <AlertCircle size={14} />
-                  <span>Аллергены: {dish.allergens.join(', ')}</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              fontSize: '12px',
-              color: 'var(--text-muted)',
-              paddingTop: '6px',
-              borderTop: isDetailsOpen ? '1px solid rgba(255,255,255,0.06)' : 'none'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               {card.show_weight !== false && dish.weight && (
                 <span>{dish.weight}</span>
               )}
-              {card.show_details_toggle !== false && (
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleDetails();
-                  }}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '3px',
-                    color: 'var(--accent-gold)',
-                    fontSize: '11px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <span>{isDetailsOpen ? 'Скрыть' : 'Подробнее'}</span>
-                  {isDetailsOpen ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
-                </span>
+              {card.show_weight !== false && dish.weight && (
+                <span>•</span>
               )}
+              <span
+                style={{
+                  color: 'var(--accent-gold)',
+                  fontWeight: '500',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '2px'
+                }}
+              >
+                Подробнее...
+              </span>
             </div>
+          </div>
+
+          {/* Right side: Price & Add to Cart button */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              flexShrink: 0
+            }}
+          >
+            {card.show_price !== false && (
+              <div
+                style={{
+                  fontSize: '18px',
+                  fontWeight: '700',
+                  color: 'var(--accent-gold)',
+                  fontFamily: 'var(--font-sans)',
+                  letterSpacing: '0.02em',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {dish.price} <span style={{ fontSize: '13px' }}>{dish.currency}</span>
+              </div>
+            )}
 
             {card.show_add_to_cart_btn !== false && onAddToCart && (
               <button
@@ -426,25 +291,38 @@ export const DishSlide = ({
                   backgroundColor: 'var(--accent-gold)',
                   border: 'none',
                   borderRadius: '10px',
-                  padding: '7px 14px',
+                  padding: '8px 12px',
                   color: '#09090b',
                   fontWeight: '700',
                   fontSize: '12px',
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '5px',
+                  gap: '4px',
                   boxShadow: '0 2px 10px rgba(212, 175, 55, 0.35)',
-                  transition: 'transform 0.15s ease'
+                  transition: 'transform 0.15s ease',
+                  whiteSpace: 'nowrap'
                 }}
+                onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
+                onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
               >
                 <Plus size={14} strokeWidth={3} />
-                <span>{hasModifiers ? 'Настроить & В заказ' : 'В заказ'}</span>
+                <span>{hasModifiers ? 'В заказ' : 'В заказ'}</span>
               </button>
             )}
           </div>
         </GlassCard>
       </div>
+
+      {/* Full details Instagram-style bottom sheet when clicked */}
+      {isDetailModalOpen && (
+        <DishDetailModal
+          dish={dish}
+          onClose={closeDetails}
+          onAddToCart={onAddToCart}
+          onAddPairingToCart={onAddPairingToCart}
+        />
+      )}
     </div>
   );
 };
