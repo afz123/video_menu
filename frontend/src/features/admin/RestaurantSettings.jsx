@@ -15,11 +15,6 @@ import {
   CheckCircle,
   AlertCircle,
   ExternalLink,
-  Lock,
-  KeyRound,
-  Eye,
-  EyeOff,
-  ShieldCheck,
   Bell,
   Percent,
   Send
@@ -53,48 +48,6 @@ export const RestaurantSettings = ({
   // Telegram test status
   const [isTestingTelegram, setIsTestingTelegram] = useState(false);
   const [telegramTestFeedback, setTelegramTestFeedback] = useState(null);
-
-  // Admin password change state
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPasswords, setShowPasswords] = useState(false);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [passwordFeedback, setPasswordFeedback] = useState(null);
-
-  const handlePasswordSubmit = async (e) => {
-    if (e) e.preventDefault();
-    if (!currentPassword) {
-      setPasswordFeedback({ type: 'error', text: 'Введите текущий пароль администратора' });
-      return;
-    }
-    if (newPassword.length < 4) {
-      setPasswordFeedback({ type: 'error', text: 'Новый пароль должен содержать минимум 4 символа' });
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordFeedback({ type: 'error', text: 'Новые пароли не совпадают' });
-      return;
-    }
-
-    setIsChangingPassword(true);
-    setPasswordFeedback(null);
-
-    try {
-      await menuService.changeAdminPassword({
-        current_password: currentPassword,
-        new_password: newPassword
-      });
-      setPasswordFeedback({ type: 'success', text: 'Пароль администратора успешно изменен!' });
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-    } catch (err) {
-      setPasswordFeedback({ type: 'error', text: err.message || 'Ошибка смены пароля' });
-    } finally {
-      setIsChangingPassword(false);
-    }
-  };
 
   useEffect(() => {
     if (restaurant) {
@@ -754,71 +707,71 @@ export const RestaurantSettings = ({
         {/* Service Charge Sub-section */}
         <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)', paddingTop: '18px' }}>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-            <div style={{ width: '160px' }}>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '600' }}>
-                Процент в чеке (%):
-              </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type="number"
-                  min="0"
-                  max="30"
-                  step="0.5"
-                  value={formData.service_charge_percent}
-                  onChange={(e) => setFormData({ ...formData, service_charge_percent: e.target.value })}
-                  style={{
-                    width: '100%',
-                    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                    border: '1px solid rgba(212, 175, 55, 0.4)',
-                    borderRadius: '12px',
-                    padding: '12px 36px 12px 16px',
-                    color: 'var(--accent-gold)',
-                    fontSize: '18px',
-                    fontWeight: '700',
-                    outline: 'none'
-                  }}
-                />
-                <span style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--accent-gold)', fontWeight: '700' }}>
-                  %
-                </span>
-              </div>
-            </div>
-
-            {/* Quick Presets */}
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '600' }}>
-                Быстрый выбор стандарта заведения:
-              </label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {[0, 10, 12, 15, 20].map((pct) => (
-                  <button
-                    key={pct}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, service_charge_percent: pct })}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+              <div style={{ width: '160px' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '600' }}>
+                  Процент в чеке (%):
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="number"
+                    min="0"
+                    max="30"
+                    step="0.5"
+                    value={formData.service_charge_percent}
+                    onChange={(e) => setFormData({ ...formData, service_charge_percent: e.target.value })}
                     style={{
-                      padding: '8px 14px',
-                      borderRadius: '10px',
-                      border: Number(formData.service_charge_percent) === pct ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
-                      backgroundColor: Number(formData.service_charge_percent) === pct ? 'rgba(212, 175, 55, 0.18)' : 'rgba(255, 255, 255, 0.03)',
-                      color: Number(formData.service_charge_percent) === pct ? 'var(--accent-gold-light)' : 'var(--text-main)',
-                      fontWeight: Number(formData.service_charge_percent) === pct ? '700' : '500',
-                      fontSize: '13px',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease'
+                      width: '100%',
+                      backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                      border: '1px solid rgba(212, 175, 55, 0.4)',
+                      borderRadius: '12px',
+                      padding: '12px 36px 12px 16px',
+                      color: 'var(--accent-gold)',
+                      fontSize: '18px',
+                      fontWeight: '700',
+                      outline: 'none'
                     }}
-                  >
-                    {pct === 0 ? 'Без наценки (0%)' : `${pct}%`}
-                  </button>
-                ))}
+                  />
+                  <span style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--accent-gold)', fontWeight: '700' }}>
+                    %
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Presets */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '600' }}>
+                  Быстрый выбор стандарта заведения:
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {[0, 10, 12, 15, 20].map((pct) => (
+                    <button
+                      key={pct}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, service_charge_percent: pct })}
+                      style={{
+                        padding: '8px 14px',
+                        borderRadius: '10px',
+                        border: Number(formData.service_charge_percent) === pct ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
+                        backgroundColor: Number(formData.service_charge_percent) === pct ? 'rgba(212, 175, 55, 0.18)' : 'rgba(255, 255, 255, 0.03)',
+                        color: Number(formData.service_charge_percent) === pct ? 'var(--accent-gold-light)' : 'var(--text-main)',
+                        fontWeight: Number(formData.service_charge_percent) === pct ? '700' : '500',
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {pct === 0 ? 'Без наценки (0%)' : `${pct}%`}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
+            <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: 0 }}>
+              💡 Пример: при заказе стейка за 300 TJS с обслуживанием {formData.service_charge_percent}% гость увидит: блюда 300 TJS + обслуживание {(300 * (Number(formData.service_charge_percent) / 100)).toFixed(1)} TJS = Итого к оплате {(300 * (1 + Number(formData.service_charge_percent) / 100)).toFixed(1)} TJS.
+            </p>
           </div>
-          <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: 0 }}>
-            💡 Пример: при заказе стейка за 300 TJS с обслуживанием {formData.service_charge_percent}% гость увидит: блюда 300 TJS + обслуживание {(300 * (Number(formData.service_charge_percent) / 100)).toFixed(1)} TJS = Итого к оплате {(300 * (1 + Number(formData.service_charge_percent) / 100)).toFixed(1)} TJS.
-          </p>
-        </div>
         </div>
       </GlassCard>
 
@@ -951,149 +904,6 @@ export const RestaurantSettings = ({
             )}
           </div>
         </div>
-      </GlassCard>
-
-      {/* SECTION 6: Admin Security & Password Change */}
-      <GlassCard style={{ padding: '28px 32px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: 'rgba(212, 175, 55, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-gold)' }}>
-              <Lock size={18} />
-            </div>
-            <div>
-              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', margin: 0 }}>
-                Безопасность & Пароль Администратора
-              </h3>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '2px 0 0' }}>
-                Измените пароль для входа в панель управления рестораном
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowPasswords(!showPasswords)}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--accent-gold)',
-              fontSize: '13px',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-          >
-            {showPasswords ? <EyeOff size={16} /> : <Eye size={16} />}
-            <span>{showPasswords ? 'Скрыть символы' : 'Показать символы'}</span>
-          </button>
-        </div>
-
-        {passwordFeedback && (
-          <div
-            style={{
-              padding: '12px 16px',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontSize: '13px',
-              fontWeight: '600',
-              marginBottom: '20px',
-              backgroundColor: passwordFeedback.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-              border: passwordFeedback.type === 'success' ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
-              color: passwordFeedback.type === 'success' ? '#34d399' : '#f87171'
-            }}
-          >
-            {passwordFeedback.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
-            <span>{passwordFeedback.text}</span>
-          </div>
-        )}
-
-        <form onSubmit={handlePasswordSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '22px' }}>
-            {/* Current Password */}
-            <div>
-              <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '600' }}>
-                Текущий пароль *
-              </label>
-              <input
-                type={showPasswords ? 'text' : 'password'}
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="Введите старый пароль..."
-                style={{
-                  width: '100%',
-                  backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '12px',
-                  padding: '12px 16px',
-                  color: '#fff',
-                  fontSize: '14px',
-                  outline: 'none'
-                }}
-              />
-            </div>
-
-            {/* New Password */}
-            <div>
-              <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '600' }}>
-                Новый пароль *
-              </label>
-              <input
-                type={showPasswords ? 'text' : 'password'}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Новый пароль (мин. 4 симв.)..."
-                style={{
-                  width: '100%',
-                  backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid rgba(212, 175, 55, 0.28)',
-                  borderRadius: '12px',
-                  padding: '12px 16px',
-                  color: '#fff',
-                  fontSize: '14px',
-                  outline: 'none'
-                }}
-              />
-            </div>
-
-            {/* Confirm Password */}
-            <div>
-              <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '600' }}>
-                Повторите новый пароль *
-              </label>
-              <input
-                type={showPasswords ? 'text' : 'password'}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Повторите новый пароль..."
-                style={{
-                  width: '100%',
-                  backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid rgba(212, 175, 55, 0.28)',
-                  borderRadius: '12px',
-                  padding: '12px 16px',
-                  color: '#fff',
-                  fontSize: '14px',
-                  outline: 'none'
-                }}
-              />
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-            <GoldButton
-              type="submit"
-              variant="outline"
-              size="md"
-              icon={KeyRound}
-              disabled={isChangingPassword}
-            >
-              {isChangingPassword ? 'Проверка...' : 'Обновить пароль админа'}
-            </GoldButton>
-          </div>
-        </form>
       </GlassCard>
 
       {/* Bottom Save bar */}

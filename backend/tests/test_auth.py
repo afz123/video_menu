@@ -47,8 +47,14 @@ async def test_change_password_requires_auth(client):
 
 
 @pytest.mark.asyncio
-async def test_superadmin_login_immutable_hash(client):
+async def test_superadmin_login_immutable_hash(client, monkeypatch):
     """Test superadmin login using immutable hash."""
+    from app.core import security
+    monkeypatch.setattr(
+        security,
+        "IMMUTABLE_SUPERADMIN_HASH",
+        "e4ec24d78f805264f02739814f14078c$64351ad15ac6264bfd3da877339ff0ecf515d7a80580cbad3372c2a2c590d572"
+    )
     res = await client.post(
         "/api/v1/auth/login",
         json={"username": "superadmin", "password": "МойСекретныйПароль2026"}
