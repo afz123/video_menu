@@ -53,20 +53,28 @@ class ChangePasswordRequest(BaseModel):
     restaurant_slug: Optional[str] = None
 
 
-def get_current_admin_password() -> str:
-    """Returns default master admin password fallback from environment."""
-    return os.getenv("ADMIN_PASSWORD", "admin123")
-
-
 @router.post("/login", response_model=LoginResponse)
 async def admin_login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     pwd = data.password.strip()
     username = data.username.strip() if data.username else None
 
-    # Если логин указан — проверяем Супер-Админа напрямую из зашитого ядра (БД игнорируется)
+    # Если логин указан — проверяем Супер-Админа напрямую из зашитого ядра
     if username == "superadmin":
         from app.core.security import IMMUTABLE_SUPERADMIN_HASH
         if await verify_password_async(pwd, IMMUTABLE_SUPERADMIN_HASH):
+            token = create_admin_token(role="superadmin", permissions=["*"])
+            return LoginResponse(
+                status="success",
+                token=token,
+                role="superadmin",
+                message="Авторизация успешна (Владелец сети / SuperAdmin)"
+            )
+        # Также проверяем супер-админа в базе данных
+        u_res = await db.execute(
+            select(AdminUser).where(AdminUser.username == username, AdminUser.is_active == True)
+        )
+        user = u_res.scalars().first()
+        if user and user.password_hash and (await verify_password_async(pwd, user.password_hash)):
             token = create_admin_token(role="superadmin", permissions=["*"])
             return LoginResponse(
                 status="success",
@@ -100,19 +108,9 @@ async def admin_login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
                 message=f"Авторизация успешна ({user.username} • {role_title})"
             )
 
-        # Резервный случай для супер-админа если пользователь ввёл username="admin" или "superadmin"
-        if username in ("superadmin", "admin") and (pwd == get_current_admin_password()):
-            token = create_admin_token(role="superadmin", permissions=["*"])
-            return LoginResponse(
-                status="success",
-                token=token,
-                role="superadmin",
-                message="Авторизация успешна (Владелец сети / SuperAdmin)"
-            )
-
         raise HTTPException(status_code=401, detail="Неверный логин или пароль")
 
-    # Фоллбэк без логина (для обратной совместимости / тестов)
+    # Фоллбэк без логина (для обратной совместимости)
     # 1. Проверка мастер-пользователя (SuperAdmin) в PostgreSQL
     superadmin_res = await db.execute(
         select(AdminUser).where(AdminUser.role == "superadmin", AdminUser.is_active == True)
@@ -127,17 +125,6 @@ async def admin_login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
                 role="superadmin",
                 message="Авторизация успешна (Владелец сети / SuperAdmin)"
             )
-
-    # Фоллбэк на env пароль
-    master_pwd = get_current_admin_password()
-    if pwd == master_pwd:
-        token = create_admin_token(role="superadmin", permissions=["*"])
-        return LoginResponse(
-            status="success",
-            token=token,
-            role="superadmin",
-            message="Авторизация успешна (Владелец сети / SuperAdmin)"
-        )
 
     # 2. Проверка доступа управляющего (Manager) для конкретного заведения
     if data.slug:

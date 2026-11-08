@@ -1,14 +1,12 @@
 import pytest
-from app.api.v1.auth import get_current_admin_password
 
 
 @pytest.mark.asyncio
 async def test_admin_login_success_and_verify(client):
-    """Test login with valid admin password returns token, and verify recognizes it."""
-    curr_pwd = get_current_admin_password()
+    """Test login with valid superadmin credentials returns token, and verify recognizes it."""
     login_res = await client.post(
         "/api/v1/auth/login",
-        json={"password": curr_pwd, "slug": "asr-royale"}
+        json={"username": "superadmin", "password": "admin123"}
     )
     assert login_res.status_code == 200
     data = login_res.json()
