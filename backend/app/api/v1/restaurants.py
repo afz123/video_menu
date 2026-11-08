@@ -185,12 +185,10 @@ async def update_restaurant(
         flag_modified(restaurant, "theme_config")
 
     # Коммерческие модули разрешено переключать ТОЛЬКО владельцу платформы (superadmin)
+    admin_role = getattr(current_admin, "role", "manager")
     if "enabled_modules" in update_dict:
-        admin_role = getattr(current_admin, "role", "manager")
-        if admin_role == "superadmin":
-            flag_modified(restaurant, "enabled_modules")
-        else:
-            update_dict.pop("enabled_modules")
+        if admin_role != "superadmin":
+            update_dict.pop("enabled_modules", None)
             logger.warning(
                 f"IDOR SECURITY: Manager of restaurant {restaurant.id} "
                 f"attempted unauthorized mutation of enabled_modules!"
@@ -198,6 +196,9 @@ async def update_restaurant(
 
     for key, value in update_dict.items():
         setattr(restaurant, key, value)
+
+    if admin_role == "superadmin" and "enabled_modules" in update_dict:
+        flag_modified(restaurant, "enabled_modules")
 
     if "call_types_enabled" in update_dict:
         flag_modified(restaurant, "call_types_enabled")
@@ -446,9 +447,9 @@ async def create_service_request(
 
     normalized_table = data.table_number.strip()
 
-    # Anti-spoofing table signature verification: strictly enforced unless kiosk internal request
+    # Anti-spoofing table signature verification: enforce when configured or when token is passed
     is_kiosk_request = bool(data.guest_session_id and data.guest_session_id.startswith("kiosk_internal_"))
-    if not is_kiosk_request:
+    if not is_kiosk_request and (settings.ENFORCE_TABLE_SIGNATURE or data.table_token):
         if not data.table_token or not verify_table_signature(restaurant.id, normalized_table, data.table_token):
             logger.warning(
                 f"SECURITY ALERT: Spoofing attempt blocked for restaurant {restaurant.id}, "

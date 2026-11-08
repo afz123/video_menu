@@ -23,7 +23,7 @@ export const BookingModal = ({ restaurantSlug, restaurantName, currency = 'TJS',
 
   const defaultDialCode = {
     RUB: '+7 ', KZT: '+7 ', UZS: '+998 ', AED: '+971 ', USD: '+1 ', EUR: '+49 ', TJS: '+992 '
-  }[currency] || '+992 ';
+  }[String(currency || 'TJS').toUpperCase()] || '+992 ';
   
   // Контакты с динамическим кодом страны
   const [name, setName] = useState('');

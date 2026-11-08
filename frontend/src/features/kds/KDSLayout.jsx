@@ -26,7 +26,10 @@ export const KDSLayout = ({ restaurantSlug = 'asr-royale' }) => {
   // Синхронизация при обновлении конфигурации кухни
   useEffect(() => {
     setIsSoundOn(kdsUI.sound_alerts_enabled !== false);
-  }, [kdsUI.sound_alerts_enabled]);
+    if (kdsUI.alert_critical_delay_minutes) {
+      setAlertCriticalMinutes(Number(kdsUI.alert_critical_delay_minutes));
+    }
+  }, [kdsUI.sound_alerts_enabled, kdsUI.alert_critical_delay_minutes]);
 
   const audioContextRef = useRef(null);
   const prevOrderCountRef = useRef(0);

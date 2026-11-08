@@ -4,12 +4,50 @@ import { GoldButton } from '../../components/ui/GoldButton';
 import { menuService } from '../../services/menuService';
 import { Check, ShieldCheck, Zap, Lock, Sparkles, CheckCircle2 } from 'lucide-react';
 
+// 1. ПАКЕТНЫЕ ТАРИФЫ СО СКИДКОЙ
+const BUNDLE_TIERS = [
+  {
+    id: 'tier_start',
+    name: '🥉 Старт (Витрина)',
+    price: 2000,
+    priceStr: '2 000 сомони/мес',
+    originalPriceStr: null,
+    badge: 'Базовый',
+    badgeColor: '#94a3b8',
+    modules: ['menu'],
+    desc: 'Цифровое Reels-видеоменю, QR-коды для столов, ASMR-звук, 3 языка и стоп-лист.'
+  },
+  {
+    id: 'tier_business',
+    name: '🥈 Бизнес & Зал',
+    price: 3000,
+    priceStr: '3 000 сомони/мес',
+    originalPriceStr: '3 500 сомони',
+    badge: 'Хит продаж',
+    badgeColor: 'var(--accent-gold)',
+    modules: ['menu', 'ordering', 'service_dispatch', 'guest_finance'],
+    desc: 'Меню + заказы гостя по курсам (1, 2, 3) + вызовы официанта в Telegram + умный сплит-чек и чаевые.'
+  },
+  {
+    id: 'tier_premium',
+    name: '🥇 Премиум Всё Включено',
+    price: 4200,
+    priceStr: '4 200 сомони/мес',
+    originalPriceStr: '5 000 сомони',
+    badge: 'Максимальная выгода (-800 смн)',
+    badgeColor: '#10b981',
+    modules: ['menu', 'ordering', 'service_dispatch', 'guest_finance', 'reservations', 'kiosk', 'kds'],
+    desc: 'Полный комплекс: Зал + 3D-бронирование столов + Уличный Киоск + Кухонный монитор шефа (KDS).'
+  }
+];
+
+// 2. ПОШТУЧНАЯ СЕТКА МОДУЛЕЙ (2000 смн база + 500 смн за каждый доп)
 const PACKAGES = [
   {
     id: 'menu',
     name: '1. Core Digital Video Menu',
-    price: 29,
-    priceStr: '$29/мес',
+    price: 2000,
+    priceStr: '2 000 смн/мес',
     badge: 'Ядро системы',
     desc: 'Вертикальная видеолента Reels, ASMR-звук, постеры WebP, мультиязычность (RU/EN/TJ), стоп-лист в 1 клик.',
     required: true
@@ -17,48 +55,48 @@ const PACKAGES = [
   {
     id: 'ordering',
     name: '2. Smart Ordering & Courses',
-    price: 20,
-    priceStr: '+$20/мес',
+    price: 500,
+    priceStr: '+500 смн/мес',
     badge: 'Заказы & Курсы',
     desc: 'Корзина гостя, выбор курсов подачи (Курс 1, 2, 3), модификаторы (прожарка, соусы), отправка чека в зал.'
   },
   {
     id: 'service_dispatch',
     name: '3. Staff Dispatcher & Telegram',
-    price: 25,
-    priceStr: '+$25/мес',
+    price: 500,
+    priceStr: '+500 смн/мес',
     badge: 'Сервис залов',
     desc: 'Вызов официанта, сомелье, кальянщика, управляющего, запрос счета (карта/наличные), Telegram-бот для смены.'
   },
   {
     id: 'guest_finance',
     name: '4. Split-Bill & Tips Fintech',
-    price: 15,
-    priceStr: '+$15/мес',
+    price: 500,
+    priceStr: '+500 смн/мес',
     badge: 'Fintech & Чаевые',
     desc: 'Калькулятор сплита счета на 1–6 персон, попозиционный расчет «Кто что ел + общий стол», чаевые официантам.'
   },
   {
     id: 'reservations',
     name: '5. Spatial Booking & 3D Floor Plan',
-    price: 39,
-    priceStr: '+$39/мес',
+    price: 500,
+    priceStr: '+500 смн/мес',
     badge: 'Бронирование & Залы',
     desc: 'Онлайн-бронь столов, фото-карта зала с этажами (1F, 2F), шахматка для хостес, Pacing кухни, защита от овербукинга.'
   },
   {
     id: 'kiosk',
     name: '6. Outdoor Smart Kiosk Mode',
-    price: 49,
-    priceStr: '+$49/мес',
+    price: 500,
+    priceStr: '+500 смн/мес',
     badge: 'Уличная витрина',
     desc: 'Уличный сенсорный экран, рекламный Attract-режим, сброс ПДн по таймеру 45с, QR-мост на телефон гостя.'
   },
   {
     id: 'kds',
     name: '7. Kitchen Display System (KDS)',
-    price: 30,
-    priceStr: '+$30/мес',
+    price: 500,
+    priceStr: '+500 смн/мес',
     badge: 'Кухня & Повара',
     desc: 'Кухонный монитор раздачи поваров, тайминг готовки (SLA), звуковой гонг, пуш официанту «Блюдо готово на раздаче».'
   }
@@ -86,7 +124,30 @@ export const LicenseModuleManager = ({ restaurant, onSaved }) => {
     setEnabledModules(['menu']);
   };
 
-  const totalMonthly = PACKAGES.filter((p) => enabledModules.includes(p.id)).reduce((acc, p) => acc + p.price, 0);
+  // Расчет стоимости с учетом пакетных скидок
+  const calculateTotal = () => {
+    const activeCount = enabledModules.length;
+    // Проверяем точное совпадение с пакетными тарифами
+    if (activeCount === 7) return 4200; // Пакет Премиум со скидкой
+    if (
+      activeCount === 4 &&
+      ['menu', 'ordering', 'service_dispatch', 'guest_finance'].every((m) => enabledModules.includes(m))
+    ) {
+      return 3000; // Пакет Бизнес со скидкой
+    }
+    if (activeCount === 1 && enabledModules.includes('menu')) {
+      return 2000; // Базовый
+    }
+    // Поштучный расчет (2000 база + по 500 за каждый включенный)
+    const extraCount = enabledModules.filter((m) => m !== 'menu').length;
+    return 2000 + extraCount * 500;
+  };
+
+  const totalMonthly = calculateTotal();
+
+  const handleApplyTier = (tierModules) => {
+    setEnabledModules(tierModules);
+  };
 
   const handleSave = async () => {
     if (!restaurant?.slug) return;
@@ -104,7 +165,7 @@ export const LicenseModuleManager = ({ restaurant, onSaved }) => {
               localStorage.removeItem(key);
             }
           });
-        } catch (_) {}
+        } catch (_) { }
       }
 
       setSuccess(true);
@@ -169,7 +230,8 @@ export const LicenseModuleManager = ({ restaurant, onSaved }) => {
               Тариф заведения
             </div>
             <div style={{ fontSize: '24px', fontWeight: '800', color: 'var(--accent-gold)', fontFamily: 'var(--font-sans)' }}>
-              ${totalMonthly} <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-muted)' }}>/ месяц</span>
+              {totalMonthly.toLocaleString()} <span style={{ fontSize: '14px', fontWeight: '600', color: '#fff' }}>сомони</span>
+              <span style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-muted)' }}> / месяц</span>
             </div>
           </div>
 
@@ -182,6 +244,82 @@ export const LicenseModuleManager = ({ restaurant, onSaved }) => {
           >
             {isSaving ? 'Сохранение...' : 'Сохранить тариф'}
           </GoldButton>
+        </div>
+      </div>
+
+      {/* 3 ПАКЕТНЫХ ТАРИФА ДЛЯ КЛИЕНТА */}
+      <div style={{ marginBottom: '28px' }}>
+        <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--accent-gold)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>
+          ✨ Выберите готовый пакет или настройте модули поштучно ниже:
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+          {BUNDLE_TIERS.map((tier) => {
+            const isTierActive =
+              tier.modules.length === enabledModules.length &&
+              tier.modules.every((m) => enabledModules.includes(m));
+
+            return (
+              <div
+                key={tier.id}
+                onClick={() => handleApplyTier(tier.modules)}
+                style={{
+                  backgroundColor: isTierActive ? 'rgba(212, 175, 55, 0.14)' : 'rgba(255, 255, 255, 0.03)',
+                  border: isTierActive ? '2px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '20px',
+                  padding: '20px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  boxShadow: isTierActive ? '0 8px 30px rgba(212, 175, 55, 0.25)' : 'none',
+                  transition: 'all 0.2s ease',
+                  position: 'relative'
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: '800', color: tier.badgeColor, backgroundColor: 'rgba(0,0,0,0.4)', padding: '2px 8px', borderRadius: '6px' }}>
+                      {tier.badge}
+                    </span>
+                    {tier.originalPriceStr && (
+                      <span style={{ fontSize: '12px', color: '#94a3b8', textDecoration: 'line-through' }}>
+                        {tier.originalPriceStr}
+                      </span>
+                    )}
+                  </div>
+
+                  <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#fff', margin: '4px 0 6px' }}>
+                    {tier.name}
+                  </h3>
+                  <div style={{ fontSize: '22px', fontWeight: '800', color: 'var(--accent-gold)', marginBottom: '10px' }}>
+                    {tier.priceStr}
+                  </div>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5', margin: 0 }}>
+                    {tier.desc}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  style={{
+                    marginTop: '16px',
+                    width: '100%',
+                    background: isTierActive ? 'var(--accent-gold-gradient)' : 'rgba(255,255,255,0.06)',
+                    color: isTierActive ? '#000' : '#fff',
+                    border: 'none',
+                    borderRadius: '10px',
+                    padding: '10px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {isTierActive ? '✓ Пакет активен' : 'Подключить этот пакет'}
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -227,7 +365,7 @@ export const LicenseModuleManager = ({ restaurant, onSaved }) => {
               cursor: 'pointer'
             }}
           >
-            Только базовое меню ($29)
+            Только базовое меню (2 000 смн)
           </button>
         </div>
 

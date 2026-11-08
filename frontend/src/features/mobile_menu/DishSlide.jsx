@@ -5,16 +5,16 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useUI } from '../../context/UIConfigContext';
 import { Info, Sparkles, AlertCircle, ChevronUp, ChevronDown, Plus, Wine, Volume2, VolumeX } from 'lucide-react';
 
-export const DishSlide = ({ 
-  dish, 
-  isCurrent, 
+export const DishSlide = ({
+  dish,
+  isCurrent,
   shouldMountMedia = true,
-  isSoundEnabled, 
-  onToggleSound, 
-  categoryName, 
-  onAddToCart, 
-  onAddPairingToCart, 
-  onDetailsToggle 
+  isSoundEnabled,
+  onToggleSound,
+  categoryName,
+  onAddToCart,
+  onAddPairingToCart,
+  onDetailsToggle
 }) => {
   const { t } = useLanguage();
   const ui = useUI();
@@ -124,8 +124,8 @@ export const DishSlide = ({
                   background: badge.includes('Шеф') || badge.includes('Хит')
                     ? 'var(--accent-gold-gradient)'
                     : badge.includes('Острое')
-                    ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)'
-                    : 'rgba(15, 15, 20, 0.85)',
+                      ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)'
+                      : 'rgba(15, 15, 20, 0.85)',
                   color: badge.includes('Шеф') || badge.includes('Хит') ? '#09090b' : '#fff',
                   border: badge.includes('Шеф') || badge.includes('Хит') ? 'none' : '1px solid rgba(255, 255, 255, 0.25)',
                   boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5)',
@@ -273,7 +273,7 @@ export const DishSlide = ({
             </p>
           )}
 
-          {card.show_sommelier_pairing !== false && pairings.length > 0 && pairings[0]?.text && (
+          {card.show_sommelier_pairing !== false && pairings.length > 0 && (pairings[0]?.text || pairings[0]?.name || typeof pairings[0] === 'string') && (
             <div
               style={{
                 display: 'flex',
@@ -289,7 +289,9 @@ export const DishSlide = ({
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--accent-gold)', overflow: 'hidden' }}>
                 <Wine size={16} style={{ flexShrink: 0 }} />
-                <span style={{ lineHeight: '1.3', fontWeight: '500' }}>{pairings[0].text}</span>
+                <span style={{ lineHeight: '1.3', fontWeight: '500' }}>
+                  {pairings[0].text || pairings[0].name || (typeof pairings[0] === 'string' ? pairings[0] : '')}
+                </span>
               </div>
               {card.show_add_to_cart_btn !== false && !ui?.cart?.wishlist_only_mode && onAddPairingToCart && (
                 <button

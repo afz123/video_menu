@@ -105,7 +105,7 @@ export const CartDrawer = ({
           name: t(item.dish.name),
           quantity: item.quantity || 1,
           price: item.totalPrice,
-          currency: item.dish.currency,
+          currency: item.dish.currency || activeCurrency,
           course: item.course || 'По готовности кухни',
           chosen_options: item.chosenOptions || [],
           comment: item.comment || ''

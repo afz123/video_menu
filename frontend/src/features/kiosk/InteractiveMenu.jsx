@@ -288,7 +288,7 @@ export const InteractiveMenu = ({
                         marginLeft: '12px'
                       }}
                     >
-                      {dish.price} {dish.currency}
+                      {dish.price} {dish.currency || restaurantData.currency || 'TJS'}
                     </div>
                   )}
                 </div>
@@ -472,7 +472,7 @@ export const InteractiveMenu = ({
                       marginBottom: '24px'
                     }}
                   >
-                    {selectedDish.price} {selectedDish.currency}
+                    {selectedDish.price} {selectedDish.currency || restaurantData.currency || 'TJS'}
                   </div>
                 )}
 
