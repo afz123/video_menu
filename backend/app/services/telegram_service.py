@@ -37,9 +37,16 @@ class TelegramService:
             logger.warning("Telegram dispatch skipped: bot_token or chat_id not configured or test dummy")
             return False
 
-        url = f"https://api.telegram.org/bot{bot_token.strip()}/sendMessage"
+        clean_token = bot_token.strip()
+        clean_chat_id = str(chat_id).strip()
+        if clean_chat_id.startswith("-") and not clean_chat_id.startswith("-100"):
+            clean_chat_id = "-100" + clean_chat_id[1:]
+        elif clean_chat_id.isdigit():
+            clean_chat_id = "-100" + clean_chat_id
+
+        url = f"https://api.telegram.org/bot{clean_token}/sendMessage"
         payload = {
-            "chat_id": chat_id.strip(),
+            "chat_id": clean_chat_id,
             "text": text,
             "parse_mode": "HTML",
             "disable_web_page_preview": True
@@ -315,4 +322,244 @@ class TelegramService:
             ]
         }
         return await cls.send_message(bot_token, chat_id, "\n".join(lines), reply_markup=inline_keyboard)
+
+    @staticmethod
+    async def answer_callback_query(
+        bot_token: str,
+        callback_query_id: str,
+        text: Optional[str] = None,
+        show_alert: bool = False
+    ) -> bool:
+        """
+        Answers a Telegram callback query to dismiss the loading spinner on buttons.
+        """
+        if not bot_token or not callback_query_id:
+            return False
+        clean_token = bot_token.strip()
+        url = f"https://api.telegram.org/bot{clean_token}/answerCallbackQuery"
+        payload = {"callback_query_id": callback_query_id}
+        if text:
+            payload["text"] = text
+        if show_alert:
+            payload["show_alert"] = True
+
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                res = await client.post(url, json=payload)
+                return res.status_code == 200
+        except Exception as e:
+            logger.error(f"Error answering callback query: {e}")
+            return False
+
+    @staticmethod
+    async def edit_message_reply_markup(
+        bot_token: str,
+        chat_id: Any,
+        message_id: int,
+        reply_markup: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Updates the inline keyboard buttons on an existing Telegram message.
+        """
+        if not bot_token or not chat_id or not message_id:
+            return False
+        clean_token = bot_token.strip()
+        url = f"https://api.telegram.org/bot{clean_token}/editMessageReplyMarkup"
+        payload: Dict[str, Any] = {
+            "chat_id": chat_id,
+            "message_id": message_id
+        }
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
+
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                res = await client.post(url, json=payload)
+                return res.status_code == 200
+        except Exception as e:
+            logger.error(f"Error editing message reply markup: {e}")
+            return False
+
+    @classmethod
+    async def handle_callback_query(
+        cls,
+        bot_token: str,
+        callback_query: Dict[str, Any],
+        db_session
+    ):
+        """
+        Processes staff button clicks in Telegram:
+        - take_{table}: Staff took the request/call
+        - done_{table}: Staff fulfilled the request
+        - escalate_{table}: Manager is attending low NPS table
+        - confirm_bk_{id} / cancel_bk_{id}: Reservation approval
+        - served_{id}_{table}: Order served to table
+        """
+        from app.models.service_request import ServiceRequest
+        from app.models.reservation import TableReservation
+        from sqlalchemy import select
+
+        cq_id = callback_query.get("id")
+        data = callback_query.get("data", "")
+        message = callback_query.get("message", {})
+        message_id = message.get("message_id")
+        chat = message.get("chat", {})
+        chat_id = chat.get("id")
+
+        from_user = callback_query.get("from", {})
+        first_name = from_user.get("first_name", "")
+        username = from_user.get("username")
+        staff_name = f"@{username}" if username else (first_name or "Официант")
+
+        logger.info(f"Telegram callback received: {data} by {staff_name} (msg: {message_id}, chat: {chat_id})")
+
+        if data.startswith("take_"):
+            table_number = data.replace("take_", "").strip()
+            # Update DB service request for this table
+            try:
+                res = await db_session.execute(
+                    select(ServiceRequest)
+                    .where(
+                        ServiceRequest.table_number == table_number,
+                        ServiceRequest.status.in_(["PENDING", "COOKING", "READY"])
+                    )
+                    .order_by(ServiceRequest.id.desc())
+                    .limit(1)
+                )
+                srv = res.scalar_one_or_none()
+                if srv:
+                    srv.status = "ACKNOWLEDGED"
+                    srv.acknowledged_by = staff_name
+                    await db_session.commit()
+            except Exception as e:
+                logger.error(f"DB update failed on take: {e}")
+
+            # Answer callback
+            await cls.answer_callback_query(
+                bot_token,
+                cq_id,
+                text=f"🏃 {staff_name} принял вызов к столу {table_number}!",
+                show_alert=False
+            )
+
+            # Update inline buttons: show who took it and offer complete button
+            new_markup = {
+                "inline_keyboard": [
+                    [
+                        {"text": f"🏃 Принял: {staff_name}", "callback_data": f"noop_{table_number}"},
+                        {"text": "✅ Выполнено", "callback_data": f"done_{table_number}"}
+                    ]
+                ]
+            }
+            await cls.edit_message_reply_markup(bot_token, chat_id, message_id, new_markup)
+
+        elif data.startswith("done_"):
+            table_number = data.replace("done_", "").strip()
+            try:
+                res = await db_session.execute(
+                    select(ServiceRequest)
+                    .where(
+                        ServiceRequest.table_number == table_number,
+                        ServiceRequest.status.in_(["PENDING", "ACKNOWLEDGED", "COOKING", "READY"])
+                    )
+                    .order_by(ServiceRequest.id.desc())
+                    .limit(1)
+                )
+                srv = res.scalar_one_or_none()
+                if srv:
+                    srv.status = "COMPLETED"
+                    if not srv.acknowledged_by:
+                        srv.acknowledged_by = staff_name
+                    await db_session.commit()
+            except Exception as e:
+                logger.error(f"DB update failed on done: {e}")
+
+            await cls.answer_callback_query(
+                bot_token,
+                cq_id,
+                text=f"✅ Запрос стола {table_number} выполнен ({staff_name})",
+                show_alert=False
+            )
+
+            new_markup = {
+                "inline_keyboard": [
+                    [
+                        {"text": f"✅ Выполнил: {staff_name}", "callback_data": f"noop_{table_number}"}
+                    ]
+                ]
+            }
+            await cls.edit_message_reply_markup(bot_token, chat_id, message_id, new_markup)
+
+        elif data.startswith("escalate_"):
+            table_number = data.replace("escalate_", "").strip()
+            await cls.answer_callback_query(
+                bot_token,
+                cq_id,
+                text=f"🏃 {staff_name} направляется к столу {table_number}!",
+                show_alert=True
+            )
+            new_markup = {
+                "inline_keyboard": [
+                    [
+                        {"text": f"🏃 Решает вопрос: {staff_name}", "callback_data": f"noop_{table_number}"}
+                    ]
+                ]
+            }
+            await cls.edit_message_reply_markup(bot_token, chat_id, message_id, new_markup)
+
+        elif data.startswith("confirm_bk_") or data.startswith("cancel_bk_"):
+            is_confirm = data.startswith("confirm_bk_")
+            bk_id_str = data.replace("confirm_bk_", "").replace("cancel_bk_", "").strip()
+            new_status = "CONFIRMED" if is_confirm else "CANCELLED"
+            status_text = "подтверждена" if is_confirm else "отклонена"
+
+            try:
+                if bk_id_str.isdigit():
+                    bk = await db_session.get(TableReservation, int(bk_id_str))
+                    if bk:
+                        bk.status = new_status
+                        await db_session.commit()
+            except Exception as e:
+                logger.error(f"DB update failed on reservation: {e}")
+
+            await cls.answer_callback_query(
+                bot_token,
+                cq_id,
+                text=f"Бронь #{bk_id_str} {status_text} ({staff_name})",
+                show_alert=False
+            )
+
+            btn_label = f"✅ Подтвердил: {staff_name}" if is_confirm else f"❌ Отклонил: {staff_name}"
+            new_markup = {
+                "inline_keyboard": [
+                    [{"text": btn_label, "callback_data": "noop_bk"}]
+                ]
+            }
+            await cls.edit_message_reply_markup(bot_token, chat_id, message_id, new_markup)
+
+        elif data.startswith("served_"):
+            parts = data.split("_")
+            table_num = parts[2] if len(parts) > 2 else ""
+            await cls.answer_callback_query(
+                bot_token,
+                cq_id,
+                text=f"🏃 {staff_name} забрал заказ и несет к столу {table_num}!",
+                show_alert=False
+            )
+            new_markup = {
+                "inline_keyboard": [
+                    [{"text": f"🏃 Несет к столу: {staff_name}", "callback_data": f"noop_served"}]
+                ]
+            }
+            await cls.edit_message_reply_markup(bot_token, chat_id, message_id, new_markup)
+
+        elif data.startswith("noop_"):
+            await cls.answer_callback_query(
+                bot_token,
+                cq_id,
+                text="Статус уже зафиксирован",
+                show_alert=False
+            )
+        else:
+            await cls.answer_callback_query(bot_token, cq_id)
 
