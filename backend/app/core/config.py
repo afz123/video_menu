@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     QR_SECRET_KEY: str = os.getenv("QR_SECRET_KEY", "video_menu_luxury_qr_secret_salt_9981")
     ENFORCE_TABLE_SIGNATURE: bool = os.getenv("ENFORCE_TABLE_SIGNATURE", "false").lower() in ("true", "1")
 
+    # JWT Authentication
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "video_menu_secret_jwt_key_2026_super_secure_vault_9981")
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_DAYS: int = int(os.getenv("JWT_EXPIRE_DAYS", "30"))
+
     class Config:
         env_file = ".env"
         extra = "allow"
@@ -116,7 +121,7 @@ DEFAULT_UI_CONFIG = {
     },
     # 8. Модуль KDS: Кухонный планшет и диспетчер раздачи
     "kds": {
-        "enable_kds_system": False,          # По умолчанию выключено (принцип нулевого риска)
+        "enable_kds_system": True,           # Включено по умолчанию для удобства
         "sound_alerts_enabled": True,        # Звуковое оповещение при новом заказе
         "notify_waiter_on_ready": True,      # Пуш официанту, когда блюдо готово
         "alert_critical_delay_minutes": 18,  # Минут до красного тревожного мигания

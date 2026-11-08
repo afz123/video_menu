@@ -53,57 +53,53 @@ class ChangePasswordRequest(BaseModel):
     restaurant_slug: Optional[str] = None
 
 
-# Global master admin password persistence file in storage
-PASSWORD_FILE = settings.STORAGE_DIR / "admin_secret.json"
-
-
 def get_current_admin_password() -> str:
-    if PASSWORD_FILE.exists():
-        try:
-            with open(PASSWORD_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                pwd = data.get("password")
-                if pwd:
-                    return str(pwd)
-        except Exception:
-            pass
+    """Returns default master admin password fallback from environment."""
     return os.getenv("ADMIN_PASSWORD", "admin123")
-
-
-def save_admin_password(new_password: str):
-    settings.STORAGE_DIR.mkdir(parents=True, exist_ok=True)
-    with open(PASSWORD_FILE, "w", encoding="utf-8") as f:
-        json.dump({"password": new_password}, f, ensure_ascii=False, indent=2)
 
 
 @router.post("/login", response_model=LoginResponse)
 async def admin_login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     pwd = data.password.strip()
+    username = data.username.strip() if data.username else None
 
-    # 0. Персональный логин сотрудника (официант, хостес, повар, управляющий)
-    if data.username and data.username.strip():
+    # Если логин указан — авторизуем строго по логину и паролю
+    if username:
         u_res = await db.execute(
-            select(AdminUser).where(AdminUser.username == data.username.strip(), AdminUser.is_active == True)
+            select(AdminUser).where(AdminUser.username == username, AdminUser.is_active == True)
         )
-        staff_user = u_res.scalars().first()
-        if staff_user and (await verify_password_async(pwd, staff_user.password_hash)):
-            rest = await db.get(Restaurant, staff_user.restaurant_id) if staff_user.restaurant_id else None
+        user = u_res.scalars().first()
+        if user and user.password_hash and (await verify_password_async(pwd, user.password_hash)):
+            rest = await db.get(Restaurant, user.restaurant_id) if user.restaurant_id else None
             token = create_admin_token(
-                role=staff_user.role,
-                permissions=staff_user.permissions or [],
-                restaurant_id=staff_user.restaurant_id,
+                role=user.role,
+                permissions=user.permissions or (["*"] if user.role == "superadmin" else ["view_menu", "toggle_stop_list", "resolve_requests"]),
+                restaurant_id=user.restaurant_id,
                 restaurant_slug=rest.slug if rest else None
             )
+            role_title = "Владелец сети" if user.role == "superadmin" else f"Сотрудник ({user.role})"
             return LoginResponse(
                 status="success",
                 token=token,
-                role=staff_user.role,
-                restaurant_id=staff_user.restaurant_id,
+                role=user.role,
+                restaurant_id=user.restaurant_id,
                 restaurant_slug=rest.slug if rest else None,
-                message=f"Авторизация успешна ({staff_user.username} • {staff_user.role})"
+                message=f"Авторизация успешна ({user.username} • {role_title})"
             )
-        raise HTTPException(status_code=401, detail="Неверный логин или пароль сотрудника")
 
+        # Резервный случай для супер-админа если пользователь ввёл username="admin" или "superadmin"
+        if username in ("superadmin", "admin") and (pwd == get_current_admin_password()):
+            token = create_admin_token(role="superadmin", permissions=["*"])
+            return LoginResponse(
+                status="success",
+                token=token,
+                role="superadmin",
+                message="Авторизация успешна (Владелец сети / SuperAdmin)"
+            )
+
+        raise HTTPException(status_code=401, detail="Неверный логин или пароль")
+
+    # Фоллбэк без логина (для обратной совместимости / тестов)
     # 1. Проверка мастер-пользователя (SuperAdmin) в PostgreSQL
     superadmin_res = await db.execute(
         select(AdminUser).where(AdminUser.role == "superadmin", AdminUser.is_active == True)
@@ -119,7 +115,7 @@ async def admin_login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
                 message="Авторизация успешна (Владелец сети / SuperAdmin)"
             )
 
-    # Резервный фоллбэк на get_current_admin_password / env для обратной совместимости
+    # Фоллбэк на env пароль
     master_pwd = get_current_admin_password()
     if pwd == master_pwd:
         token = create_admin_token(role="superadmin", permissions=["*"])
@@ -135,7 +131,6 @@ async def admin_login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
         res = await db.execute(select(Restaurant).where(Restaurant.slug == data.slug.strip()))
         rest = res.scalar_one_or_none()
         if rest:
-            # Проверяем таблицу admin_users для этого ресторана
             mgr_res = await db.execute(
                 select(AdminUser).where(
                     AdminUser.restaurant_id == rest.id,
@@ -159,7 +154,6 @@ async def admin_login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
                     message=f"Авторизация успешна (Управляющий филиала: {rest.name})"
                 )
 
-            # Также проверяем rest.admin_password_hash
             if rest.admin_password_hash and (await verify_password_async(pwd, rest.admin_password_hash)):
                 token = create_admin_token(
                     role="manager",
@@ -176,7 +170,7 @@ async def admin_login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
                     message=f"Авторизация успешна (Управляющий филиала: {rest.name})"
                 )
 
-    raise HTTPException(status_code=401, detail="Неверный пароль администратора")
+    raise HTTPException(status_code=401, detail="Неверный логин или пароль")
 
 
 @router.post("/verify")
@@ -288,11 +282,6 @@ async def change_admin_password(
         master_admin.password_hash = new_hash
 
     await db.commit()
-    # Also update backup file if storage is present
-    try:
-        save_admin_password(new_p)
-    except Exception:
-        pass
 
     return {
         "status": "success",

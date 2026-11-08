@@ -5,16 +5,15 @@ import hashlib
 import hmac
 import asyncio
 import logging
-import fcntl
-from pathlib import Path
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
+import jwt
 from fastapi import HTTPException, Security, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.core.config import settings
 
 logger = logging.getLogger("video_menu.security")
 
-TOKENS_FILE = settings.STORAGE_DIR / "admin_tokens.json"
 MASTER_DEMO_TOKEN = "demo_master_token"
 
 def _is_dev_environment() -> bool:
@@ -146,72 +145,8 @@ def check_permission(admin: Any, required_perm: str):
     )
 
 
-TOKEN_LOCK_FILE = settings.STORAGE_DIR / "admin_tokens.lock"
-
-
-class _SessionFileLock:
-    def __init__(self, exclusive: bool = False):
-        self.exclusive = exclusive
-        self.fd = None
-
-    def __enter__(self):
-        settings.STORAGE_DIR.mkdir(parents=True, exist_ok=True)
-        self.fd = open(TOKEN_LOCK_FILE, "a+")
-        mode = fcntl.LOCK_EX if self.exclusive else fcntl.LOCK_SH
-        fcntl.flock(self.fd, mode)
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.fd:
-            try:
-                fcntl.flock(self.fd, fcntl.LOCK_UN)
-                self.fd.close()
-            except Exception:
-                pass
-
-
-def _load_persisted_tokens() -> Dict[str, Dict[str, Any]]:
-    tokens: Dict[str, Dict[str, Any]] = {}
-    if _is_dev_environment():
-        tokens[MASTER_DEMO_TOKEN] = {
-            "role": "superadmin",
-            "permissions": ["*"],
-            "restaurant_id": None,
-            "restaurant_slug": None
-        }
-
-    if TOKENS_FILE.exists():
-        try:
-            with open(TOKENS_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                if isinstance(data, dict):
-                    tokens.update(data)
-                elif isinstance(data, list):
-                    for tok in data:
-                        tokens[tok] = {
-                            "role": "superadmin",
-                            "permissions": ["*"],
-                            "restaurant_id": None,
-                            "restaurant_slug": None
-                        }
-        except Exception as e:
-            logger.warning(f"Failed to read tokens file: {e}")
-    return tokens
-
-
-def _save_persisted_tokens(tokens: Dict[str, Dict[str, Any]]):
-    try:
-        settings.STORAGE_DIR.mkdir(parents=True, exist_ok=True)
-        # Atomic file write to avoid worker race condition
-        temp_file = settings.STORAGE_DIR / f"admin_tokens_{secrets.token_hex(6)}.tmp"
-        with open(temp_file, "w", encoding="utf-8") as f:
-            json.dump(tokens, f, indent=2)
-        os.replace(temp_file, TOKENS_FILE)
-    except Exception as e:
-        logger.error(f"Failed to persist admin tokens: {e}")
-
-
-VALID_SESSIONS: Dict[str, Dict[str, Any]] = _load_persisted_tokens()
+# Revocation blacklist for JWT tokens (in-memory, no disk files)
+REVOKED_TOKENS: set = set()
 
 
 def create_admin_token(
@@ -220,55 +155,69 @@ def create_admin_token(
     restaurant_id: Optional[int] = None,
     restaurant_slug: Optional[str] = None
 ) -> str:
-    token = secrets.token_hex(24)
-    with _SessionFileLock(exclusive=True):
-        fresh = _load_persisted_tokens()
-        fresh[token] = {
-            "role": role,
-            "permissions": permissions or (["*"] if role == "superadmin" else ["view_menu", "toggle_stop_list", "resolve_requests"]),
-            "restaurant_id": restaurant_id,
-            "restaurant_slug": restaurant_slug
+    """
+    Creates a stateless cryptographically signed JWT token with standard claims.
+    No filesystem writes or locks required.
+    """
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(days=getattr(settings, "JWT_EXPIRE_DAYS", 30))
+    payload = {
+        "sub": f"admin_{role}",
+        "jti": secrets.token_hex(16),
+        "role": role,
+        "permissions": permissions or (["*"] if role == "superadmin" else ["view_menu", "toggle_stop_list", "resolve_requests"]),
+        "restaurant_id": restaurant_id,
+        "restaurant_slug": restaurant_slug,
+        "iat": int(now.timestamp()),
+        "exp": int(expire.timestamp())
+    }
+    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+
+def decode_admin_token(token: str) -> Optional[Dict[str, Any]]:
+    """Decodes and validates a signed JWT admin token."""
+    if not token or token in REVOKED_TOKENS:
+        return None
+    if _is_dev_environment() and token == MASTER_DEMO_TOKEN:
+        return {
+            "role": "superadmin",
+            "permissions": ["*"],
+            "restaurant_id": None,
+            "restaurant_slug": None
         }
-        VALID_SESSIONS.update(fresh)
-        _save_persisted_tokens(VALID_SESSIONS)
-    return token
+    try:
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM]
+        )
+        return payload
+    except Exception:
+        return None
 
 
 def revoke_admin_token(token: str):
-    with _SessionFileLock(exclusive=True):
-        fresh = _load_persisted_tokens()
-        if token in fresh:
-            del fresh[token]
-        if token in VALID_SESSIONS:
-            del VALID_SESSIONS[token]
-        _save_persisted_tokens(VALID_SESSIONS)
+    """Revokes a JWT token by adding it to the blacklist."""
+    if token:
+        REVOKED_TOKENS.add(token)
 
 
 def is_valid_token(token: str) -> bool:
-    if not token:
-        return False
-    if not _is_dev_environment() and token == MASTER_DEMO_TOKEN:
-        return False
-    if token in VALID_SESSIONS:
-        return True
-    with _SessionFileLock(exclusive=False):
-        fresh = _load_persisted_tokens()
-        VALID_SESSIONS.update(fresh)
-    return token in VALID_SESSIONS
+    """Validates if token signature and expiration are correct."""
+    return decode_admin_token(token) is not None
 
 
 def get_admin_session(token: str) -> Optional[AdminSession]:
-    if not is_valid_token(token):
-        return None
-    info = VALID_SESSIONS.get(token)
-    if not info:
+    """Builds AdminSession from verified JWT payload."""
+    payload = decode_admin_token(token)
+    if not payload:
         return None
     return AdminSession(
         token=token,
-        role=info.get("role", "superadmin"),
-        permissions=info.get("permissions", []),
-        restaurant_id=info.get("restaurant_id"),
-        restaurant_slug=info.get("restaurant_slug")
+        role=payload.get("role", "superadmin"),
+        permissions=payload.get("permissions", []),
+        restaurant_id=payload.get("restaurant_id"),
+        restaurant_slug=payload.get("restaurant_slug")
     )
 
 

@@ -76,7 +76,7 @@ export const DEFAULT_UI_CONFIG = {
     max_pacing_tables_per_slot: 3
   },
   kds: {
-    enable_kds_system: false,
+    enable_kds_system: true,
     sound_alerts_enabled: true,
     notify_waiter_on_ready: true,
     alert_critical_delay_minutes: 18

@@ -30,7 +30,7 @@ async def test_admin_login_invalid_password(client):
         json={"password": "incorrect_wrong_password_12345", "slug": "asr-royale"}
     )
     assert login_res.status_code == 401
-    assert "Неверный пароль" in login_res.json()["detail"]
+    assert "Неверный" in login_res.json()["detail"]
 
 
 @pytest.mark.asyncio

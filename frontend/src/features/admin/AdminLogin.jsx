@@ -13,6 +13,10 @@ export const AdminLogin = ({ onAuthenticated, restaurantSlug = 'asr-royale' }) =
 
   const handleLogin = async (e) => {
     if (e) e.preventDefault();
+    if (!username.trim()) {
+      setError('Введите логин учетной записи');
+      return;
+    }
     if (!password.trim()) {
       setError('Введите пароль для входа');
       return;
@@ -22,7 +26,7 @@ export const AdminLogin = ({ onAuthenticated, restaurantSlug = 'asr-royale' }) =
     setError(null);
 
     try {
-      const res = await menuService.loginAdmin(password.trim(), restaurantSlug, username.trim() || undefined);
+      const res = await menuService.loginAdmin(password.trim(), restaurantSlug, username.trim());
       if (res && res.token) {
         sessionStorage.setItem('admin_session_token', res.token);
         sessionStorage.setItem('admin_session_role', res.role || 'manager');
@@ -120,11 +124,12 @@ export const AdminLogin = ({ onAuthenticated, restaurantSlug = 'asr-royale' }) =
           )}
 
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Optional Staff Username input */}
+            {/* Username input */}
             <div style={{ position: 'relative' }}>
               <input
                 type="text"
-                placeholder="Логин сотрудника (необязательно для владельца)"
+                autoFocus
+                placeholder="Логин (например, superadmin или manager)"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 style={{
@@ -160,7 +165,6 @@ export const AdminLogin = ({ onAuthenticated, restaurantSlug = 'asr-royale' }) =
             <div style={{ position: 'relative' }}>
               <input
                 type={showPassword ? 'text' : 'password'}
-                autoFocus
                 placeholder="Пароль..."
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
