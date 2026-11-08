@@ -5,16 +5,16 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useUI } from '../../context/UIConfigContext';
 import { Info, Sparkles, AlertCircle, ChevronUp, ChevronDown, Plus, Wine, Volume2, VolumeX } from 'lucide-react';
 
-export const DishSlide = ({
-  dish,
-  isCurrent,
+export const DishSlide = ({ 
+  dish, 
+  isCurrent, 
   shouldMountMedia = true,
-  isSoundEnabled,
-  onToggleSound,
-  categoryName,
-  onAddToCart,
-  onAddPairingToCart,
-  onDetailsToggle
+  isSoundEnabled, 
+  onToggleSound, 
+  categoryName, 
+  onAddToCart, 
+  onAddPairingToCart, 
+  onDetailsToggle 
 }) => {
   const { t } = useLanguage();
   const ui = useUI();
@@ -124,8 +124,8 @@ export const DishSlide = ({
                   background: badge.includes('Шеф') || badge.includes('Хит')
                     ? 'var(--accent-gold-gradient)'
                     : badge.includes('Острое')
-                      ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)'
-                      : 'rgba(15, 15, 20, 0.85)',
+                    ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)'
+                    : 'rgba(15, 15, 20, 0.85)',
                   color: badge.includes('Шеф') || badge.includes('Хит') ? '#09090b' : '#fff',
                   border: badge.includes('Шеф') || badge.includes('Хит') ? 'none' : '1px solid rgba(255, 255, 255, 0.25)',
                   boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5)',

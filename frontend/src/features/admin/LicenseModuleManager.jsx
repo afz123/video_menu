@@ -165,7 +165,7 @@ export const LicenseModuleManager = ({ restaurant, onSaved }) => {
               localStorage.removeItem(key);
             }
           });
-        } catch (_) { }
+        } catch (_) {}
       }
 
       setSuccess(true);
