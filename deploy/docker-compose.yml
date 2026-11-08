@@ -3,25 +3,30 @@ version: '3.8'
 services:
   db:
     image: postgres:16-alpine
-    container_name: video_menu_postgres_prod
+    container_name: video_menu_postgres
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-videomenu}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-videomenu_prod_secure_2026}
       POSTGRES_DB: ${POSTGRES_DB:-videomenu}
+      TZ: ${TZ:-Asia/Tashkent}
+      PGTZ: ${TZ:-Asia/Tashkent}
+    ports:
+      # Локальный порт хоста 5435 не пересекается с 5432 (montem) и 5434 (clinic)
+      - "127.0.0.1:5435:5432"
     volumes:
-      - postgres_prod_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - video_menu_net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-videomenu}"]
-      interval: 5s
-      timeout: 5s
+      interval: 3s
+      timeout: 3s
       retries: 5
 
   backend:
-    build:
-      context: ../backend
-      dockerfile: Dockerfile
-    container_name: video_menu_backend_prod
+    image: video_menu-backend:latest
+    container_name: video_menu_backend
     restart: always
     depends_on:
       db:
@@ -30,20 +35,35 @@ services:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-videomenu}:${POSTGRES_PASSWORD:-videomenu_prod_secure_2026}@db:5432/${POSTGRES_DB:-videomenu}
       - API_V1_STR=/api/v1
       - ENVIRONMENT=production
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-video_menu_secret_jwt_key_2026_super_secure_vault_9981}
+      - QR_SECRET_KEY=${QR_SECRET_KEY:-video_menu_luxury_qr_secret_salt_9981}
+    ports:
+      # Порт 8088 не пересекается с 8000 (montem) и 8010 (clinic)
+      - "${BACKEND_PORT:-8088}:8088"
     volumes:
-      - ../backend/storage:/app/storage
+      - video_storage:/app/storage
+    networks:
+      - video_menu_net
 
   frontend:
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
-    container_name: video_menu_frontend_prod
+    image: video_menu-frontend:latest
+    container_name: video_menu_frontend
     restart: always
     depends_on:
       - backend
     ports:
-      - "80:80"
+      # Порт 3033 не пересекается с 80 (montem) и 3010 (clinic)
+      - "${FRONTEND_PORT:-3033}:80"
+    networks:
+      - video_menu_net
+
+networks:
+  video_menu_net:
+    name: video_menu_network
+    driver: bridge
 
 volumes:
-  postgres_prod_data:
-
+  postgres_data:
+    name: video_menu_postgres_data
+  video_storage:
+    name: video_menu_storage_data

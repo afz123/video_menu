@@ -44,6 +44,9 @@ frontend/.vite/
 
 # Environment Variables & Secrets
 .env
+.env.*
+!.env.example
+deploy/images.tar
 .env.local
 .env.development.local
 .env.test.local

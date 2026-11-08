@@ -4,6 +4,9 @@ __pycache__
 *.pyc
 *.pyo
 *.pyd
+*.c
+*.so
+build/
 .pytest_cache
 storage/videos/*
 !storage/videos/.gitkeep
@@ -11,4 +14,6 @@ storage/tmp/*
 !storage/tmp/.gitkeep
 *.log
 .env
+.env.*
 *.md
+.git
