@@ -35,6 +35,7 @@ export const CreateRestaurantModal = ({
   const [currency, setCurrency] = useState('TJS');
   const [serviceCharge, setServiceCharge] = useState('10.0');
   const [donorSlug, setDonorSlug] = useState('');
+  const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -76,6 +77,7 @@ export const CreateRestaurantModal = ({
         tagline: tagline.trim() || undefined,
         currency: currency,
         service_charge_percent: parseFloat(serviceCharge) || 10.0,
+        admin_username: adminUsername.trim() || undefined,
         admin_password: adminPassword.trim() || undefined
       };
 
@@ -330,28 +332,63 @@ export const CreateRestaurantModal = ({
               </div>
             )}
 
-            {/* 4. Branch Manager Password */}
-            <div style={{ marginBottom: '28px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                <Lock size={14} color="var(--accent-gold)" />
-                <span>Пароль управляющего филиала (опционально)</span>
-              </label>
-              <input
-                type="text"
-                placeholder="Если оставить пустым, действует мастер-пароль сети"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                style={{
-                  width: '100%',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  borderRadius: '12px',
-                  padding: '12px 14px',
-                  color: '#fff',
-                  fontSize: '14px',
-                  outline: 'none'
-                }}
-              />
+            {/* 4. Branch Manager Credentials (Login & Password) */}
+            <div style={{ marginBottom: '28px', padding: '16px', backgroundColor: 'rgba(255, 255, 255, 0.02)', borderRadius: '14px', border: '1px solid rgba(212, 175, 55, 0.2)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <Lock size={15} color="var(--accent-gold)" />
+                <span style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>
+                  Доступ управляющего точкой (опционально)
+                </span>
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 14px' }}>
+                Укажите логин и пароль для управляющего этого филиала. Он сможет входить и видеть <b>только этот ресторан</b>. Если оставить пустым — доступ будет только у владельца сети.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '600' }}>
+                    Логин управляющего:
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={`Например: manager_${slug || 'branch'}`}
+                    value={adminUsername}
+                    onChange={(e) => setAdminUsername(e.target.value)}
+                    style={{
+                      width: '100%',
+                      background: 'rgba(0, 0, 0, 0.4)',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      borderRadius: '10px',
+                      padding: '10px 12px',
+                      color: '#fff',
+                      fontSize: '13px',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '600' }}>
+                    Пароль управляющего:
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Например: Pass2026!"
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                    style={{
+                      width: '100%',
+                      background: 'rgba(0, 0, 0, 0.4)',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      borderRadius: '10px',
+                      padding: '10px 12px',
+                      color: '#fff',
+                      fontSize: '13px',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Actions */}

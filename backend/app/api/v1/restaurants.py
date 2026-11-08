@@ -89,14 +89,14 @@ async def list_restaurants(db: AsyncSession = Depends(get_db)):
 @router.post("", response_model=RestaurantResponse)
 async def create_restaurant(
     data: RestaurantCreate,
-    current_admin: str = Depends(get_current_admin),
+    current_admin: Any = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     existing = await db.execute(select(Restaurant).where(Restaurant.slug == data.slug))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Ресторан с таким slug уже существует")
 
-    rest_dict = data.model_dump(exclude={"admin_password"})
+    rest_dict = data.model_dump(exclude={"admin_password", "admin_username"})
     ui_cfg = rest_dict.pop("ui_config", None)
     if ui_cfg:
         theme = rest_dict.get("theme_config") or {}
@@ -112,8 +112,14 @@ async def create_restaurant(
     await db.refresh(restaurant)
 
     if data.admin_password:
+        mgr_username = data.admin_username.strip() if data.admin_username and data.admin_username.strip() else f"manager_{restaurant.slug}"
+        # Проверяем уникальность логина управляющего
+        existing_user = await db.execute(select(AdminUser).where(AdminUser.username == mgr_username))
+        if existing_user.scalar_one_or_none():
+            mgr_username = f"{mgr_username}_{restaurant.id}"
+
         mgr_user = AdminUser(
-            username=f"manager_{restaurant.slug}",
+            username=mgr_username,
             password_hash=restaurant.admin_password_hash,
             role="manager",
             restaurant_id=restaurant.id,

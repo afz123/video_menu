@@ -23,6 +23,7 @@ class RestaurantBase(BaseModel):
     ui_config: Optional[Dict[str, Any]] = None
 
 class RestaurantCreate(RestaurantBase):
+    admin_username: Optional[str] = None
     admin_password: Optional[str] = None
 
 class RestaurantUpdate(BaseModel):
