@@ -707,71 +707,71 @@ export const RestaurantSettings = ({
         {/* Service Charge Sub-section */}
         <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)', paddingTop: '18px' }}>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-              <div style={{ width: '160px' }}>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '600' }}>
-                  Процент в чеке (%):
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type="number"
-                    min="0"
-                    max="30"
-                    step="0.5"
-                    value={formData.service_charge_percent}
-                    onChange={(e) => setFormData({ ...formData, service_charge_percent: e.target.value })}
-                    style={{
-                      width: '100%',
-                      backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                      border: '1px solid rgba(212, 175, 55, 0.4)',
-                      borderRadius: '12px',
-                      padding: '12px 36px 12px 16px',
-                      color: 'var(--accent-gold)',
-                      fontSize: '18px',
-                      fontWeight: '700',
-                      outline: 'none'
-                    }}
-                  />
-                  <span style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--accent-gold)', fontWeight: '700' }}>
-                    %
-                  </span>
-                </div>
-              </div>
-
-              {/* Quick Presets */}
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '600' }}>
-                  Быстрый выбор стандарта заведения:
-                </label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  {[0, 10, 12, 15, 20].map((pct) => (
-                    <button
-                      key={pct}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, service_charge_percent: pct })}
-                      style={{
-                        padding: '8px 14px',
-                        borderRadius: '10px',
-                        border: Number(formData.service_charge_percent) === pct ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
-                        backgroundColor: Number(formData.service_charge_percent) === pct ? 'rgba(212, 175, 55, 0.18)' : 'rgba(255, 255, 255, 0.03)',
-                        color: Number(formData.service_charge_percent) === pct ? 'var(--accent-gold-light)' : 'var(--text-main)',
-                        fontWeight: Number(formData.service_charge_percent) === pct ? '700' : '500',
-                        fontSize: '13px',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      {pct === 0 ? 'Без наценки (0%)' : `${pct}%`}
-                    </button>
-                  ))}
-                </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <div style={{ width: '160px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '600' }}>
+                Процент в чеке (%):
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="number"
+                  min="0"
+                  max="30"
+                  step="0.5"
+                  value={formData.service_charge_percent}
+                  onChange={(e) => setFormData({ ...formData, service_charge_percent: e.target.value })}
+                  style={{
+                    width: '100%',
+                    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(212, 175, 55, 0.4)',
+                    borderRadius: '12px',
+                    padding: '12px 36px 12px 16px',
+                    color: 'var(--accent-gold)',
+                    fontSize: '18px',
+                    fontWeight: '700',
+                    outline: 'none'
+                  }}
+                />
+                <span style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--accent-gold)', fontWeight: '700' }}>
+                  %
+                </span>
               </div>
             </div>
-            <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: 0 }}>
-              💡 Пример: при заказе стейка за 300 TJS с обслуживанием {formData.service_charge_percent}% гость увидит: блюда 300 TJS + обслуживание {(300 * (Number(formData.service_charge_percent) / 100)).toFixed(1)} TJS = Итого к оплате {(300 * (1 + Number(formData.service_charge_percent) / 100)).toFixed(1)} TJS.
-            </p>
+
+            {/* Quick Presets */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '600' }}>
+                Быстрый выбор стандарта заведения:
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {[0, 10, 12, 15, 20].map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, service_charge_percent: pct })}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: '10px',
+                      border: Number(formData.service_charge_percent) === pct ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
+                      backgroundColor: Number(formData.service_charge_percent) === pct ? 'rgba(212, 175, 55, 0.18)' : 'rgba(255, 255, 255, 0.03)',
+                      color: Number(formData.service_charge_percent) === pct ? 'var(--accent-gold-light)' : 'var(--text-main)',
+                      fontWeight: Number(formData.service_charge_percent) === pct ? '700' : '500',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {pct === 0 ? 'Без наценки (0%)' : `${pct}%`}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
+          <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: 0 }}>
+            💡 Пример: при заказе стейка за 300 TJS с обслуживанием {formData.service_charge_percent}% гость увидит: блюда 300 TJS + обслуживание {(300 * (Number(formData.service_charge_percent) / 100)).toFixed(1)} TJS = Итого к оплате {(300 * (1 + Number(formData.service_charge_percent) / 100)).toFixed(1)} TJS.
+          </p>
+        </div>
         </div>
       </GlassCard>
 
