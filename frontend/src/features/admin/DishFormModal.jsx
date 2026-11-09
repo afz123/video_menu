@@ -969,7 +969,7 @@ export const DishFormModal = ({
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: '#fff' }}>
                     <Wine size={15} color="var(--accent-gold)" />
-                    <span>Рекомендация сомелье / Food Pairing (+18% к среднему чеку)</span>
+                    <span>Рекомендация / Food Pairing</span>
                   </label>
                   {allDishes.length > 0 && (
                     <div style={{ position: 'relative' }}>
