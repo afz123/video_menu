@@ -13,12 +13,15 @@ import {
   Flame,
   Scale,
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  Wine,
+  ChevronDown
 } from 'lucide-react';
 
 export const DishFormModal = ({
   restaurantId,
   categories = [],
+  allDishes = [],
   dishToEdit = null,
   initialCategoryId = null,
   supportedLocales = ['ru', 'tj', 'en'],
@@ -88,9 +91,31 @@ export const DishFormModal = ({
   // Restaurateur features: Badges, Modifiers, Pairings
   const [badges, setBadges] = useState(dishToEdit?.badges || []);
   const [newBadgeText, setNewBadgeText] = useState('');
-  const [pairingsText, setPairingsText] = useState(
-    dishToEdit?.pairings?.[0]?.text || ''
-  );
+
+  // Parse initial pairing (name and price)
+  const initialPairing = dishToEdit?.pairings?.[0];
+  const parseInitialPairing = () => {
+    if (!initialPairing) return { title: '', price: '' };
+    if (typeof initialPairing === 'string') {
+      const match = initialPairing.match(/^(.*?)(?:\s*\(([\d.]+)\s*[A-Za-zА-Яа-я]*\))?$/);
+      return {
+        title: (match ? match[1] : initialPairing).replace(/^(Идеально сочетается с:\s*|Рекомендация:\s*)/i, '').trim(),
+        price: match && match[2] ? match[2] : ''
+      };
+    }
+    const text = initialPairing.text || initialPairing.dish_name || initialPairing.name || '';
+    const match = text.match(/^(.*?)(?:\s*\(([\d.]+)\s*[A-Za-zА-Яа-я]*\))?$/);
+    const cleanTitle = (match ? match[1] : text).replace(/^(Идеально сочетается с:\s*|Рекомендация:\s*)/i, '').trim();
+    const parsedPrice = initialPairing.price !== undefined && initialPairing.price !== null
+      ? String(initialPairing.price)
+      : (match && match[2] ? match[2] : '');
+    return { title: cleanTitle, price: parsedPrice };
+  };
+
+  const initPairingData = parseInitialPairing();
+  const [pairingTitle, setPairingTitle] = useState(initPairingData.title);
+  const [pairingPrice, setPairingPrice] = useState(initPairingData.price);
+  const [isPairingSelectOpen, setIsPairingSelectOpen] = useState(false);
   const [modifiers, setModifiers] = useState(dishToEdit?.modifiers || []);
   const [isAddingGroup, setIsAddingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -229,6 +254,23 @@ export const DishFormModal = ({
       ? allergens.split(',').map((s) => s.trim()).filter(Boolean)
       : [];
 
+    // Build structured pairing payload
+    let structuredPairings = [];
+    if (pairingTitle.trim()) {
+      const pTitle = pairingTitle.trim();
+      const pPrice = pairingPrice !== '' && !isNaN(parseFloat(pairingPrice)) ? parseFloat(pairingPrice) : null;
+      const formattedText = pPrice !== null
+        ? `${pTitle} (${pPrice} ${currency.trim() || 'TJS'})`
+        : pTitle;
+
+      structuredPairings = [{
+        name: pTitle,
+        dish_name: pTitle,
+        price: pPrice,
+        text: formattedText
+      }];
+    }
+
     const payload = {
       restaurant_id: restaurantId,
       category_id: parseInt(categoryId, 10),
@@ -241,7 +283,7 @@ export const DishFormModal = ({
       allergens: parsedAllergens,
       badges: badges,
       modifiers: modifiers,
-      pairings: pairingsText.trim() ? [{ text: pairingsText.trim() }] : [],
+      pairings: structuredPairings,
       media_id: mediaId,
       is_available: isAvailable
     };
@@ -921,24 +963,180 @@ export const DishFormModal = ({
 
               {/* Food Pairing / Sommelier Suggestion */}
               <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: '12px', padding: '14px', marginBottom: '12px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#fff', marginBottom: '6px' }}>
-                  Рекомендация / Food Pairing
-                </label>
-                <input
-                  type="text"
-                  placeholder="Например: Идеально сочетается с: Бокал Malbec Grand Reserve (120 TJS)"
-                  value={pairingsText}
-                  onChange={(e) => setPairingsText(e.target.value)}
-                  style={{
-                    width: '100%',
-                    backgroundColor: 'rgba(10, 10, 14, 0.8)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    borderRadius: '8px',
-                    padding: '10px 12px',
-                    color: '#fff',
-                    fontSize: '13px'
-                  }}
-                />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: '#fff' }}>
+                    <Wine size={15} color="var(--accent-gold)" />
+                    <span>Рекомендация сомелье / Food Pairing (+18% к среднему чеку)</span>
+                  </label>
+                  {allDishes.length > 0 && (
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        type="button"
+                        onClick={() => setIsPairingSelectOpen(!isPairingSelectOpen)}
+                        style={{
+                          background: 'rgba(212, 175, 55, 0.15)',
+                          border: '1px solid rgba(212, 175, 55, 0.3)',
+                          borderRadius: '6px',
+                          color: 'var(--accent-gold)',
+                          padding: '4px 8px',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <span>Выбрать из меню</span>
+                        <ChevronDown size={12} />
+                      </button>
+
+                      {isPairingSelectOpen && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            right: 0,
+                            top: '100%',
+                            marginTop: '4px',
+                            width: '260px',
+                            maxHeight: '220px',
+                            overflowY: 'auto',
+                            backgroundColor: '#18181b',
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            borderRadius: '8px',
+                            boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                            zIndex: 100,
+                            padding: '4px'
+                          }}
+                        >
+                          <div style={{ padding: '6px 8px', fontSize: '11px', color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                            Выберите напиток или блюдо:
+                          </div>
+                          {allDishes
+                            .filter((d) => d.id !== dishToEdit?.id)
+                            .map((d) => {
+                              const dName = typeof d.name === 'object' ? (d.name.ru || Object.values(d.name)[0]) : d.name;
+                              return (
+                                <button
+                                  key={d.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setPairingTitle(dName);
+                                    if (d.price !== undefined && d.price !== null) {
+                                      setPairingPrice(String(d.price));
+                                    }
+                                    setIsPairingSelectOpen(false);
+                                  }}
+                                  style={{
+                                    width: '100%',
+                                    textAlign: 'left',
+                                    padding: '8px',
+                                    background: 'transparent',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    color: '#fff',
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    transition: 'background 0.15s'
+                                  }}
+                                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+                                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                >
+                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '170px' }}>
+                                    {dName}
+                                  </span>
+                                  <span style={{ color: 'var(--accent-gold)', fontWeight: '700', fontSize: '11px' }}>
+                                    {d.price} {d.currency || currency}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '10px' }}>
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Название напитка (напр. Бокал Malbec)"
+                      value={pairingTitle}
+                      onChange={(e) => setPairingTitle(e.target.value)}
+                      style={{
+                        width: '100%',
+                        backgroundColor: 'rgba(10, 10, 14, 0.8)',
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        borderRadius: '8px',
+                        padding: '10px 12px',
+                        color: '#fff',
+                        fontSize: '13px'
+                      }}
+                    />
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="Цена"
+                      value={pairingPrice}
+                      onChange={(e) => setPairingPrice(e.target.value)}
+                      style={{
+                        width: '100%',
+                        backgroundColor: 'rgba(10, 10, 14, 0.8)',
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        borderRadius: '8px',
+                        padding: '10px 38px 10px 12px',
+                        color: '#fff',
+                        fontSize: '13px'
+                      }}
+                    />
+                    <span
+                      style={{
+                        position: 'absolute',
+                        right: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'var(--text-muted)',
+                        fontSize: '11px',
+                        pointerEvents: 'none',
+                        fontWeight: '600'
+                      }}
+                    >
+                      {currency}
+                    </span>
+                  </div>
+                </div>
+
+                {pairingTitle && (
+                  <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
+                    <span>
+                      Предпросмотр: <span style={{ color: 'var(--accent-gold)' }}>{pairingTitle}</span> {pairingPrice ? `(${pairingPrice} ${currency})` : ''}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPairingTitle('');
+                        setPairingPrice('');
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#ef4444',
+                        cursor: 'pointer',
+                        padding: '0 4px',
+                        fontSize: '11px',
+                        textDecoration: 'underline'
+                      }}
+                    >
+                      Очистить
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Dynamic Modifiers & Option Constructor */}
