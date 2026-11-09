@@ -922,7 +922,7 @@ export const DishFormModal = ({
               {/* Food Pairing / Sommelier Suggestion */}
               <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: '12px', padding: '14px', marginBottom: '12px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#fff', marginBottom: '6px' }}>
-                  🍷 Рекомендация сомелье / Food Pairing (+18% к среднему чеку)
+                  Рекомендация / Food Pairing
                 </label>
                 <input
                   type="text"
@@ -1064,6 +1064,27 @@ export const DishFormModal = ({
                       style={{ background: 'none', border: '1px dashed #a855f7', color: '#a855f7', borderRadius: '8px', padding: '4px 8px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}
                     >
                       + 🍸 Бар / Напитки
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newGrp = {
+                          id: `exclude_${Date.now()}`,
+                          name: 'Убрать из блюда',
+                          type: 'multiple',
+                          required: false,
+                          options: [
+                            { name: 'Без лука', price: 0 },
+                            { name: 'Без кинзы', price: 0 },
+                            { name: 'Без чеснока', price: 0 },
+                            { name: 'Соус отдельно', price: 0 }
+                          ]
+                        };
+                        setModifiers([...modifiers, newGrp]);
+                      }}
+                      style={{ background: 'none', border: '1px dashed #10b981', color: '#10b981', borderRadius: '8px', padding: '4px 8px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}
+                    >
+                      + 🚫 Убрать ингредиенты
                     </button>
                     <button
                       type="button"

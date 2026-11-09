@@ -329,46 +329,8 @@ export const ModifierModal = ({ dish, onClose, onAddToCart }) => {
 
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-              Пожелание повару / официанту (опционально):
+              Пожелание повару (опционально):
             </label>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
-              {(cardUI.cooking_notes_presets || [
-                'Без лука',
-                'Без кинзы',
-                'Соус отдельно',
-                'Менее острое',
-                'Горячим к столу',
-                'Без сахара'
-              ]).map((tag) => {
-                const isActive = comment.includes(tag);
-                return (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => {
-                      if (isActive) {
-                        setComment((prev) => prev.replace(tag, '').replace(/,\s*,/g, ',').replace(/^,\s*|,\s*$/g, '').trim());
-                      } else {
-                        setComment((prev) => prev ? `${prev}, ${tag}` : tag);
-                      }
-                    }}
-                    style={{
-                      background: isActive ? 'rgba(212, 175, 55, 0.22)' : 'rgba(255, 255, 255, 0.05)',
-                      border: isActive ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
-                      color: isActive ? 'var(--accent-gold)' : 'var(--text-muted)',
-                      borderRadius: '16px',
-                      padding: '4px 10px',
-                      fontSize: '11px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    {isActive ? `✓ ${tag}` : `+ ${tag}`}
-                  </button>
-                );
-              })}
-            </div>
             <input
               type="text"
               placeholder="Своё пожелание (например: без соли, подать первым)"

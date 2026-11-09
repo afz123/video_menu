@@ -1229,6 +1229,7 @@ export const DashboardLayout = ({ defaultSlug = 'asr-royale' } = {}) => {
           restaurantId={restaurant?.id}
           defaultCurrency={restaurant?.currency || 'TJS'}
           categories={categories}
+          allDishes={allDishes}
           dishToEdit={editingDish}
           initialCategoryId={initialCategoryId}
           supportedLocales={restaurant?.supported_locales || ['ru', 'tj', 'en']}
