@@ -15,7 +15,8 @@ import {
   AlertCircle,
   HelpCircle,
   Wine,
-  ChevronDown
+  ChevronDown,
+  Search
 } from 'lucide-react';
 
 export const DishFormModal = ({
@@ -116,6 +117,8 @@ export const DishFormModal = ({
   const [pairingTitle, setPairingTitle] = useState(initPairingData.title);
   const [pairingPrice, setPairingPrice] = useState(initPairingData.price);
   const [isPairingSelectOpen, setIsPairingSelectOpen] = useState(false);
+  const [pairingCategoryFilter, setPairingCategoryFilter] = useState('all');
+  const [pairingSearchQuery, setPairingSearchQuery] = useState('');
   const [modifiers, setModifiers] = useState(dishToEdit?.modifiers || []);
   const [isAddingGroup, setIsAddingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -997,63 +1000,157 @@ export const DishFormModal = ({
                             position: 'absolute',
                             right: 0,
                             top: '100%',
-                            marginTop: '4px',
-                            width: '260px',
-                            maxHeight: '220px',
-                            overflowY: 'auto',
+                            marginTop: '6px',
+                            width: '320px',
                             backgroundColor: '#18181b',
-                            border: '1px solid rgba(255, 255, 255, 0.15)',
-                            borderRadius: '8px',
-                            boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                            border: '1px solid rgba(212, 175, 55, 0.3)',
+                            borderRadius: '10px',
+                            boxShadow: '0 12px 35px rgba(0,0,0,0.65)',
                             zIndex: 100,
-                            padding: '4px'
+                            padding: '8px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px'
                           }}
                         >
-                          <div style={{ padding: '6px 8px', fontSize: '11px', color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                            Выберите напиток или блюдо:
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 4px' }}>
+                            <span style={{ fontSize: '12px', fontWeight: '700', color: '#fff' }}>
+                              Выбор из меню
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setIsPairingSelectOpen(false)}
+                              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
+                            >
+                              <X size={14} />
+                            </button>
                           </div>
-                          {allDishes
-                            .filter((d) => d.id !== dishToEdit?.id)
-                            .map((d) => {
-                              const dName = typeof d.name === 'object' ? (d.name.ru || Object.values(d.name)[0]) : d.name;
+
+                          {/* Category Filter Pills / Dropdown */}
+                          <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', paddingBottom: '4px' }}>
+                            <button
+                              type="button"
+                              onClick={() => setPairingCategoryFilter('all')}
+                              style={{
+                                background: pairingCategoryFilter === 'all' ? 'var(--accent-gold)' : 'rgba(255,255,255,0.06)',
+                                color: pairingCategoryFilter === 'all' ? '#09090b' : 'var(--text-main)',
+                                border: 'none',
+                                borderRadius: '12px',
+                                padding: '4px 10px',
+                                fontSize: '11px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              Все
+                            </button>
+                            {categories.map((cat) => {
+                              const cName = typeof cat.name === 'object' ? (cat.name.ru || Object.values(cat.name)[0]) : cat.name;
+                              const isCatActive = pairingCategoryFilter === String(cat.id);
                               return (
                                 <button
-                                  key={d.id}
+                                  key={cat.id}
                                   type="button"
-                                  onClick={() => {
-                                    setPairingTitle(dName);
-                                    if (d.price !== undefined && d.price !== null) {
-                                      setPairingPrice(String(d.price));
-                                    }
-                                    setIsPairingSelectOpen(false);
-                                  }}
+                                  onClick={() => setPairingCategoryFilter(String(cat.id))}
                                   style={{
-                                    width: '100%',
-                                    textAlign: 'left',
-                                    padding: '8px',
-                                    background: 'transparent',
+                                    background: isCatActive ? 'var(--accent-gold)' : 'rgba(255,255,255,0.06)',
+                                    color: isCatActive ? '#09090b' : 'var(--text-main)',
                                     border: 'none',
-                                    borderRadius: '6px',
-                                    color: '#fff',
-                                    fontSize: '12px',
+                                    borderRadius: '12px',
+                                    padding: '4px 10px',
+                                    fontSize: '11px',
+                                    fontWeight: '600',
                                     cursor: 'pointer',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    transition: 'background 0.15s'
+                                    whiteSpace: 'nowrap'
                                   }}
-                                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
-                                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                                 >
-                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '170px' }}>
-                                    {dName}
-                                  </span>
-                                  <span style={{ color: 'var(--accent-gold)', fontWeight: '700', fontSize: '11px' }}>
-                                    {d.price} {d.currency || currency}
-                                  </span>
+                                  {cName}
                                 </button>
                               );
                             })}
+                          </div>
+
+                          {/* Search Input within Menu */}
+                          <div style={{ position: 'relative' }}>
+                            <Search size={13} style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                            <input
+                              type="text"
+                              placeholder="Быстрый поиск блюда или напитка..."
+                              value={pairingSearchQuery}
+                              onChange={(e) => setPairingSearchQuery(e.target.value)}
+                              style={{
+                                width: '100%',
+                                backgroundColor: 'rgba(10, 10, 14, 0.9)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                borderRadius: '6px',
+                                padding: '6px 8px 6px 26px',
+                                color: '#fff',
+                                fontSize: '11px'
+                              }}
+                            />
+                          </div>
+
+                          {/* Dishes list */}
+                          <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            {allDishes
+                              .filter((d) => d.id !== dishToEdit?.id)
+                              .filter((d) => {
+                                if (pairingCategoryFilter === 'all') return true;
+                                return String(d.category_id) === pairingCategoryFilter;
+                              })
+                              .filter((d) => {
+                                if (!pairingSearchQuery.trim()) return true;
+                                const dName = typeof d.name === 'object' ? (d.name.ru || Object.values(d.name)[0] || '') : (d.name || '');
+                                return dName.toLowerCase().includes(pairingSearchQuery.toLowerCase());
+                              })
+                              .map((d) => {
+                                const dName = typeof d.name === 'object' ? (d.name.ru || Object.values(d.name)[0]) : d.name;
+                                return (
+                                  <button
+                                    key={d.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setPairingTitle(dName);
+                                      if (d.price !== undefined && d.price !== null) {
+                                        setPairingPrice(String(d.price));
+                                      }
+                                      setIsPairingSelectOpen(false);
+                                      setPairingSearchQuery('');
+                                    }}
+                                    style={{
+                                      width: '100%',
+                                      textAlign: 'left',
+                                      padding: '7px 10px',
+                                      background: 'transparent',
+                                      border: 'none',
+                                      borderRadius: '6px',
+                                      color: '#fff',
+                                      fontSize: '12px',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center',
+                                      transition: 'background 0.15s'
+                                    }}
+                                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+                                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                  >
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>
+                                      {dName}
+                                    </span>
+                                    <span style={{ color: 'var(--accent-gold)', fontWeight: '700', fontSize: '11px', flexShrink: 0 }}>
+                                      {d.price} {d.currency || currency}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            {allDishes.filter((d) => d.id !== dishToEdit?.id && (pairingCategoryFilter === 'all' || String(d.category_id) === pairingCategoryFilter)).length === 0 && (
+                              <div style={{ padding: '12px', textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)' }}>
+                                В этом разделе нет позиций
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
