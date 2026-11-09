@@ -966,8 +966,8 @@ export const DishFormModal = ({
                           },
                           {
                             id: 'sauce',
-                            name: 'Авторский соус',
-                            type: 'single',
+                            name: 'Авторские соусы',
+                            type: 'multiple',
                             required: false,
                             options: [
                               { name: 'Черный трюфельный демиглас', price: 35 },

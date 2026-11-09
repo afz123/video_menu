@@ -67,8 +67,8 @@ SAMPLE_MODIFIERS_STEAK = [
     },
     {
         "id": "sauce",
-        "name": "Авторский соус",
-        "type": "single",
+        "name": "Авторские соусы",
+        "type": "multiple",
         "required": False,
         "options": [
             {"name": "Черный трюфельный демиглас", "price": 35},
